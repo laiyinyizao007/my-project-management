@@ -1,0 +1,72 @@
+name: Auto-deploy to New Repos
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+    steps:
+      - name: Auto-deploy add-to-project workflow to new repos
+        run: |
+          OWNER=$(gh api user --jq '.login')
+          SOURCE="${OWNER}/my-project-management"
+          WF_PATH=".github/workflows/auto-add-to-project.yml"
+          PROJECT_NUM="${{ vars.PROJECT_NUMBER }}"
+
+          # 获取源 workflow 内容（去除 GitHub API base64 换行）
+          CONTENT=$(gh api "repos/${SOURCE}/contents/${WF_PATH}" \
+            --jq '.content' | tr -d '\n')
+
+          # 列出所有未归档仓库
+          REPOS=$(gh api user/repos --paginate \
+            --jq '[.[] | select(.archived == false) | .full_name] | .[]')
+
+          DEPLOYED=0
+          SKIPPED=0
+
+          for repo in $REPOS; do
+            [[ "$repo" == "$SOURCE" ]] && continue
+
+            # 已部署则跳过
+            if gh api "repos/${repo}/contents/${WF_PATH}" &>/dev/null 2>&1; then
+              echo "⏭️  ${repo}: 已部署，跳过"
+              SKIPPED=$((SKIPPED + 1))
+              continue
+            fi
+
+            echo "🚀 部署到 ${repo}..."
+
+            # 1) 部署 workflow 文件
+            jq -n --arg c "$CONTENT" \
+              '{"message":"chore: auto-deploy add-to-project workflow","content":$c}' \
+            | gh api "repos/${repo}/contents/${WF_PATH}" --method PUT --input - >/dev/null
+
+            # 2) 设置 PROJECT_NUMBER 变量
+            gh variable set PROJECT_NUMBER --body "$PROJECT_NUM" --repo "$repo"
+
+            # 3) 传递 PROJECT_TOKEN Secret（PAT 自我传播到新仓库）
+            gh secret set PROJECT_TOKEN --body "$GH_TOKEN" --repo "$repo"
+
+            # 4) 设置 Actions 权限为 write
+            printf '{"default_workflow_permissions":"write","can_approve_pull_request_reviews":false}' \
+            | gh api "repos/${repo}/actions/permissions/workflow" \
+                --method PUT --input - >/dev/null
+
+            # 5) 创建 .github/.keep 触发 workflow 注册
+            KEEP=$(printf '# auto-generated\n' | base64 | tr -d '\n')
+            jq -n --arg c "$KEEP" \
+              '{"message":"chore: init .github","content":$c}' \
+            | gh api "repos/${repo}/contents/.github/.keep" \
+                --method PUT --input - >/dev/null || true
+
+            echo "✅ ${repo}: 完成"
+            DEPLOYED=$((DEPLOYED + 1))
+          done
+
+          echo ""
+          echo "📊 本次扫描：新部署 ${DEPLOYED} 个，跳过 ${SKIPPED} 个"
