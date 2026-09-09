@@ -1,0 +1,26 @@
+name: Sync repository labels
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/labels.yml"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  sync-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync labels from labels.yml
+        uses: EndBug/label-sync@v2
+        with:
+          config-file: .github/labels.yml
+          # 设为 false：只新增/更新，不删除仓库中已有但 labels.yml 里没有的标签
+          # 设为 true：严格同步，删除 labels.yml 以外的所有标签（谨慎使用）
+          delete-other-labels: false
+          token: ${{ secrets.GITHUB_TOKEN }}

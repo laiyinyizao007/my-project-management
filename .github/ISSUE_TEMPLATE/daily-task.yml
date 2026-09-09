@@ -1,0 +1,92 @@
+name: "Daily Task / 日常任务"
+description: "记录一项具体的工作任务"
+title: "[Task] "
+labels: ["task", "status: todo"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 任务信息
+        请填写以下字段来描述这项任务。
+
+  - type: input
+    id: summary
+    attributes:
+      label: "任务简述"
+      description: "用一句话描述这项任务的目标"
+      placeholder: "例：完成 Q3 季度报告初稿"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "优先级"
+      options:
+        - "P0 - 紧急，今天必须完成"
+        - "P1 - 高优先级，本周完成"
+        - "P2 - 中优先级，本月完成"
+        - "P3 - 低优先级，有空再做"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: "任务类别"
+      options:
+        - "开发 (Development)"
+        - "文档 (Documentation)"
+        - "设计 (Design)"
+        - "会议/沟通 (Meeting)"
+        - "学习/研究 (Learning)"
+        - "运维/部署 (Ops)"
+        - "其他 (Other)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: size
+    attributes:
+      label: "预估工作量"
+      options:
+        - "XS - 小于 1 小时"
+        - "S - 1 到 4 小时"
+        - "M - 半天到 1 天"
+        - "L - 2 到 3 天"
+        - "XL - 超过 3 天（建议拆分）"
+
+  - type: input
+    id: due-date
+    attributes:
+      label: "期望完成日期"
+      placeholder: "2025-12-31"
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "详细描述"
+      placeholder: |
+        **背景：**
+
+        **相关链接：**
+
+        **注意事项：**
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: "完成标准 (Acceptance Criteria)"
+      value: |
+        - [ ]
+        - [ ]
+        - [ ]
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: "提交前检查"
+      options:
+        - label: "我已确认该任务尚未被记录"
+          required: true

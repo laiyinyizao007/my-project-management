@@ -1,0 +1,110 @@
+# ────────────────────────────────────────────
+# Type（任务类型）
+# ────────────────────────────────────────────
+- name: "task"
+  color: "0075ca"
+  description: "日常任务"
+
+- name: "epic"
+  color: "6f42c1"
+  description: "大型任务，包含多个子任务"
+
+- name: "bug"
+  color: "d73a4a"
+  description: "Bug 报告"
+
+- name: "feature"
+  color: "a2eeef"
+  description: "新功能请求"
+
+- name: "research"
+  color: "ededed"
+  description: "需要调研的问题"
+
+- name: "type: weekly-plan"
+  color: "0052cc"
+  description: "周计划"
+
+# ────────────────────────────────────────────
+# Status（任务状态）
+# ────────────────────────────────────────────
+- name: "status: todo"
+  color: "e0e0e0"
+  description: "待开始"
+
+- name: "status: in-progress"
+  color: "fbca04"
+  description: "进行中"
+
+- name: "status: blocked"
+  color: "e11d48"
+  description: "被阻塞"
+
+- name: "status: review"
+  color: "0e8a16"
+  description: "等待审核"
+
+- name: "status: done"
+  color: "238636"
+  description: "已完成"
+
+# ────────────────────────────────────────────
+# Priority（优先级）
+# ────────────────────────────────────────────
+- name: "priority: P0"
+  color: "b60205"
+  description: "紧急，立即处理"
+
+- name: "priority: P1"
+  color: "e4e669"
+  description: "高优先级"
+
+- name: "priority: P2"
+  color: "c2e0c6"
+  description: "中优先级"
+
+- name: "priority: P3"
+  color: "f9d0c4"
+  description: "低优先级"
+
+# ────────────────────────────────────────────
+# Area（工作领域）
+# ────────────────────────────────────────────
+- name: "area: frontend"
+  color: "bfd4f2"
+  description: "前端相关"
+
+- name: "area: backend"
+  color: "d4c5f9"
+  description: "后端相关"
+
+- name: "area: docs"
+  color: "cfd3d7"
+  description: "文档相关"
+
+- name: "area: ops"
+  color: "c2e0c6"
+  description: "运维/部署相关"
+
+# ────────────────────────────────────────────
+# Size（工作量估算）
+# ────────────────────────────────────────────
+- name: "size: XS"
+  color: "f0fff4"
+  description: "< 1 小时"
+
+- name: "size: S"
+  color: "dcffe4"
+  description: "1-4 小时"
+
+- name: "size: M"
+  color: "a4e2c8"
+  description: "半天到 1 天"
+
+- name: "size: L"
+  color: "6fd5a8"
+  description: "2-3 天"
+
+- name: "size: XL"
+  color: "34c471"
+  description: "> 3 天，考虑拆分"

@@ -1,0 +1,55 @@
+name: "Weekly Plan / 周计划"
+description: "手动创建本周工作计划"
+title: "[Weekly] "
+labels: ["type: weekly-plan"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 本周计划
+        填写本周目标、优先任务与风险评估。Actions 会在每周一自动创建此 Issue，也可手动触发。
+
+  - type: textarea
+    id: goals
+    attributes:
+      label: "本周目标"
+      description: "3 个以内的核心目标"
+      value: |
+        - [ ]
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+
+  - type: textarea
+    id: priority-tasks
+    attributes:
+      label: "优先级任务"
+      description: "本周需要完成的具体任务，可关联已有 Issue（#编号）"
+      value: |
+        | 任务 | 优先级 | 截止日期 | Issue |
+        |------|--------|----------|-------|
+        |      | P1     |          |       |
+        |      | P2     |          |       |
+        |      | P2     |          |       |
+
+  - type: textarea
+    id: review
+    attributes:
+      label: "上周回顾"
+      description: "上周完成了什么？未完成原因？"
+      placeholder: |
+        **完成：**
+
+        **未完成：**
+
+        **原因：**
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: "风险与依赖"
+      placeholder: |
+        **风险：**
+
+        **依赖：**

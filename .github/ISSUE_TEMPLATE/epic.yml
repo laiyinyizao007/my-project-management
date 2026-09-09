@@ -1,0 +1,43 @@
+name: "Epic / 大任务"
+description: "需要拆分为多个子任务的大型工作"
+title: "[Epic] "
+labels: ["epic", "status: todo"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Epic 说明
+        Epic 是一个大型目标，通常包含多个子任务 Issue。创建 Epic 后，请将子任务 Issue 通过 Markdown 链接关联到此处。
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Epic 描述"
+      description: "这个 Epic 要实现什么目标？背景是什么？"
+    validations:
+      required: true
+
+  - type: input
+    id: milestone
+    attributes:
+      label: "关联 Milestone（Sprint）"
+      placeholder: "例：Sprint 2025-W03"
+
+  - type: textarea
+    id: sub-tasks
+    attributes:
+      label: "子任务清单"
+      description: "拆解为具体的子任务，每项完成后可勾选，也可关联到对应 Issue"
+      value: |
+        - [ ]
+        - [ ]
+        - [ ]
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: "完成标准 (DoD)"
+      value: |
+        - [ ] 所有子任务已关闭
+        - [ ] 文档已更新
+        - [ ]
