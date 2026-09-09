@@ -16,10 +16,22 @@
 [CmdletBinding()]
 param(
     [string]$ProjectNumber = '',
-    [string]$Owner = ''
+    [string]$Owner = '',
+    [string]$ProjectToken = ''
 )
 
 $ErrorActionPreference = 'Stop'
+
+# ── PAT 输入（需要 project scope）────────────────────────────
+if (-not $ProjectToken) {
+    Write-Host "🔑 请输入 PAT（需要 repo + project scope，输入时不可见）：" -ForegroundColor Cyan -NoNewline
+    $secure = Read-Host -AsSecureString
+    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    try { $ProjectToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr) }
+    finally { [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+    Write-Host ""
+}
+$env:GH_TOKEN = $ProjectToken
 
 # ── 参数推断 ──────────────────────────────────────────────────
 if (-not $Owner) {
@@ -116,9 +128,9 @@ if ($priorityField) {
 }
 
 # ── Step 3：Type 字段 ──────────────────────────────────────────
-Write-Host "🏷️  [3/6] Type 字段..." -ForegroundColor Yellow
+Write-Host "🏷️  [3/6] Category 字段..." -ForegroundColor Yellow
 
-$typeField = Get-ExistingField 'Type'
+$typeField = Get-ExistingField 'Category'
 if ($typeField) {
     Write-Host "   ⏭️  已存在，跳过" -ForegroundColor DarkYellow
 } else {
@@ -130,7 +142,7 @@ if ($typeField) {
 }'
         variables = @{
             pid  = $projectId
-            name = 'Type'
+            name = 'Category'
             opts = @(
                 @{ name = 'task';     color = 'BLUE';   description = '日常任务' }
                 @{ name = 'bug';      color = 'RED';    description = 'Bug 报告' }
@@ -223,17 +235,26 @@ if ($sprintView) {
     Write-Host "   ✅ Sprint 视图已创建" -ForegroundColor Green
 }
 
+$byProjectView = $existingViews | Where-Object { $_.name -eq 'By Project' } | Select-Object -First 1
+if ($byProjectView) {
+    Write-Host "   ⏭️  By Project 视图已存在，跳过" -ForegroundColor DarkYellow
+} else {
+    $byProjectView = New-ProjectView -Name 'By Project' -Layout 'TABLE_LAYOUT'
+    Write-Host "   ✅ By Project 视图已创建" -ForegroundColor Green
+}
+
 # ── 完成摘要 ──────────────────────────────────────────────────
 Write-Host ""
 Write-Host "🎉 看板配置完成！" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "✅ 已自动完成：" -ForegroundColor Green
 Write-Host "   • Priority 字段（🔴 P0 / 🟠 P1 / 🟡 P2 / 🟢 P3）"
-Write-Host "   • Type 字段（task / bug / feature / research / epic）"
+Write-Host "   • Category 字段（task / bug / feature / research / epic）"
 Write-Host "   • Size 字段（XS / S / M / L / XL）"
 Write-Host "   • Sprint 迭代字段"
 Write-Host "   • Table 视图（表格）"
 Write-Host "   • Sprint 视图（按迭代分组的看板）"
+Write-Host "   • By Project 视图（按仓库分组的表格）"
 Write-Host ""
 Write-Host "📌 需要在 GitHub 网页端手动完成（约 3 分钟）：" -ForegroundColor Yellow
 Write-Host ""
@@ -248,5 +269,10 @@ Write-Host ""
 Write-Host "   3. 配置 Table 视图排序：" -ForegroundColor White
 Write-Host "      切换到 Table 视图 → Sort → 选择 Priority（升序）"
 Write-Host ""
-Write-Host "   4. 配置 Sprint 周期（可选）：" -ForegroundColor White
+Write-Host "   4. 配置 By Project 视图分组：" -ForegroundColor White
+Write-Host "      切换到 By Project 视图 → Group by → 选择 Repository"
+Write-Host ""
+Write-Host "   5. 配置 Sprint 周期（可选）：" -ForegroundColor White
 Write-Host "      Project Settings → Sprint field → 设置 1 周周期"
+
+Remove-Item env:GH_TOKEN -ErrorAction SilentlyContinue

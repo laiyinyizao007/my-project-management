@@ -148,7 +148,7 @@ sequenceDiagram
 - **功能**：给 Issue 打标签时，自动同步 Project 字段值
 - **映射关系**：
   - `priority: P0/P1/P2/P3` → Priority 字段
-  - `task/bug/feature/research/epic` → Type 字段
+  - `task/bug/feature/research/epic` → Category 字段
   - `size: XS/S/M/L/XL` → Size 字段
   - `status: todo/in-progress/blocked/review/done` → Status 字段
 - **依赖**：`secrets.PROJECT_TOKEN`、`vars.PROJECT_NUMBER`
@@ -158,7 +158,7 @@ sequenceDiagram
 - **路径**：`scripts/setup-project-board.ps1`
 - **用途**：一次性配置 Project v2 看板（字段 + 视图），通过 GraphQL API 执行
 - **用法**：`pwsh scripts/setup-project-board.ps1`
-- **创建内容**：Priority / Type / Size / Sprint 字段，Table / Sprint 视图
+- **创建内容**：Priority / Category / Size / Sprint 字段，Table / Sprint / By Project 视图
 
 ### 5.7 install-to-repo.ps1
 
@@ -187,7 +187,7 @@ sequenceDiagram
 | 字段名 | 类型 | 选项 |
 |--------|------|------|
 | Priority | Single Select | 🔴 P0 / 🟠 P1 / 🟡 P2 / 🟢 P3 |
-| Type | Single Select | task / bug / feature / research / epic |
+| Category | Single Select | task / bug / feature / research / epic |
 | Size | Single Select | XS / S / M / L / XL |
 | Sprint | Iteration | 1 周周期 |
 
@@ -229,6 +229,19 @@ flowchart LR
 3. Worker 验签后触发 `repository_dispatch`
 4. `auto-deploy-to-new-repos.yml` 完成 5 步部署
 5. 新仓库具备完整 Issue 追踪能力
+
+### 每周规划工作流（多项目管理）
+
+**核心原则**：Sprint 字段 = 本周工作队列，未分配 Sprint 的 Issue 视为 backlog。
+
+| 时间 | 视图 | 操作 |
+|------|------|------|
+| 每周一（5分钟） | Table | 按 Priority 排序，把 P0/P1 Issue 分配到当前 Sprint |
+| 每天 | Sprint | 只看当前 Sprint 的 Issue，决定今天做什么 |
+| 专注某项目时 | By Project | 按 Repository 分组，查看该仓库所有 Issue |
+| 随时 | Board | 拖动 Issue 更新 Status 状态 |
+
+Todo 列堆积大量未规划 Issue 是正常的（backlog），不影响当前工作聚焦。
 
 ---
 

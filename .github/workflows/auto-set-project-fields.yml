@@ -27,7 +27,7 @@ jobs:
               const map = { P0: '🔴 P0', P1: '🟠 P1', P2: '🟡 P2', P3: '🟢 P3' };
               targetOption = map[label.replace('priority: ', '')];
             } else if (['task', 'bug', 'feature', 'research', 'epic'].includes(label)) {
-              targetField = 'Type';
+              targetField = 'Category';
               targetOption = label;
             } else if (label.startsWith('size: ')) {
               targetField = 'Size';
