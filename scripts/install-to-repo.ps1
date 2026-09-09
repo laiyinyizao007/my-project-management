@@ -49,8 +49,10 @@ $SOURCE_REPO = 'laiyinyizao007/my-project-management'
 $WORKFLOW_PATH = '.github/workflows/auto-add-to-project.yml'
 
 Write-Host "📦 读取源 workflow..." -ForegroundColor Cyan
-$sourceContent = gh api "repos/$SOURCE_REPO/contents/$WORKFLOW_PATH" `
-    --jq '.content' | ForEach-Object { [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($_)) }
+# GitHub API 的 base64 每 60 字符有换行，必须先去掉才能正确解码
+$b64 = gh api "repos/$SOURCE_REPO/contents/$WORKFLOW_PATH" --jq '.content'
+$b64Clean = $b64 -replace '\s', ''
+$sourceContent = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($b64Clean))
 
 if (-not $sourceContent) {
     throw "❌ 无法读取源文件 $WORKFLOW_PATH"
