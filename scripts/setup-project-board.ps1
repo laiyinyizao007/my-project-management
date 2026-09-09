@@ -71,7 +71,7 @@ $data = Invoke-GQL @{
           __typename
           ... on ProjectV2Field             { id name }
           ... on ProjectV2SingleSelectField { id name options { id name } }
-          ... on ProjectV2IterationField    { id name }
+          ... on ProjectV2IterationField    { id name configuration { iterations { id title startDate duration } } }
         }
       }
       views(first: 10) { nodes { id name layout } }
@@ -189,6 +189,7 @@ if ($sizeField) {
 Write-Host "🏃 [5/6] Sprint 迭代字段..." -ForegroundColor Yellow
 
 $sprintField = Get-ExistingField 'Sprint'
+$sprintIsNew = $false
 if ($sprintField) {
     Write-Host "   ⏭️  已存在，跳过" -ForegroundColor DarkYellow
 } else {
@@ -201,7 +202,34 @@ if ($sprintField) {
         variables = @{ pid = $projectId }
     }
     $sprintField = $r.createProjectV2Field.projectV2Field
+    $sprintIsNew = $true
     Write-Host "   ✅ 已创建（ID: $($sprintField.id)）" -ForegroundColor Green
+}
+
+# 确保至少有 Sprint 1
+$existingIter = if ($sprintIsNew) { @() } else { @($sprintField.configuration.iterations) }
+if ($existingIter.Count -eq 0) {
+    $today  = Get-Date
+    $dow    = [int]$today.DayOfWeek                              # 0=Sunday
+    $back   = if ($dow -eq 0) { 6 } elseif ($dow -eq 1) { 0 } else { $dow - 1 }
+    $monday = $today.AddDays(-$back).ToString('yyyy-MM-dd')
+    Invoke-GQL @{
+        query = 'mutation($pid: ID!, $fid: ID!, $date: String!, $title: String!) {
+  updateProjectV2Field(input: {
+    projectId: $pid
+    fieldId: $fid
+    iterationConfiguration: {
+      startDay: 1
+      duration: 7
+      iterations: [{ startDate: $date title: $title }]
+    }
+  }) { projectV2Field { ... on ProjectV2IterationField { id } } }
+}'
+        variables = @{ pid = $projectId; fid = $sprintField.id; date = $monday; title = 'Sprint 1' }
+    } | Out-Null
+    Write-Host "   ✅ Sprint 1 已创建（$monday 开始，1 周）" -ForegroundColor Green
+} else {
+    Write-Host ("   ✅ 已有 {0} 个迭代" -f $existingIter.Count) -ForegroundColor DarkGray
 }
 
 # ── Step 6：创建视图 ───────────────────────────────────────────
