@@ -2,7 +2,10 @@ name: Add Issue to Project
 
 on:
   issues:
-    types: [opened]
+    types: [opened, reopened, transferred]
+  # 支持通过 PR 关联自动入项目（可选，按需启用）
+  # pull_request:
+  #   types: [opened, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -11,67 +14,16 @@ permissions:
 
 jobs:
   add-to-project:
+    name: Add issue to user Project v2
     runs-on: ubuntu-latest
     steps:
-      - name: Add newly opened issue to user Project v2
-        uses: actions/github-script@v7
+      - name: Add issue to project
+        uses: actions/add-to-project@v2.0.0
         with:
-          script: |
-            const projectNumber = process.env.PROJECT_NUMBER;
-
-            if (!projectNumber) {
-              console.log('⚠️  PROJECT_NUMBER 仓库变量未设置，跳过（请先执行 pwsh scripts/setup.ps1）。');
-              return;
-            }
-
-            // ─────────────────────────────────────────
-            // 1) 查询 Project node ID
-            // ─────────────────────────────────────────
-            const projectQuery = await github.graphql(`
-              query($login: String!, $number: Int!) {
-                user(login: $login) {
-                  projectV2(number: $number) {
-                    id
-                    title
-                  }
-                }
-              }
-            `, {
-              login: context.repo.owner,
-              number: parseInt(projectNumber, 10),
-            });
-
-            if (!projectQuery.user || !projectQuery.user.projectV2) {
-              console.log(`⚠️  未找到 Project #${projectNumber}（owner=${context.repo.owner}），跳过。`);
-              return;
-            }
-
-            const projectId = projectQuery.user.projectV2.id;
-            console.log(`📋 Project 已找到：${projectQuery.user.projectV2.title} (${projectId})`);
-
-            // ─────────────────────────────────────────
-            // 2) 获取 Issue node ID（通过 REST 拿到 number，再通过 GraphQL 拿 id）
-            //    直接从 payload 拿 issue.node_id 即可
-            // ─────────────────────────────────────────
-            const issueId = context.payload.issue.node_id;
-            console.log(`🐛 Issue #${context.payload.issue.number} → node_id=${issueId}`);
-
-            // ─────────────────────────────────────────
-            // 3) 调用 mutation 将 Issue 加入 Project
-            // ─────────────────────────────────────────
-            const result = await github.graphql(`
-              mutation($projectId: ID!, $contentId: ID!) {
-                addProjectV2ItemById(input: {projectId: $projectId, contentId: $contentId}) {
-                  item {
-                    id
-                  }
-                }
-              }
-            `, {
-              projectId,
-              contentId: issueId,
-            });
-
-            console.log(`✅ Issue #${context.payload.issue.number} 已加入 Project #${projectNumber}，item.id=${result.addProjectV2ItemById.item.id}`);
-          env:
-            PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          # Project URL 格式：https://github.com/users/<owner>/projects/<number>
+          # 通过 vars.PROJECT_NUMBER 拼接，避免硬编码
+          project-url: https://github.com/users/${{ github.repository_owner }}/projects/${{ vars.PROJECT_NUMBER }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # 可选：标签过滤（如仅当 issue 含特定标签才加入项目）
+          # labeled: needs-triage, in-project
+          # label-operator: OR
