@@ -7,7 +7,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
   issues: write
 
 jobs:
@@ -19,84 +18,85 @@ jobs:
         with:
           script: |
             const now = new Date();
-            const year = now.getFullYear();
 
-            // 计算 ISO 周数
-            const startOfYear = new Date(year, 0, 1);
-            const dayOfYear = Math.floor((now - startOfYear) / 86400000) + 1;
-            const weekNum = Math.ceil((dayOfYear + startOfYear.getDay()) / 7);
+            // 正确的 ISO 周数计算（处理跨年边界）
+            const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+            const dayNum = d.getUTCDay() || 7;
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            const weekNum = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+            const isoYear = d.getUTCFullYear();
             const weekStr = String(weekNum).padStart(2, '0');
+            const title = `[Weekly] ${isoYear}-W${weekStr}`;
 
-            // 格式化日期
-            const dateStr = now.toISOString().split('T')[0];
-
-            // 计算本周日期范围（周一到周五）
+            // 当周周一和周日的日期范围
+            const todayDayNum = now.getUTCDay() || 7;
             const monday = new Date(now);
-            monday.setDate(now.getDate() - now.getDay() + 1);
-            const friday = new Date(monday);
-            friday.setDate(monday.getDate() + 4);
+            monday.setUTCDate(now.getUTCDate() + (1 - todayDayNum));
+            const sunday = new Date(monday);
+            sunday.setUTCDate(monday.getUTCDate() + 6);
             const mondayStr = monday.toISOString().split('T')[0];
-            const fridayStr = friday.toISOString().split('T')[0];
+            const sundayStr = sunday.toISOString().split('T')[0];
 
-            const title = `[Weekly] ${year}-W${weekStr} (${mondayStr} ~ ${fridayStr})`;
-
-            const body = `## 本周计划 ${year}-W${weekStr}
-
-> 时间范围：${mondayStr} ~ ${fridayStr}
-
-### 本周目标
-- [ ]
-- [ ]
-- [ ]
-
-### 优先级任务
-
-| 任务 | 优先级 | 截止日期 | Issue |
-|------|--------|----------|-------|
-|      | P1     |          |       |
-|      | P2     |          |       |
-|      | P2     |          |       |
-
-### 上周回顾
-
-**已完成：**
-
-**未完成及原因：**
-
-### 本周风险与依赖
-
-**风险：**
-
-**外部依赖：**
-
----
-> 此 Issue 由 GitHub Actions 自动创建。[查看工作流](.github/workflows/weekly-plan.yml)
-`;
-
-            // 检查本周是否已创建过
-            const existing = await github.rest.issues.listForRepo({
+            // 检查本周 Issue 是否已存在
+            const { data: issues } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
+              state: 'all',
               labels: 'type: weekly-plan',
-              state: 'open',
-              per_page: 5,
+              per_page: 20,
             });
-
-            const alreadyExists = existing.data.some(issue =>
-              issue.title.includes(`${year}-W${weekStr}`)
-            );
-
-            if (alreadyExists) {
-              console.log(`本周计划 Issue 已存在，跳过创建。`);
+            const existing = issues.find(i => i.title === title);
+            if (existing) {
+              console.log(`⏭️  本周计划 Issue 已存在：#${existing.number} ${title}`);
               return;
             }
+
+            const body = `## ${mondayStr} ~ ${sundayStr}
+
+### 本周目标
+
+（请在本节写下本周最重要的 3 个目标）
+
+### 计划任务
+
+（用 checklist 列出本周要做的事）
+
+- [ ]
+
+### 每日回顾
+
+#### 周一 ${mondayStr}
+- 完成：
+- 阻塞：
+
+#### 周二
+- 完成：
+- 阻塞：
+
+#### 周三
+- 完成：
+- 阻塞：
+
+#### 周四
+- 完成：
+- 阻塞：
+
+#### 周五
+- 完成：
+- 阻塞：
+
+### 周回顾（周日填写）
+
+- 完成率：
+- 下周重点：
+`;
 
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: title,
-              labels: ['type: weekly-plan'],
               body: body,
+              labels: ['type: weekly-plan', 'status: todo'],
             });
-
-            console.log(`已创建：${title}`);
+            console.log(`✅ 已创建周计划 Issue：${title}`);

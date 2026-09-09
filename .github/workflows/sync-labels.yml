@@ -12,12 +12,26 @@ jobs:
   sync-labels:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Fetch labels.yml via Contents API (no checkout needed)
+        id: fetch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.repos.getContent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              path: '.github/labels.yml',
+              ref: 'main',
+            });
+            const content = Buffer.from(data.content, 'base64').toString('utf8');
+            // 把 labels.yml 内容写到 runner 工作目录，供下一步使用
+            require('fs').writeFileSync(process.env.GITHUB_WORKSPACE + '/labels.yml', content);
+            core.info(`Fetched labels.yml (${content.length} bytes)`);
 
       - name: Sync labels from labels.yml
         uses: EndBug/label-sync@v2
         with:
-          config-file: .github/labels.yml
+          config-file: ${{ github.workspace }}/labels.yml
           # 设为 false：只新增/更新，不删除仓库中已有但 labels.yml 里没有的标签
           # 设为 true：严格同步，删除 labels.yml 以外的所有标签（谨慎使用）
           delete-other-labels: false
