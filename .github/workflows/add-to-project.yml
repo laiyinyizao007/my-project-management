@@ -2,10 +2,10 @@ name: Add Issue to Project
 
 on:
   issues:
-    types: [opened, reopened, transferred]
-  # 支持通过 PR 关联自动入项目（可选，按需启用）
-  # pull_request:
-  #   types: [opened, reopened, ready_for_review]
+    types:
+      - opened
+      - reopened
+      - transferred
 
 permissions:
   contents: read
@@ -20,10 +20,5 @@ jobs:
       - name: Add issue to project
         uses: actions/add-to-project@v2.0.0
         with:
-          # Project URL 格式：https://github.com/users/<owner>/projects/<number>
-          # 通过 vars.PROJECT_NUMBER 拼接，避免硬编码
           project-url: https://github.com/users/${{ github.repository_owner }}/projects/${{ vars.PROJECT_NUMBER }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # 可选：标签过滤（如仅当 issue 含特定标签才加入项目）
-          # labeled: needs-triage, in-project
-          # label-operator: OR
