@@ -42,40 +42,32 @@ git push -u origin main
 
 ### 2. 同步标签
 
-推送后，标签会通过 GitHub Actions 自动同步（触发条件：main 分支 `.github/labels.yml` 变更）。
+推送后，标签会通过 GitHub Actions **自动同步**（任何对 `main` 分支的推送都会触发，25 个标签全部创建）。
 
-也可手动触发：
-- 进入仓库 → **Actions** → **Sync repository labels** → **Run workflow**
+如需手动触发：仓库 → **Actions** → **Sync repository labels** → **Run workflow**。
 
-> 首次推送时建议手动触发一次，确保 25 个标签全部创建。
+### 3. 一键完成 Project + 首个 Sprint（自动化脚本）
 
-### 3. 创建 GitHub Project 看板
+在本地执行（需先 `gh auth login`）：
 
-1. 进入仓库页面 → **Projects** 标签 → **New project**
-2. 选择模板 **Board**（看板视图）
-3. 命名为 `任务看板` 或 `My Tasks`
-4. 点击 **Create**
-
-**开启自动化（关键步骤）：**
-
-1. 进入 Project → 点击右上角 **⋯** → **Workflows**
-2. 找到 **"Auto-add to project"** → 开启，设置过滤条件（如仓库名）
-3. 找到 **"Item closed"** → 开启，设置状态改为 **Done**
-
-这样新建 Issue 会自动出现在 Todo 列，关闭 Issue 会自动移到 Done 列。
-
-### 4. 创建第一个 Sprint（Milestone）
-
-```bash
-# 使用 GitHub CLI 创建 Milestone
-gh api repos/<用户名>/<仓库名>/milestones \
-  --method POST \
-  --field title="Sprint 2025-W01" \
-  --field due_on="2025-01-05T23:59:59Z" \
-  --field description="第一周 Sprint"
+```powershell
+pwsh scripts/setup.ps1
 ```
 
-或在仓库 → **Issues** → **Milestones** → **New milestone** 手动创建。
+脚本会自动完成：
+1. 创建 GitHub Project `任务看板`
+2. 设置仓库变量 `PROJECT_NUMBER`（供 `add-to-project.yml` 读取）
+3. 创建当周 Sprint Milestone（如 `Sprint 2026-W37`）
+
+> 之后每周一会自动创建下周的 Milestone（`create-milestone.yml`）。
+> 新建 Issue 时会自动加入 Project 看板（`add-to-project.yml`）。
+
+### 4. 开启 Project 内置 Workflow（唯一手动操作）
+
+1. 进入 Project `任务看板` → 右上角 **⋯** → **Workflows**
+2. 找到 **"Item closed"** → 开启，设置状态改为 **Done**
+
+这样关闭 Issue 时会自动移到 Done 列。
 
 ---
 
@@ -153,7 +145,9 @@ gh api repos/<用户名>/<仓库名>/milestones \
 | 工作流 | 触发条件 | 功能 |
 |--------|---------|------|
 | **Create Weekly Plan Issue** | 每周一 09:00（北京时间），或手动触发 | 自动创建本周计划 Issue |
-| **Sync repository labels** | 修改 `labels.yml` 推送到 main，或手动触发 | 同步标签配置 |
+| **Create Weekly Sprint Milestone** | 每周一 09:00（北京时间），或手动触发 | 自动创建当周 Sprint Milestone |
+| **Sync repository labels** | 推送到 main，或手动触发 | 同步标签配置 |
+| **Add Issue to Project** | 新 Issue 创建时 | 自动加入 GitHub Project 看板 |
 
 **手动触发工作流：**
 

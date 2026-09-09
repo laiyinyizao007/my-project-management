@@ -1,0 +1,78 @@
+name: Create Weekly Sprint Milestone
+
+on:
+  schedule:
+    # 每周一 UTC 01:00 = 北京时间 09:00（与 weekly-plan.yml 对齐）
+    - cron: '0 1 * * 1'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  create-milestone:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create sprint milestone
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const now = new Date();
+
+            // ─────────────────────────────────────────
+            // 1) 正确的 ISO 周数计算（处理跨年边界）
+            //    参考：ISO 8601 - 周一为一周第一天，包含当年第一个周四的那一周为 W01
+            // ─────────────────────────────────────────
+            const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+            const dayNum = d.getUTCDay() || 7;            // 周日 getUTCDay()=0 → 视为 7
+            d.setUTCDate(d.getUTCDate() + 4 - dayNum);    // 移到本周周四
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            const weekNum = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+            const isoYear = d.getUTCFullYear();           // 跨年时与 now.getFullYear() 不同
+            const weekStr = String(weekNum).padStart(2, '0');
+            const sprintTitle = `Sprint ${isoYear}-W${weekStr}`;
+
+            // ─────────────────────────────────────────
+            // 2) 计算当周周五 23:59:59 UTC
+            // ─────────────────────────────────────────
+            const friday = new Date(now);
+            const todayDayNum = now.getUTCDay() || 7;
+            friday.setUTCDate(now.getUTCDate() + (5 - todayDayNum));
+            friday.setUTCHours(23, 59, 59, 0);
+            const dueOn = friday.toISOString();
+
+            // 当周日期范围（用于描述）
+            const monday = new Date(now);
+            monday.setUTCDate(now.getUTCDate() + (1 - todayDayNum));
+            const mondayStr = monday.toISOString().split('T')[0];
+            const fridayStr = friday.toISOString().split('T')[0];
+            const description = `${sprintTitle}（${mondayStr} ~ ${fridayStr}）`;
+
+            // ─────────────────────────────────────────
+            // 3) 检查是否已存在（避免重复创建）
+            // ─────────────────────────────────────────
+            const { data: milestones } = await github.rest.issues.listMilestones({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 50,
+            });
+
+            const existing = milestones.find(m => m.title === sprintTitle);
+            if (existing) {
+              console.log(`⏭️  Milestone 已存在：${sprintTitle}（#${existing.number}），跳过创建。`);
+              return;
+            }
+
+            // ─────────────────────────────────────────
+            // 4) 创建 Milestone
+            // ─────────────────────────────────────────
+            const { data: created } = await github.rest.issues.createMilestone({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: sprintTitle,
+              description: description,
+              due_on: dueOn,
+            });
+
+            console.log(`✅ 已创建 Milestone：${sprintTitle}（#${created.number}），截止 ${dueOn}`);
