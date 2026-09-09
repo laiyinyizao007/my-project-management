@@ -50,14 +50,14 @@ if ($LASTEXITCODE -eq 0 -and $existing) {
         content = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($sourceContent))
         sha     = $sha
     } | ConvertTo-Json -Depth 10
-    gh api "repos/$TargetRepo/contents/$WORKFLOW_PATH" --method PUT --input - <<< $body | Out-Null
+    $body | gh api "repos/$TargetRepo/contents/$WORKFLOW_PATH" --method PUT --input - | Out-Null
     Write-Host "   ✅ 工作流已更新" -ForegroundColor Green
 } else {
     $body = @{
         message = "chore: 部署 auto-add-to-project workflow（同步自 $SOURCE_REPO）"
         content = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($sourceContent))
     } | ConvertTo-Json -Depth 10
-    gh api "repos/$TargetRepo/contents/$WORKFLOW_PATH" --method PUT --input - <<< $body | Out-Null
+    $body | gh api "repos/$TargetRepo/contents/$WORKFLOW_PATH" --method PUT --input - | Out-Null
     Write-Host "   ✅ 工作流已创建" -ForegroundColor Green
 }
 
@@ -78,7 +78,7 @@ $permBody = @{
     can_approve_pull_request_reviews = $false
 } | ConvertTo-Json
 
-gh api "repos/$TargetRepo/actions/permissions/workflow" --method PUT --input - <<< $permBody | Out-Null
+$permBody | gh api "repos/$TargetRepo/actions/permissions/workflow" --method PUT --input - | Out-Null
 Write-Host "   ✅ Actions 权限已更新为 write" -ForegroundColor Green
 Write-Host ""
 
@@ -97,7 +97,7 @@ if ($LASTEXITCODE -eq 0 -and $existingKeep) {
         content = $keepContent
     } | ConvertTo-Json
 
-    gh api "repos/$TargetRepo/contents/.github/.keep" --method PUT --input - <<< $keepBody | Out-Null
+    $keepBody | gh api "repos/$TargetRepo/contents/.github/.keep" --method PUT --input - | Out-Null
     Write-Host "   ✅ 已创建 .github/.keep（这次 push 会触发 workflow 注册）" -ForegroundColor Green
 }
 
