@@ -25,27 +25,42 @@ jobs:
         run: |
           OWNER=$(gh api user --jq '.login')
           SOURCE="${OWNER}/my-project-management"
-          WF_PATH=".github/workflows/auto-add-to-project.yml"
+          WF1=".github/workflows/auto-add-to-project.yml"
+          WF2=".github/workflows/auto-set-project-fields.yml"
           PROJECT_NUM="${{ vars.PROJECT_NUMBER }}"
 
           # 获取源 workflow 内容
-          CONTENT=$(gh api "repos/${SOURCE}/contents/${WF_PATH}" \
-            --jq '.content' | tr -d '\n')
+          CONTENT1=$(gh api "repos/${SOURCE}/contents/${WF1}" --jq '.content' | tr -d '\n')
+          CONTENT2=$(gh api "repos/${SOURCE}/contents/${WF2}" --jq '.content' | tr -d '\n')
+
+          deploy_file() {
+            local repo="$1" path="$2" content="$3"
+            if gh api "repos/${repo}/contents/${path}" &>/dev/null 2>&1; then
+              echo "  ⏭️  $(basename $path): 已存在"
+              return
+            fi
+            jq -n --arg c "$content" \
+              "{\"message\":\"chore: deploy $(basename $path)\",\"content\":\$c}" \
+            | gh api "repos/${repo}/contents/${path}" --method PUT --input - >/dev/null
+            echo "  ✅ $(basename $path): 已部署"
+          }
 
           deploy_to() {
             local repo="$1"
             [[ "$repo" == "$SOURCE" ]] && return
 
-            if gh api "repos/${repo}/contents/${WF_PATH}" &>/dev/null 2>&1; then
-              echo "⏭️  ${repo}: 已部署，跳过"
+            local w1_ok=false w2_ok=false
+            gh api "repos/${repo}/contents/${WF1}" &>/dev/null 2>&1 && w1_ok=true
+            gh api "repos/${repo}/contents/${WF2}" &>/dev/null 2>&1 && w2_ok=true
+
+            if $w1_ok && $w2_ok; then
+              echo "⏭️  ${repo}: 已全部部署，跳过"
               return
             fi
 
             echo "🚀 部署到 ${repo}..."
-
-            jq -n --arg c "$CONTENT" \
-              '{"message":"chore: auto-deploy add-to-project workflow","content":$c}' \
-            | gh api "repos/${repo}/contents/${WF_PATH}" --method PUT --input - >/dev/null
+            deploy_file "$repo" "$WF1" "$CONTENT1"
+            deploy_file "$repo" "$WF2" "$CONTENT2"
 
             gh variable set PROJECT_NUMBER --body "$PROJECT_NUM" --repo "$repo"
             gh secret set PROJECT_TOKEN --body "$GH_TOKEN" --repo "$repo"

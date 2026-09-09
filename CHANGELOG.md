@@ -6,6 +6,25 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-09
+
+### Added（新增）
+
+- **`scripts/setup-project-board.ps1`**：一次性配置 Project v2 看板
+  - 通过 GraphQL API 创建 Priority / Type / Size / Sprint 四个自定义字段
+  - 创建 Table 视图（表格）和 Sprint 视图（迭代看板）
+  - 幂等设计，重复运行安全
+
+- **`.github/workflows/auto-set-project-fields.yml`**：标签联动字段自动化
+  - 打标签时自动同步 Project 字段值（Priority / Type / Size / Status）
+  - 动态查询字段 ID，无需维护额外变量
+  - 已纳入全仓库自动部署
+
+### Changed（变更）
+
+- `auto-deploy-to-new-repos.yml`：同时部署 `auto-set-project-fields.yml`；`deploy_to()` 函数重构为独立 `deploy_file()` 辅助函数，支持多文件部署
+- `scripts/install-to-repo.ps1`：使用 `Deploy-Workflow` 辅助函数同时部署两个 workflow
+
 ## [1.2.0] - 2026-09-09
 
 ### Added（新增）
@@ -68,7 +87,8 @@
 - workflow 文件重命名（commit `f944f49`）：统一命名规范
 
 <!-- 比对链接 -->
-[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/laiyinyizao007/my-project-management/compare/v1.0.0...v1.0.1

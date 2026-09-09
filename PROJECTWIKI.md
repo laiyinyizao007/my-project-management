@@ -141,6 +141,25 @@ sequenceDiagram
 - **Secrets**：`WEBHOOK_SECRET`、`PAT`、`SOURCE_REPO`
 - **功能**：验证 GitHub App webhook 签名，触发 `repository_dispatch`
 
+### 5.8 auto-set-project-fields.yml
+
+- **路径**：`.github/workflows/auto-set-project-fields.yml`
+- **触发**：`issues: [labeled]`
+- **功能**：给 Issue 打标签时，自动同步 Project 字段值
+- **映射关系**：
+  - `priority: P0/P1/P2/P3` → Priority 字段
+  - `task/bug/feature/research/epic` → Type 字段
+  - `size: XS/S/M/L/XL` → Size 字段
+  - `status: todo/in-progress/blocked/review/done` → Status 字段
+- **依赖**：`secrets.PROJECT_TOKEN`、`vars.PROJECT_NUMBER`
+
+### 5.9 setup-project-board.ps1
+
+- **路径**：`scripts/setup-project-board.ps1`
+- **用途**：一次性配置 Project v2 看板（字段 + 视图），通过 GraphQL API 执行
+- **用法**：`pwsh scripts/setup-project-board.ps1`
+- **创建内容**：Priority / Type / Size / Sprint 字段，Table / Sprint 视图
+
 ### 5.7 install-to-repo.ps1
 
 - **路径**：`scripts/install-to-repo.ps1`
@@ -162,6 +181,15 @@ sequenceDiagram
 | Variable 名 | 说明 | 默认值 |
 |-------------|------|--------|
 | `PROJECT_NUMBER` | Project v2 编号 | `1` |
+
+### Project v2 自定义字段（由 setup-project-board.ps1 创建）
+
+| 字段名 | 类型 | 选项 |
+|--------|------|------|
+| Priority | Single Select | 🔴 P0 / 🟠 P1 / 🟡 P2 / 🟢 P3 |
+| Type | Single Select | task / bug / feature / research / epic |
+| Size | Single Select | XS / S / M / L / XL |
+| Sprint | Iteration | 1 周周期 |
 
 ### repository_dispatch 事件
 

@@ -46,44 +46,38 @@ $env:GH_TOKEN = $ProjectToken
 
 # 1) 读取源仓库的 workflow 内容
 $SOURCE_REPO = 'laiyinyizao007/my-project-management'
-$WORKFLOW_PATH = '.github/workflows/auto-add-to-project.yml'
 
-Write-Host "📦 读取源 workflow..." -ForegroundColor Cyan
-# GitHub API 的 base64 每 60 字符有换行，必须先去掉才能正确解码
-$b64 = gh api "repos/$SOURCE_REPO/contents/$WORKFLOW_PATH" --jq '.content'
-$b64Clean = $b64 -replace '\s', ''
-$sourceContent = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($b64Clean))
+# ── 辅助：读取并部署单个 workflow 文件 ────────────────────────
+function Deploy-Workflow {
+    param([string]$WfPath, [string]$Label)
 
-if (-not $sourceContent) {
-    throw "❌ 无法读取源文件 $WORKFLOW_PATH"
+    $b64 = gh api "repos/$SOURCE_REPO/contents/$WfPath" --jq '.content'
+    $b64Clean = $b64 -replace '\s', ''
+    $content = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($b64Clean))
+    if (-not $content) { throw "❌ 无法读取源文件 $WfPath" }
+
+    $existing = gh api "repos/$TargetRepo/contents/$WfPath" 2>$null
+    if ($LASTEXITCODE -eq 0 -and $existing) {
+        $sha = $existing | ConvertFrom-Json | Select-Object -ExpandProperty sha
+        Write-Host "   🔄 $Label 已存在，更新（SHA: $($sha.Substring(0,7))）" -ForegroundColor DarkYellow
+        @{
+            message = "chore: 更新 $Label（同步自 $SOURCE_REPO）"
+            content = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($content))
+            sha     = $sha
+        } | ConvertTo-Json -Depth 10 | gh api "repos/$TargetRepo/contents/$WfPath" --method PUT --input - | Out-Null
+    } else {
+        @{
+            message = "chore: 部署 $Label（同步自 $SOURCE_REPO）"
+            content = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($content))
+        } | ConvertTo-Json -Depth 10 | gh api "repos/$TargetRepo/contents/$WfPath" --method PUT --input - | Out-Null
+        Write-Host "   ✅ $Label 已创建" -ForegroundColor Green
+    }
 }
 
-Write-Host "   ✅ 已加载 $(($sourceContent -split "`n").Count) 行 workflow 内容" -ForegroundColor Green
-Write-Host ""
-
-# 2) 把 workflow 推送到目标仓库
-Write-Host "🚀 部署到 $TargetRepo ..." -ForegroundColor Yellow
-
-# 检查目标仓库是否有同名 workflow
-$existing = gh api "repos/$TargetRepo/contents/$WORKFLOW_PATH" 2>$null
-if ($LASTEXITCODE -eq 0 -and $existing) {
-    $sha = $existing | ConvertFrom-Json | Select-Object -ExpandProperty sha
-    Write-Host "   🔄 工作流已存在，将更新（SHA: $($sha.Substring(0,7))）" -ForegroundColor DarkYellow
-    $body = @{
-        message = "chore: 部署 auto-add-to-project workflow（同步自 $SOURCE_REPO）"
-        content = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($sourceContent))
-        sha     = $sha
-    } | ConvertTo-Json -Depth 10
-    $body | gh api "repos/$TargetRepo/contents/$WORKFLOW_PATH" --method PUT --input - | Out-Null
-    Write-Host "   ✅ 工作流已更新" -ForegroundColor Green
-} else {
-    $body = @{
-        message = "chore: 部署 auto-add-to-project workflow（同步自 $SOURCE_REPO）"
-        content = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($sourceContent))
-    } | ConvertTo-Json -Depth 10
-    $body | gh api "repos/$TargetRepo/contents/$WORKFLOW_PATH" --method PUT --input - | Out-Null
-    Write-Host "   ✅ 工作流已创建" -ForegroundColor Green
-}
+# 2) 部署两个 workflow 到目标仓库
+Write-Host "🚀 [1/5] 部署 workflow 到 $TargetRepo ..." -ForegroundColor Yellow
+Deploy-Workflow '.github/workflows/auto-add-to-project.yml'    'auto-add-to-project'
+Deploy-Workflow '.github/workflows/auto-set-project-fields.yml' 'auto-set-project-fields'
 
 Write-Host ""
 
