@@ -95,7 +95,8 @@ sequenceDiagram
 |------|------|--------|
 | PAT 轮换 | PROJECT_TOKEN 过期后需手动更新各仓库 Secret | 低 |
 | Worker 错误告警 | 当前 Worker 失败仅记录日志，无通知机制 | 低 |
-| 多 Project 支持 | 目前 PROJECT_NUMBER 硬编码为 1，不支持多看板 | 低 |
+| 多 Project 支持 | 目前 PROJECT_NUMBER 默认为 1，不支持多看板（可通过参数覆盖） | 低 |
+| deploy WF 列表 | `auto-deploy-to-new-repos.yml` 中部署的 workflow 列表为显式枚举，新增 workflow 时需手动更新 | 低 |
 
 ---
 
@@ -164,9 +165,18 @@ sequenceDiagram
 
 - **路径**：`.github/workflows/auto-create-sprint.yml`（仅管理仓库）
 - **触发**：每周一 UTC 01:00（北京时间 09:00）、`workflow_dispatch`
-- **功能**：自动创建下一个 Sprint 迭代（Sprint N+1，从本周一开始，1周）
-- **去重**：若本周已有迭代则跳过
+- **功能**：自动创建本周 Sprint 迭代（格式 `Sprint YYYY-WNN`，与 Milestone 命名对齐），并将上一 Sprint 未关闭的 Issue 续期到新 Sprint
+- **去重**：基于 `startDate` 判断，若本周已有迭代则跳过（幂等）
 - **依赖**：`secrets.PROJECT_TOKEN`、`vars.PROJECT_NUMBER`
+
+### 5.11 scripts/common.ps1
+
+- **路径**：`scripts/common.ps1`
+- **用途**：PowerShell 共享函数库，供其他脚本通过 `. "$PSScriptRoot/common.ps1"` 引入
+- **提供**：
+  - `Get-ProjectToken`：统一的 PAT 获取逻辑（优先读 `$env:GH_TOKEN`，否则安全提示输入）
+  - `Remove-ProjectToken`：会话结束时清理临时环境变量
+  - `Get-CurrentRepo`：动态获取当前仓库 `Owner`/`Name`/`Full`（消除硬编码）
 
 ### 5.7 install-to-repo.ps1
 

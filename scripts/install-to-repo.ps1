@@ -28,29 +28,13 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# 如果用户没传 -ProjectToken，优先读取环境变量，否则提示安全输入
-$cleanupToken = $false
-if (-not $ProjectToken) {
-    if ($env:GH_TOKEN) {
-        $ProjectToken = $env:GH_TOKEN
-        Write-Host "🔑 使用环境变量 GH_TOKEN" -ForegroundColor DarkGray
-    } else {
-        Write-Host "🔑 请输入 PAT（需要 repo + project scope，输入时不可见）：" -ForegroundColor Cyan -NoNewline
-        $secure = Read-Host -AsSecureString
-        $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-        try {
-            $ProjectToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
-        } finally {
-            [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
-        }
-        Write-Host ""
-        $env:GH_TOKEN = $ProjectToken
-        $cleanupToken = $true
-    }
-}
+. "$PSScriptRoot/common.ps1"
+$tokenResult  = Get-ProjectToken -ProjectToken $ProjectToken
+$ProjectToken = $tokenResult.Token
+$cleanupToken = $tokenResult.Cleanup
 
-# 1) 读取源仓库的 workflow 内容
-$SOURCE_REPO = 'laiyinyizao007/my-project-management'
+# 从当前仓库动态获取源仓库路径
+$SOURCE_REPO = (Get-CurrentRepo).Full
 
 # ── 辅助：读取并部署单个 workflow 文件 ────────────────────────
 function Deploy-Workflow {
@@ -98,7 +82,7 @@ Write-Host ""
 Write-Host "🔐 [3/5] 给 $TargetRepo 添加 Secret: PROJECT_TOKEN ..." -ForegroundColor Yellow
 
 gh secret set PROJECT_TOKEN --body $ProjectToken --repo $TargetRepo
-if ($cleanupToken) { Remove-Item env:GH_TOKEN -ErrorAction SilentlyContinue }
+Remove-ProjectToken -Cleanup $cleanupToken
 Write-Host "   ✅ Secret 已添加（不会保存到任何文件）" -ForegroundColor Green
 Write-Host ""
 

@@ -52,18 +52,21 @@ jobs:
             const active    = sprintField.configuration.iterations ?? [];
             const completed = sprintField.configuration.completedIterations ?? [];
 
-            // 计算下一个 Sprint 编号
-            const allNums = [...active, ...completed]
-              .map(i => parseInt(i.title.replace(/^Sprint\s*/i, '')))
-              .filter(n => Number.isFinite(n));
-            const nextNum = allNums.length > 0 ? Math.max(...allNums) + 1 : 1;
-
-            // 本周一日期
-            const today    = new Date();
-            const daysBack = today.getUTCDay() === 0 ? 6 : today.getUTCDay() - 1;
-            const monday   = new Date(today);
-            monday.setUTCDate(today.getUTCDate() - daysBack);
+            // 本周一日期（与 weekly-plan.yml / create-milestone.yml 相同算法）
+            const now      = new Date();
+            const dayNum   = now.getUTCDay() || 7;                     // 周日 0 → 7
+            const monday   = new Date(now);
+            monday.setUTCDate(now.getUTCDate() + (1 - dayNum));
             const startDate = monday.toISOString().split('T')[0];
+
+            // ISO 8601 周数计算（处理跨年边界）
+            const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));   // 移到本周周四
+            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+            const weekNum   = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+            const isoYear   = d.getUTCFullYear();
+            const weekStr   = String(weekNum).padStart(2, '0');
+            const sprintTitle = `Sprint ${isoYear}-W${weekStr}`;
 
             // 本周已有迭代则跳过
             if (active.some(i => i.startDate === startDate)) {
@@ -79,7 +82,7 @@ jobs:
             // 保留现有 active 迭代，追加新 Sprint
             const allIters = [
               ...active.map(i => ({ id: i.id, title: i.title, startDate: i.startDate, duration: i.duration })),
-              { title: `Sprint ${nextNum}`, startDate, duration: 7 }
+              { title: sprintTitle, startDate, duration: 7 }
             ];
             const configStart = active.length > 0 ? active[0].startDate : startDate;
             const itersInline = allIters
@@ -98,7 +101,7 @@ jobs:
                 }) { projectV2Field { ... on ProjectV2IterationField { id } } }
               }`, { fid: sprintField.id });
 
-            console.log(`✅ Sprint ${nextNum} created (${startDate})`);
+            console.log(`✅ ${sprintTitle} created (${startDate})`);
 
             // ── Sprint 续期：把上一个 Sprint 未完成的 Issue 移到新 Sprint ──
 
@@ -189,4 +192,4 @@ jobs:
               }
             }
 
-            console.log(`🔄 Rolled over ${rolledOver} incomplete item(s) to Sprint ${nextNum}`);
+            console.log(`🔄 Rolled over ${rolledOver} incomplete item(s) to ${sprintTitle}`);

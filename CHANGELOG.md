@@ -6,6 +6,26 @@
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-09-10
+
+### Changed（变更）
+
+- **`auto-create-sprint.yml`**：Sprint 迭代命名统一为 ISO 8601 周格式 `Sprint YYYY-WNN`
+  - 与 `create-milestone.yml` 的 Milestone 命名对齐，消除两者不一致问题
+  - 移除顺序递增编号逻辑，改用 ISO 周数计算（与 `weekly-plan.yml`/`create-milestone.yml` 算法完全一致）
+  - 去重和续期逻辑不受影响（均基于 `startDate` 和迭代 ID）
+- **`auto-deploy-to-new-repos.yml`**：SOURCE 仓库路径改为动态获取（`gh repo view`），不再依赖硬编码的 `my-project-management`；WF 列表处新增维护注释
+- **`scripts/setup.ps1`**：`$OWNER` 和 `$REPO` 改为动态获取（`gh api user` + `gh repo view`），消除硬编码用户名/仓库名
+- **`scripts/install-to-repo.ps1`**：`$SOURCE_REPO` 改为动态获取；重构 PAT 逻辑为调用 `common.ps1`
+- **`scripts/setup-project-board.ps1`**：仓库名改为动态获取；重构 PAT 逻辑为调用 `common.ps1`
+
+### Added（新增）
+
+- **`scripts/common.ps1`**：PowerShell 共享函数库
+  - `Get-ProjectToken`：统一 PAT 获取逻辑，消除两个脚本中的重复代码
+  - `Remove-ProjectToken`：会话结束时清理临时环境变量
+  - `Get-CurrentRepo`：从 `gh` CLI 动态获取当前仓库路径
+
 ## [1.6.0] - 2026-09-10
 
 ### Added（新增）
@@ -127,7 +147,8 @@
 - workflow 文件重命名（commit `f944f49`）：统一命名规范
 
 <!-- 比对链接 -->
-[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.3.0...v1.4.0

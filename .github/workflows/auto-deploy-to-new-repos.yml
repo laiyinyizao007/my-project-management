@@ -31,7 +31,8 @@ jobs:
       - name: Deploy workflows
         run: |
           OWNER=$(gh api user --jq '.login')
-          SOURCE="${OWNER}/my-project-management"
+          SOURCE=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
+          # 注意：新增需要部署到所有目标仓库的 workflow 时，必须同步更新此处列表
           WF1=".github/workflows/auto-add-to-project.yml"
           WF2=".github/workflows/auto-set-project-fields.yml"
           WF3=".github/workflows/auto-close-issue.yml"

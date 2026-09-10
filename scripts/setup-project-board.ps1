@@ -22,30 +22,18 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# ── PAT 输入（需要 project scope）────────────────────────────
-$cleanupToken = $false
-if (-not $ProjectToken) {
-    if ($env:GH_TOKEN) {
-        $ProjectToken = $env:GH_TOKEN
-        Write-Host "🔑 使用环境变量 GH_TOKEN" -ForegroundColor DarkGray
-    } else {
-        Write-Host "🔑 请输入 PAT（需要 repo + project scope，输入时不可见）：" -ForegroundColor Cyan -NoNewline
-        $secure = Read-Host -AsSecureString
-        $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-        try { $ProjectToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr) }
-        finally { [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
-        Write-Host ""
-        $env:GH_TOKEN = $ProjectToken
-        $cleanupToken = $true
-    }
-}
+. "$PSScriptRoot/common.ps1"
+$tokenResult  = Get-ProjectToken -ProjectToken $ProjectToken
+$ProjectToken = $tokenResult.Token
+$cleanupToken = $tokenResult.Cleanup
 
 # ── 参数推断 ──────────────────────────────────────────────────
 if (-not $Owner) {
     $Owner = gh api user --jq '.login'
 }
 if (-not $ProjectNumber) {
-    $raw = gh variable get PROJECT_NUMBER --repo "$Owner/my-project-management" 2>$null
+    $currentRepo = Get-CurrentRepo
+    $raw = gh variable get PROJECT_NUMBER --repo $currentRepo.Full 2>$null
     $ProjectNumber = if ($raw) { $raw.Trim() } else { '1' }
 }
 
@@ -309,4 +297,4 @@ Write-Host ""
 Write-Host "   5. 配置 Sprint 周期（可选）：" -ForegroundColor White
 Write-Host "      Project Settings → Sprint field → 设置 1 周周期"
 
-if ($cleanupToken) { Remove-Item env:GH_TOKEN -ErrorAction SilentlyContinue }
+Remove-ProjectToken -Cleanup $cleanupToken

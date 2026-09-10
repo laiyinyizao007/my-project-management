@@ -7,8 +7,10 @@
 
 $ErrorActionPreference = 'Stop'
 
-$OWNER = 'laiyinyizao007'
-$REPO  = 'laiyinyizao007/my-project-management'
+. "$PSScriptRoot/common.ps1"
+$currentRepo = Get-CurrentRepo
+$OWNER = $currentRepo.Owner
+$REPO  = $currentRepo.Full
 
 Write-Host "🚀 开始一次性设置..." -ForegroundColor Cyan
 Write-Host "   Owner: $OWNER"
