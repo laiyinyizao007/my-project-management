@@ -6,6 +6,17 @@
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-09-10
+
+### Changed（变更）
+
+- **`auto-deploy-to-new-repos.yml`**：WF 列表改为动态枚举 + 排除列表
+  - 删除顺序变量 WF1/WF2/WF3 及 CONTENT1/2/3 预取逻辑
+  - 动态调用 GitHub Contents API 枚举源仓库所有 workflow，过滤排除列表
+  - `deploy_to()` 函数改为循环实现，支持任意数量 workflow
+  - **新增可部署 workflow 时无需修改此文件**；新增管理仓库专用 workflow 时将文件名加入排除列表即可
+- **`scripts/install-to-repo.ps1`**：镜像同样的排除列表逻辑，Deploy-Workflow 调用改为动态循环；完成摘要动态显示实际部署的 workflow 列表
+
 ## [1.7.0] - 2026-09-10
 
 ### Changed（变更）
@@ -147,7 +158,8 @@
 - workflow 文件重命名（commit `f944f49`）：统一命名规范
 
 <!-- 比对链接 -->
-[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.4.0...v1.5.0

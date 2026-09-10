@@ -63,11 +63,18 @@ function Deploy-Workflow {
     }
 }
 
-# 2) 部署两个 workflow 到目标仓库
-Write-Host "🚀 [1/5] 部署 workflow 到 $TargetRepo ..." -ForegroundColor Yellow
-Deploy-Workflow '.github/workflows/auto-add-to-project.yml'    'auto-add-to-project'
-Deploy-Workflow '.github/workflows/auto-set-project-fields.yml' 'auto-set-project-fields'
-Deploy-Workflow '.github/workflows/auto-close-issue.yml'        'auto-close-issue'
+# 动态枚举源仓库中待部署的 workflow（排除管理仓库专用项）
+# 新增仅管理仓库的 workflow 时，在此同步更新（auto-deploy-to-new-repos.yml 有权威列表）
+$exclude = @('auto-deploy-to-new-repos.yml', 'auto-create-sprint.yml', 'weekly-plan.yml', 'create-milestone.yml', 'sync-labels.yml')
+$workflows = @(gh api "repos/$SOURCE_REPO/contents/.github/workflows" --jq '.[].name' |
+    Where-Object { $_ -notin $exclude } |
+    ForEach-Object { ".github/workflows/$_" })
+
+Write-Host "🚀 [1/5] 部署 $($workflows.Count) 个 workflow 到 $TargetRepo ..." -ForegroundColor Yellow
+foreach ($wf in $workflows) {
+    $label = [System.IO.Path]::GetFileNameWithoutExtension($wf)
+    Deploy-Workflow $wf $label
+}
 
 Write-Host ""
 
@@ -122,7 +129,7 @@ Write-Host ""
 Write-Host "🎉 全部完成！$TargetRepo 已配置为自动将 Issue 加入 Project #${ProjectNumber}。" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "✅ 本次已为 $TargetRepo 部署："
-Write-Host "   • Workflow: .github/workflows/auto-add-to-project.yml"
+foreach ($wf in $workflows) { Write-Host "   • Workflow: $wf" }
 Write-Host "   • 仓库变量: PROJECT_NUMBER=$ProjectNumber"
 Write-Host "   • 仓库 Secret: PROJECT_TOKEN（PAT 未写入文件）"
 Write-Host "   • Actions workflow 权限: write"

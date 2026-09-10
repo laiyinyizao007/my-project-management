@@ -32,16 +32,19 @@ jobs:
         run: |
           OWNER=$(gh api user --jq '.login')
           SOURCE=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
-          # 注意：新增需要部署到所有目标仓库的 workflow 时，必须同步更新此处列表
-          WF1=".github/workflows/auto-add-to-project.yml"
-          WF2=".github/workflows/auto-set-project-fields.yml"
-          WF3=".github/workflows/auto-close-issue.yml"
+          # 排除列表：仅在管理仓库运行的 workflow，不部署到目标仓库
+          # 新增仅管理仓库的 workflow 时，在此同步更新（install-to-repo.ps1 有镜像列表）
+          EXCLUDE="auto-deploy-to-new-repos.yml auto-create-sprint.yml weekly-plan.yml create-milestone.yml sync-labels.yml"
           PROJECT_NUM="${{ vars.PROJECT_NUMBER }}"
 
-          # 获取源 workflow 内容
-          CONTENT1=$(gh api "repos/${SOURCE}/contents/${WF1}" --jq '.content' | tr -d '\n')
-          CONTENT2=$(gh api "repos/${SOURCE}/contents/${WF2}" --jq '.content' | tr -d '\n')
-          CONTENT3=$(gh api "repos/${SOURCE}/contents/${WF3}" --jq '.content' | tr -d '\n')
+          # 动态枚举源仓库中所有待部署 workflow
+          WORKFLOWS=$(gh api "repos/${SOURCE}/contents/.github/workflows" --jq '.[].name' | while read -r name; do
+            skip=false
+            for ex in $EXCLUDE; do
+              [[ "$name" == "$ex" ]] && skip=true && break
+            done
+            $skip || echo ".github/workflows/$name"
+          done)
 
           deploy_file() {
             local repo="$1" path="$2" content="$3"
@@ -70,20 +73,21 @@ jobs:
             local repo="$1"
             [[ "$repo" == "$SOURCE" ]] && return
 
-            local w1_ok=false w2_ok=false w3_ok=false
-            gh api "repos/${repo}/contents/${WF1}" &>/dev/null 2>&1 && w1_ok=true
-            gh api "repos/${repo}/contents/${WF2}" &>/dev/null 2>&1 && w2_ok=true
-            gh api "repos/${repo}/contents/${WF3}" &>/dev/null 2>&1 && w3_ok=true
+            local all_ok=true
+            while IFS= read -r wf; do
+              gh api "repos/${repo}/contents/${wf}" &>/dev/null 2>&1 || { all_ok=false; break; }
+            done <<< "$WORKFLOWS"
 
-            if $w1_ok && $w2_ok && $w3_ok && [[ "$FORCE_UPDATE" != "true" ]]; then
+            if $all_ok && [[ "$FORCE_UPDATE" != "true" ]]; then
               echo "⏭️  ${repo}: 已全部部署，跳过"
               return
             fi
 
             echo "🚀 部署到 ${repo}..."
-            deploy_file "$repo" "$WF1" "$CONTENT1"
-            deploy_file "$repo" "$WF2" "$CONTENT2"
-            deploy_file "$repo" "$WF3" "$CONTENT3"
+            while IFS= read -r wf; do
+              content=$(gh api "repos/${SOURCE}/contents/${wf}" --jq '.content' | tr -d '\n')
+              deploy_file "$repo" "$wf" "$content"
+            done <<< "$WORKFLOWS"
 
             gh variable set PROJECT_NUMBER --body "$PROJECT_NUM" --repo "$repo"
             gh secret set PROJECT_TOKEN --body "$GH_TOKEN" --repo "$repo"

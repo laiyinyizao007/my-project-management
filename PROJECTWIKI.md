@@ -96,7 +96,7 @@ sequenceDiagram
 | PAT 轮换 | PROJECT_TOKEN 过期后需手动更新各仓库 Secret | 低 |
 | Worker 错误告警 | 当前 Worker 失败仅记录日志，无通知机制 | 低 |
 | 多 Project 支持 | 目前 PROJECT_NUMBER 默认为 1，不支持多看板（可通过参数覆盖） | 低 |
-| deploy WF 列表 | `auto-deploy-to-new-repos.yml` 中部署的 workflow 列表为显式枚举，新增 workflow 时需手动更新 | 低 |
+| deploy 排除列表 | 管理仓库专用 workflow 需手动加入两处排除列表（yaml + PS 脚本）；新增可部署 workflow 无需修改任何列表 | 低 |
 
 ---
 
@@ -114,6 +114,8 @@ sequenceDiagram
 - **路径**：`.github/workflows/auto-deploy-to-new-repos.yml`
 - **触发**：`repository_dispatch[new-repo-created]`、`schedule(每6小时)`、`workflow_dispatch`
 - **功能**：向目标仓库完成 5 步部署（workflow + 变量 + Secret + 权限 + 注册）
+- **WF 列表**：动态枚举源仓库 `.github/workflows/` 下所有文件，过滤排除列表（管理仓库专用项）；新增可部署 workflow 无需修改此文件
+- **排除列表**：`auto-deploy-to-new-repos.yml`、`auto-create-sprint.yml`、`weekly-plan.yml`、`create-milestone.yml`、`sync-labels.yml`
 - **依赖**：`secrets.PROJECT_TOKEN`（PAT，同时用于传播自身）
 
 ### 5.3 weekly-plan.yml
