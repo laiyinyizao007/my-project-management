@@ -23,15 +23,22 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # ── PAT 输入（需要 project scope）────────────────────────────
+$cleanupToken = $false
 if (-not $ProjectToken) {
-    Write-Host "🔑 请输入 PAT（需要 repo + project scope，输入时不可见）：" -ForegroundColor Cyan -NoNewline
-    $secure = Read-Host -AsSecureString
-    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-    try { $ProjectToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr) }
-    finally { [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
-    Write-Host ""
+    if ($env:GH_TOKEN) {
+        $ProjectToken = $env:GH_TOKEN
+        Write-Host "🔑 使用环境变量 GH_TOKEN" -ForegroundColor DarkGray
+    } else {
+        Write-Host "🔑 请输入 PAT（需要 repo + project scope，输入时不可见）：" -ForegroundColor Cyan -NoNewline
+        $secure = Read-Host -AsSecureString
+        $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+        try { $ProjectToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr) }
+        finally { [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
+        Write-Host ""
+        $env:GH_TOKEN = $ProjectToken
+        $cleanupToken = $true
+    }
 }
-$env:GH_TOKEN = $ProjectToken
 
 # ── 参数推断 ──────────────────────────────────────────────────
 if (-not $Owner) {
@@ -302,4 +309,4 @@ Write-Host ""
 Write-Host "   5. 配置 Sprint 周期（可选）：" -ForegroundColor White
 Write-Host "      Project Settings → Sprint field → 设置 1 周周期"
 
-Remove-Item env:GH_TOKEN -ErrorAction SilentlyContinue
+if ($cleanupToken) { Remove-Item env:GH_TOKEN -ErrorAction SilentlyContinue }

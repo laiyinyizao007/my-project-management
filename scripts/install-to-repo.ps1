@@ -28,21 +28,26 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# 如果用户没传 -ProjectToken，提示安全输入
+# 如果用户没传 -ProjectToken，优先读取环境变量，否则提示安全输入
+$cleanupToken = $false
 if (-not $ProjectToken) {
-    Write-Host "🔑 请输入 PAT（需要 repo + project scope，输入时不可见）：" -ForegroundColor Cyan -NoNewline
-    $secure = Read-Host -AsSecureString
-    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-    try {
-        $ProjectToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
-    } finally {
-        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+    if ($env:GH_TOKEN) {
+        $ProjectToken = $env:GH_TOKEN
+        Write-Host "🔑 使用环境变量 GH_TOKEN" -ForegroundColor DarkGray
+    } else {
+        Write-Host "🔑 请输入 PAT（需要 repo + project scope，输入时不可见）：" -ForegroundColor Cyan -NoNewline
+        $secure = Read-Host -AsSecureString
+        $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+        try {
+            $ProjectToken = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+        } finally {
+            [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+        }
+        Write-Host ""
+        $env:GH_TOKEN = $ProjectToken
+        $cleanupToken = $true
     }
-    Write-Host ""
 }
-
-# 把 token 暂存到环境变量供 gh CLI 使用（不写入文件）
-$env:GH_TOKEN = $ProjectToken
 
 # 1) 读取源仓库的 workflow 内容
 $SOURCE_REPO = 'laiyinyizao007/my-project-management'
@@ -92,7 +97,7 @@ Write-Host ""
 Write-Host "🔐 [3/5] 给 $TargetRepo 添加 Secret: PROJECT_TOKEN ..." -ForegroundColor Yellow
 
 gh secret set PROJECT_TOKEN --body $ProjectToken --repo $TargetRepo
-Remove-Item env:GH_TOKEN -ErrorAction SilentlyContinue  # 用完即清
+if ($cleanupToken) { Remove-Item env:GH_TOKEN -ErrorAction SilentlyContinue }
 Write-Host "   ✅ Secret 已添加（不会保存到任何文件）" -ForegroundColor Green
 Write-Host ""
 
