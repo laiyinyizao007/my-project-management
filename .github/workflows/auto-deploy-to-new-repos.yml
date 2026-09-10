@@ -14,31 +14,51 @@ on:
         description: '指定仓库（留空则扫描所有）'
         required: false
         default: ''
+      force_update:
+        description: '强制更新已存在的 workflow 文件（用于推送修复）'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+      FORCE_UPDATE: ${{ inputs.force_update || 'false' }}
     steps:
-      - name: Deploy add-to-project workflow
+      - name: Deploy workflows
         run: |
           OWNER=$(gh api user --jq '.login')
           SOURCE="${OWNER}/my-project-management"
           WF1=".github/workflows/auto-add-to-project.yml"
           WF2=".github/workflows/auto-set-project-fields.yml"
+          WF3=".github/workflows/auto-close-issue.yml"
           PROJECT_NUM="${{ vars.PROJECT_NUMBER }}"
 
           # 获取源 workflow 内容
           CONTENT1=$(gh api "repos/${SOURCE}/contents/${WF1}" --jq '.content' | tr -d '\n')
           CONTENT2=$(gh api "repos/${SOURCE}/contents/${WF2}" --jq '.content' | tr -d '\n')
+          CONTENT3=$(gh api "repos/${SOURCE}/contents/${WF3}" --jq '.content' | tr -d '\n')
 
           deploy_file() {
             local repo="$1" path="$2" content="$3"
-            if gh api "repos/${repo}/contents/${path}" &>/dev/null 2>&1; then
-              echo "  ⏭️  $(basename $path): 已存在"
+            local existing_sha
+            existing_sha=$(gh api "repos/${repo}/contents/${path}" --jq '.sha' 2>/dev/null || echo "")
+
+            if [[ -n "$existing_sha" ]]; then
+              if [[ "$FORCE_UPDATE" == "true" ]]; then
+                jq -n --arg c "$content" --arg s "$existing_sha" \
+                  "{\"message\":\"chore: update $(basename $path)\",\"content\":\$c,\"sha\":\$s}" \
+                | gh api "repos/${repo}/contents/${path}" --method PUT --input - >/dev/null
+                echo "  🔄 $(basename $path): 已更新"
+              else
+                echo "  ⏭️  $(basename $path): 已存在"
+              fi
               return
             fi
+
             jq -n --arg c "$content" \
               "{\"message\":\"chore: deploy $(basename $path)\",\"content\":\$c}" \
             | gh api "repos/${repo}/contents/${path}" --method PUT --input - >/dev/null
@@ -49,11 +69,12 @@ jobs:
             local repo="$1"
             [[ "$repo" == "$SOURCE" ]] && return
 
-            local w1_ok=false w2_ok=false
+            local w1_ok=false w2_ok=false w3_ok=false
             gh api "repos/${repo}/contents/${WF1}" &>/dev/null 2>&1 && w1_ok=true
             gh api "repos/${repo}/contents/${WF2}" &>/dev/null 2>&1 && w2_ok=true
+            gh api "repos/${repo}/contents/${WF3}" &>/dev/null 2>&1 && w3_ok=true
 
-            if $w1_ok && $w2_ok; then
+            if $w1_ok && $w2_ok && $w3_ok && [[ "$FORCE_UPDATE" != "true" ]]; then
               echo "⏭️  ${repo}: 已全部部署，跳过"
               return
             fi
@@ -61,6 +82,7 @@ jobs:
             echo "🚀 部署到 ${repo}..."
             deploy_file "$repo" "$WF1" "$CONTENT1"
             deploy_file "$repo" "$WF2" "$CONTENT2"
+            deploy_file "$repo" "$WF3" "$CONTENT3"
 
             gh variable set PROJECT_NUMBER --body "$PROJECT_NUM" --repo "$repo"
             gh secret set PROJECT_TOKEN --body "$GH_TOKEN" --repo "$repo"
@@ -92,5 +114,5 @@ jobs:
             for repo in $REPOS; do
               deploy_to "$repo" && DEPLOYED=$((DEPLOYED + 1)) || true
             done
-            echo "📊 本次扫描新部署 ${DEPLOYED} 个"
+            echo "📊 本次处理 ${DEPLOYED} 个仓库"
           fi

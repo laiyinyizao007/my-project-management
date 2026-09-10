@@ -6,6 +6,26 @@
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-09-10
+
+### Added（新增）
+
+- **`auto-close-issue.yml`**：Issue 关闭自动将 Project Status 设为 Done
+  - 触发：`issues: [closed]`
+  - 查询 Project Status 字段，定位 Done 选项后更新对应 Project item
+  - 已纳入全仓库自动部署
+
+- **Sprint 续期（auto-create-sprint.yml）**：每周创建新 Sprint 时自动续期
+  - 遍历上一个 Sprint 中所有未关闭的 Issue，移动到新 Sprint
+  - 分页处理，支持大型看板
+
+### Changed（变更）
+
+- **`auto-deploy-to-new-repos.yml`**：新增 `force_update` 输入参数
+  - `force_update=true` 时强制更新已部署的 workflow 文件（用于推送修复到所有仓库）
+  - 新增 `auto-close-issue.yml` 到部署列表
+- **`scripts/install-to-repo.ps1`**：新增 `auto-close-issue.yml` 部署
+
 ## [1.5.0] - 2026-09-10
 
 ### Added（新增）
@@ -107,7 +127,8 @@
 - workflow 文件重命名（commit `f944f49`）：统一命名规范
 
 <!-- 比对链接 -->
-[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.2.0...v1.3.0

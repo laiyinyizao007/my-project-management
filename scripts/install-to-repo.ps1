@@ -83,6 +83,7 @@ function Deploy-Workflow {
 Write-Host "🚀 [1/5] 部署 workflow 到 $TargetRepo ..." -ForegroundColor Yellow
 Deploy-Workflow '.github/workflows/auto-add-to-project.yml'    'auto-add-to-project'
 Deploy-Workflow '.github/workflows/auto-set-project-fields.yml' 'auto-set-project-fields'
+Deploy-Workflow '.github/workflows/auto-close-issue.yml'        'auto-close-issue'
 
 Write-Host ""
 

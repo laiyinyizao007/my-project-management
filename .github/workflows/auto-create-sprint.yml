@@ -18,11 +18,12 @@ jobs:
             const projectNum = parseInt(process.env.PROJECT_NUMBER);
             const owner = context.repo.owner;
 
-            // 查询 Sprint 迭代字段
+            // 查询 Sprint 迭代字段和 Project ID
             const data = await github.graphql(`
               query($login: String!, $num: Int!) {
                 user(login: $login) {
                   projectV2(number: $num) {
+                    id
                     fields(first: 30) {
                       nodes {
                         __typename
@@ -41,6 +42,7 @@ jobs:
 
             const project = data.user?.projectV2;
             if (!project) { console.log(`Project #${projectNum} not found`); return; }
+            const projectId = project.id;
 
             const sprintField = project.fields.nodes.find(
               f => f.__typename === 'ProjectV2IterationField' && f.name === 'Sprint'
@@ -69,7 +71,12 @@ jobs:
               return;
             }
 
-            // 保留现有 active 迭代，追加新 Sprint（内联写，无法用类型变量）
+            // 找上一个 Sprint（用于续期）
+            const allKnownSprints = [...active, ...completed]
+              .sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+            const previousSprintId = allKnownSprints[0]?.id ?? null;
+
+            // 保留现有 active 迭代，追加新 Sprint
             const allIters = [
               ...active.map(i => ({ id: i.id, title: i.title, startDate: i.startDate, duration: i.duration })),
               { title: `Sprint ${nextNum}`, startDate, duration: 7 }
@@ -92,3 +99,94 @@ jobs:
               }`, { fid: sprintField.id });
 
             console.log(`✅ Sprint ${nextNum} created (${startDate})`);
+
+            // ── Sprint 续期：把上一个 Sprint 未完成的 Issue 移到新 Sprint ──
+
+            if (!previousSprintId) {
+              console.log('No previous sprint, skipping rollover');
+              return;
+            }
+
+            // 重新查询以获取新 Sprint 的 iteration ID
+            const updatedField = await github.graphql(`
+              query($fid: ID!) {
+                node(id: $fid) {
+                  ... on ProjectV2IterationField {
+                    configuration {
+                      iterations { id title startDate }
+                    }
+                  }
+                }
+              }`, { fid: sprintField.id });
+
+            const newSprintId = updatedField.node.configuration.iterations
+              .find(i => i.startDate === startDate)?.id;
+
+            if (!newSprintId) {
+              console.log('Could not find new sprint ID, skipping rollover');
+              return;
+            }
+
+            // 分页遍历所有 Project items，找属于上一个 Sprint 且未关闭的
+            let hasNextPage = true;
+            let cursor = null;
+            let rolledOver = 0;
+
+            while (hasNextPage) {
+              const itemsData = await github.graphql(`
+                query($pid: ID!, $cursor: String) {
+                  node(id: $pid) {
+                    ... on ProjectV2 {
+                      items(first: 100, after: $cursor) {
+                        pageInfo { hasNextPage endCursor }
+                        nodes {
+                          id
+                          content {
+                            ... on Issue { state }
+                            ... on PullRequest { state }
+                          }
+                          fieldValues(first: 20) {
+                            nodes {
+                              __typename
+                              ... on ProjectV2ItemFieldIterationValue {
+                                iterationId
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }`, { pid: projectId, cursor });
+
+              const page = itemsData.node.items;
+              hasNextPage = page.pageInfo.hasNextPage;
+              cursor = page.pageInfo.endCursor;
+
+              for (const item of page.nodes) {
+                const inPreviousSprint = item.fieldValues.nodes.some(
+                  fv => fv.__typename === 'ProjectV2ItemFieldIterationValue' &&
+                        fv.iterationId === previousSprintId
+                );
+                if (!inPreviousSprint) continue;
+                if (item.content?.state !== 'OPEN') continue;
+
+                await github.graphql(`
+                  mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $iterationId: String!) {
+                    updateProjectV2ItemFieldValue(input: {
+                      projectId: $projectId
+                      itemId: $itemId
+                      fieldId: $fieldId
+                      value: { iterationId: $iterationId }
+                    }) { projectV2Item { id } }
+                  }`, {
+                    projectId,
+                    itemId: item.id,
+                    fieldId: sprintField.id,
+                    iterationId: newSprintId
+                  });
+                rolledOver++;
+              }
+            }
+
+            console.log(`🔄 Rolled over ${rolledOver} incomplete item(s) to Sprint ${nextNum}`);
