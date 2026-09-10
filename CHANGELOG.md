@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-09-10
+
+### Added（新增）
+
+- **`auto-create-sprint.yml`**：每周一自动创建下一个 Sprint 迭代
+  - 查询现有迭代，自动递增编号（Sprint 1 → Sprint 2 → …）
+  - 本周已有迭代时跳过（幂等）
+  - 仅部署在管理仓库，不推送到目标仓库
+
 ## [1.4.0] - 2026-09-09
 
 ### Added（新增）
@@ -98,7 +107,8 @@
 - workflow 文件重命名（commit `f944f49`）：统一命名规范
 
 <!-- 比对链接 -->
-[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.1.0...v1.2.0

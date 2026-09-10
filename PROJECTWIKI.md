@@ -160,6 +160,14 @@ sequenceDiagram
 - **用法**：`pwsh scripts/setup-project-board.ps1`
 - **创建内容**：Priority / Category / Size / Sprint 字段，Table / Sprint / By Project 视图
 
+### 5.10 auto-create-sprint.yml
+
+- **路径**：`.github/workflows/auto-create-sprint.yml`（仅管理仓库）
+- **触发**：每周一 UTC 01:00（北京时间 09:00）、`workflow_dispatch`
+- **功能**：自动创建下一个 Sprint 迭代（Sprint N+1，从本周一开始，1周）
+- **去重**：若本周已有迭代则跳过
+- **依赖**：`secrets.PROJECT_TOKEN`、`vars.PROJECT_NUMBER`
+
 ### 5.7 install-to-repo.ps1
 
 - **路径**：`scripts/install-to-repo.ps1`
