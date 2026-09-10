@@ -213,17 +213,19 @@ if ($existingIter.Count -eq 0) {
     $dow    = [int]$today.DayOfWeek                              # 0=Sunday
     $back   = if ($dow -eq 0) { 6 } elseif ($dow -eq 1) { 0 } else { $dow - 1 }
     $monday = $today.AddDays(-$back).ToString('yyyy-MM-dd')
-    Invoke-GQL @{
-        query = 'mutation($fid: ID!, $date: Date!, $title: String!) {
+    $gql = @"
+mutation(`$fid: ID!) {
   updateProjectV2Field(input: {
-    fieldId: $fid
+    fieldId: `$fid
     iterationConfiguration: {
-      iterations: [{ startDate: $date title: $title duration: 7 }]
+      startDate: "$monday"
+      duration: 7
+      iterations: [{ startDate: "$monday" title: "Sprint 1" duration: 7 }]
     }
   }) { projectV2Field { ... on ProjectV2IterationField { id } } }
-}'
-        variables = @{ fid = $sprintField.id; date = $monday; title = 'Sprint 1' }
-    } | Out-Null
+}
+"@
+    Invoke-GQL @{ query = $gql; variables = @{ fid = $sprintField.id } } | Out-Null
     Write-Host "   ✅ Sprint 1 已创建（$monday 开始，1 周）" -ForegroundColor Green
 } else {
     Write-Host ("   ✅ 已有 {0} 个迭代" -f $existingIter.Count) -ForegroundColor DarkGray

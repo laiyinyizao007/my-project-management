@@ -69,18 +69,26 @@ jobs:
               return;
             }
 
-            // 保留现有 active 迭代，追加新 Sprint
-            const iterations = [
+            // 保留现有 active 迭代，追加新 Sprint（内联写，无法用类型变量）
+            const allIters = [
               ...active.map(i => ({ id: i.id, title: i.title, startDate: i.startDate, duration: i.duration })),
               { title: `Sprint ${nextNum}`, startDate, duration: 7 }
             ];
+            const configStart = active.length > 0 ? active[0].startDate : startDate;
+            const itersInline = allIters
+              .map(i => `{ ${i.id ? `id: "${i.id}" ` : ''}title: "${i.title}" startDate: "${i.startDate}" duration: ${i.duration} }`)
+              .join(' ');
 
             await github.graphql(`
-              mutation($fid: ID!, $iters: [ProjectV2IterationInput!]!) {
+              mutation($fid: ID!) {
                 updateProjectV2Field(input: {
                   fieldId: $fid
-                  iterationConfiguration: { iterations: $iters }
+                  iterationConfiguration: {
+                    startDate: "${configStart}"
+                    duration: 7
+                    iterations: [${itersInline}]
+                  }
                 }) { projectV2Field { ... on ProjectV2IterationField { id } } }
-              }`, { fid: sprintField.id, iters: iterations });
+              }`, { fid: sprintField.id });
 
             console.log(`✅ Sprint ${nextNum} created (${startDate})`);
