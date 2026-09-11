@@ -6,6 +6,15 @@
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-09-11
+
+### Added（新增）
+
+- **`claude.yml`**：新增对话历史支持
+  - 触发评论时，自动拉取 Issue 正文及所有历史评论（不含当前触发评论），构造 `--- 对话历史 ---` 段落注入 Claude 提示词
+  - Claude 可感知完整上下文，实现多轮对话连续性
+  - 使用 `github.paginate(github.rest.issues.listComments, ...)` 分页获取，支持长对话线程
+
 ## [1.10.1] - 2026-09-11
 
 ### Fixed（修复）
@@ -207,7 +216,8 @@
 - workflow 文件重命名（commit `f944f49`）：统一命名规范
 
 <!-- 比对链接 -->
-[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.10.1...HEAD
+[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.10.1...v1.11.0
 [1.10.1]: https://github.com/laiyinyizao007/my-project-management/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.8.0...v1.9.0

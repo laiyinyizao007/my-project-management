@@ -187,7 +187,9 @@ sequenceDiagram
 - **路径**：`.github/workflows/claude.yml`
 - **触发**：`issue_comment[created]`（评论含 `@claude`）、`issues[opened]`（标题或正文含 `@claude`）、`workflow_dispatch`
 - **条件**：`github.actor == github.repository_owner`（仅限仓库 Owner，防外部触发）
-- **功能**：提取 Issue/评论中的 prompt，调用 `claude --print` 运行 Claude Code CLI，将结果以评论形式发布到原 Issue
+- **功能**：
+  - 提取 Issue/评论中的 prompt，调用 `claude --print` 运行 Claude Code CLI，将结果以评论形式发布到原 Issue
+  - **对话历史**：评论触发时，自动拉取 Issue 正文及所有历史评论并构造上下文，Claude 可进行多轮连续对话
 - **依赖**：`secrets.ANTHROPIC_API_KEY`（必填）、`secrets.ANTHROPIC_BASE_URL`（可选）
 - **已部署**：通过 `auto-deploy-to-new-repos.yml` 自动部署到所有目标仓库
 
