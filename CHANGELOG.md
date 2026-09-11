@@ -6,6 +6,36 @@
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-09-11
+
+### Added（新增）
+
+- **`.github/workflows/issue-tasklist.yml`**：Issue 开启时自动生成 Task List 评论
+  - 触发：`issues: [opened]`；仅在 Issue 正文无既有 `- [ ]` 且标题非空时运行
+  - 内嵌 Python 规则引擎：fix / feat / refactor / improve / docs / test / ci / chore 分组 + 通用兜底
+  - Conventional Commits 前缀（含 scope `feat(api):` 形式）自动剥离后再匹配
+  - 标题长度 ≤ 10 字符时跳过（过短无法生成有意义的 Task List）
+
+- **`.github/scripts/dedup.py`** + **`.github/workflows/dedup.yml`**：重复 Issue 检测
+  - 触发：`issues: [opened]`；对新 Issue 与所有已开启 Issue 进行相似度比较
+  - 算法：Jaccard 相似度与 SequenceMatcher 取最大值，阈值 0.6
+  - 短标题保护：有效词少于 2 个时自动跳过，避免误报
+  - 发现相似 Issue 时在新 Issue 下发评论，最多列出 5 条，按相似度倒序排列
+
+### Changed（变更）
+
+- **`claude.yml`**：两处改动
+  - 新增 `concurrency` 组（`claude-<issue_number>`），防止同一 Issue 触发的多次 Claude 调用并行执行；`cancel-in-progress: false` 保证已在运行的任务不被取消
+  - stdout / stderr 分离：`--permission-mode acceptEdits` + `--allowedTools "Read,Edit,Write,Bash(git:*),Bash(gh pr:*)"` 使 Claude 可在 Action 中写文件/创建 PR；stderr 单独打印到 Action 日志；`github.actor == github.repository_owner` 门禁不变
+
+- **`auto-set-project-fields.yml`**：两处改动
+  - `user(login:)` → `repositoryOwner(login:)` with inline fragments，兼容 Org 账号
+  - Issue 未进入 Project 时改为 3 次重试（间隔 5s），应对 `auto-add-to-project` 与本 workflow 同时触发的竞态；3 次后仍未找到则输出 `core.warning`
+
+- **`auto-close-issue.yml`**：`user(login:)` → `repositoryOwner(login:)` with inline fragments，兼容 Org 账号
+
+- **`auto-add-to-project.yml`**：project-url 改用 `vars.PROJECT_OWNER_TYPE`（默认 `'users'`），迁移 Org 时设为 `'orgs'` 即可，无需修改 workflow 文件
+
 ## [1.11.0] - 2026-09-11
 
 ### Added（新增）
@@ -216,7 +246,8 @@
 - workflow 文件重命名（commit `f944f49`）：统一命名规范
 
 <!-- 比对链接 -->
-[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.10.1...v1.11.0
 [1.10.1]: https://github.com/laiyinyizao007/my-project-management/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.9.0...v1.10.0

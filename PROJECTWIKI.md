@@ -108,7 +108,8 @@ sequenceDiagram
 - **路径**：`.github/workflows/auto-add-to-project.yml`
 - **触发**：`issues: [opened, reopened, transferred]`、`workflow_dispatch`
 - **功能**：将 Issue 自动加入 `PROJECT_NUMBER` 对应的 Project v2 看板
-- **依赖**：`secrets.PROJECT_TOKEN`（PAT）、`vars.PROJECT_NUMBER`
+- **依赖**：`secrets.PROJECT_TOKEN`（PAT）、`vars.PROJECT_NUMBER`、`vars.PROJECT_OWNER_TYPE`（可选，默认 `users`）
+- **Org 兼容**：project-url 通过 `PROJECT_OWNER_TYPE` 变量控制路径前缀（`users` / `orgs`），默认为个人账号
 
 ### 5.2 auto-deploy-to-new-repos.yml
 
@@ -156,6 +157,8 @@ sequenceDiagram
   - `task/bug/feature/research/epic` → Category 字段
   - `size: XS/S/M/L/XL` → Size 字段
   - `status: todo/in-progress/blocked/review/done` → Status 字段
+- **竞态处理**：Issue 开启时 `auto-add-to-project` 与本 workflow 同时触发，Issue 可能尚未进入 Project；改为 3 次重试（每次间隔 5s），仍失败则输出 `core.warning`
+- **Org 兼容**：GraphQL 查询改用 `repositoryOwner(login:)` with inline fragments，同时支持个人账号和 Org 账号
 - **依赖**：`secrets.PROJECT_TOKEN`、`vars.PROJECT_NUMBER`
 
 ### 5.9 setup-project-board.ps1
@@ -190,6 +193,8 @@ sequenceDiagram
 - **功能**：
   - 提取 Issue/评论中的 prompt，调用 `claude --print` 运行 Claude Code CLI，将结果以评论形式发布到原 Issue
   - **对话历史**：评论触发时，自动拉取 Issue 正文及所有历史评论并构造上下文，Claude 可进行多轮连续对话
+  - **并发控制**：`concurrency` 组 `claude-<issue_number>`，同一 Issue 的多次触发串行执行（`cancel-in-progress: false`）
+  - **写权限模式**：`--permission-mode acceptEdits` + `--allowedTools` 使 Claude 可在 Action 中读写文件、创建 PR；Owner 门禁保证安全
 - **依赖**：`secrets.ANTHROPIC_API_KEY`（必填）、`secrets.ANTHROPIC_BASE_URL`（可选）
 - **已部署**：通过 `auto-deploy-to-new-repos.yml` 自动部署到所有目标仓库
 
@@ -199,6 +204,30 @@ sequenceDiagram
 - **用途**：Claude Code 在各仓库中的行为规范文档（仅供 Claude 读取，不影响 workflow 执行）
 - **内容**：角色定义（仅限 `@claude` 触发）、响应语言策略（与 Issue 语言一致）、工作边界（不修改 workflow、代码变更走 PR）
 - **注意**：此文件**不通过 auto-deploy 推送**到目标仓库，属于本管理仓库的全局指令
+
+### 5.14 issue-tasklist.yml
+
+- **路径**：`.github/workflows/issue-tasklist.yml`
+- **触发**：`issues: [opened]`
+- **条件**：Issue 正文无既有 `- [ ]` 且标题非空
+- **功能**：根据 Issue 标题前缀（Conventional Commits 风格）自动生成 Task List 评论
+  - 规则分组：fix / feat / refactor / improve / docs / test / ci / chore + 通用兜底
+  - 标题含 scope（如 `feat(api):`）时自动剥离后再匹配
+  - 标题长度 ≤ 10 字符时跳过
+- **依赖**：`secrets.GITHUB_TOKEN`（内置，无需额外配置）
+- **已部署**：通过 `auto-deploy-to-new-repos.yml` 自动部署到所有目标仓库
+
+### 5.15 dedup.yml / scripts/dedup.py
+
+- **路径**：`.github/workflows/dedup.yml`、`.github/scripts/dedup.py`
+- **触发**：`issues: [opened]`
+- **功能**：检测新 Issue 是否与已有 Issue 重复，相似时自动评论提示
+  - 算法：Jaccard 相似度 + SequenceMatcher 取最大值，阈值 0.6
+  - Conventional Commits 前缀剥离后再比较，避免前缀干扰
+  - 有效词少于 2 个时自动跳过（短标题误报率高）
+  - 最多列出 5 条相似 Issue，按相似度倒序排列
+- **依赖**：`secrets.GITHUB_TOKEN`（内置，无需额外配置）
+- **已部署**：通过 `auto-deploy-to-new-repos.yml` 自动部署到所有目标仓库
 
 ### 5.7 install-to-repo.ps1
 
@@ -224,6 +253,7 @@ sequenceDiagram
 | Variable 名 | 说明 | 默认值 |
 |-------------|------|--------|
 | `PROJECT_NUMBER` | Project v2 编号 | `1` |
+| `PROJECT_OWNER_TYPE` | project-url 路径前缀：`users`（个人）或 `orgs`（组织） | `users` |
 
 ### Project v2 自定义字段（由 setup-project-board.ps1 创建）
 
