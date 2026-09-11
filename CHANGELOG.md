@@ -6,6 +6,38 @@
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-09-11
+
+### Fixed（修复）
+
+- **`generate_weekly_plan.py`**：GraphQL 查询从 `user(login:)` 改为 `repositoryOwner(login:)`，新增 `... on User` / `... on Organization` inline fragments，兼容 Org 账号（原来 Org owner 静默返回 null，导致降级为拉取全量 Issues）；同步修改解析路径 `data["data"]["repositoryOwner"]["projectV2"]`
+
+- **`generate_weekly_plan.py`**：修复 GraphQL 分页 cursor anti-pattern，从字符串拼接默认值的 hack 改为通过 `-f cursor=<value>` 参数传递，分页解析异常从静默 break 改为打印 `[warn]` 日志后 break
+
+- **`repo_analyzer.py`**：删除死代码函数 `load_tracked_repos()`，该函数引用从未定义的 `TRACKED_REPO_NAMES`，调用即 NameError
+
+- **`update_profile.py`**：`json.loads()` 加 `try/except json.JSONDecodeError`，GitHub CLI 返回非 JSON 错误信息时不再直接崩溃
+
+### Changed（变更）
+
+- **硬编码用户名 → env var 链（`weekly_report.py`、`repo_analyzer.py`、`update_profile.py`）**：`GITHUB_USER` 改为 `os.environ.get("GH_OWNER") or os.environ.get("GITHUB_REPOSITORY_OWNER") or "laiyinyizao007"`，与 `generate_weekly_plan.py` 保持一致，支持 fork/迁移
+
+- **`update_profile.py`**：`BASE_URL` 和 `format_one_project()` 中的硬编码 `laiyinyizao007` 替换为 `GITHUB_USER` 变量；`BASE_URL` 的仓库名改为读取 `GITHUB_REPOSITORY` 环境变量
+
+### Added（新增）
+
+- **`requirements.txt`**：新建（`anthropic`、`python-dotenv`），供 CI 的 `setup-python cache: 'pip'` 计算缓存键
+
+- **pip 缓存**：`weekly-plan.yml` 和 `weekly-update.yml` 的 `actions/setup-python@v5` 新增 `cache: 'pip'`，命中后跳过 `pip install`（~15 MB / 30-60s）
+
+- **npm 缓存**：`claude.yml` 的 `actions/setup-node@v4` 新增 `cache: 'npm'`，Issue 触发时跳过重新安装 Claude Code CLI
+
+- **`weekly-update.yml`**：三个 Python 脚本步骤各自新增 `GH_OWNER: ${{ github.repository_owner }}` env var，与硬编码修复配套
+
+### Removed（移除）
+
+- **`weekly-update.yml`**：删除多余的 `配置 gh CLI` 步骤（`echo "$TOKEN" | gh auth login --with-token`），`gh` CLI 已自动读取 `actions/checkout` 写入的 token credential
+
 ## [1.15.0] - 2026-09-11
 
 ### Added（新增）
@@ -329,7 +361,10 @@
 - workflow 文件重命名（commit `f944f49`）：统一命名规范
 
 <!-- 比对链接 -->
-[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.13.0...HEAD
+[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.16.0...HEAD
+[1.16.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.15.0...v1.16.0
+[1.15.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.14.0...v1.15.0
+[1.14.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.10.1...v1.11.0

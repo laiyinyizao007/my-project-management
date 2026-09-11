@@ -322,6 +322,8 @@ sequenceDiagram
   6. 构建 Issue 正文（AI 建议 + 上周进展 + 续期任务 checklist + 每日回顾 + 周回顾），via `gh issue create`
 - **环境变量**：`GH_TOKEN`（PROJECT_TOKEN）、`ANTHROPIC_API_KEY`（可选）、`PROJECT_NUMBER`、`SPRINT_TITLE`（由 inputs 传入）、`ROLLED_OVER`、`GH_OWNER`（`${{ github.repository_owner }}`）
 - **用户名解析**：`os.environ.get("GH_OWNER") or os.environ.get("GITHUB_REPOSITORY_OWNER") or "laiyinyizao007"`（硬编码作最后 fallback）
+- **GraphQL Owner 兼容**（v1.16.0）：首个 GraphQL 查询改用 `repositoryOwner(login:)` + `... on User` / `... on Organization` inline fragments，同时支持个人账号和 Org 账号（原 `user(login:)` 在 Org owner 下静默返回 null）；解析路径对应改为 `data["data"]["repositoryOwner"]["projectV2"]`
+- **GraphQL 分页 cursor**（v1.16.0）：分页不再将 cursor 值字符串拼入 query 默认值，改为通过 `-f cursor=<value>` 参数传递；`$cursor: String`（nullable）变量无需传入时自然解析为 `null`，效果等同于 `after: null` = 从头分页；分页解析异常从静默 break 改为打印 `[warn]` 日志后 break
 
 ### 5.7 install-to-repo.ps1
 
@@ -515,6 +517,7 @@ Todo 列堆积大量未规划 Issue 是正常的（backlog），不影响当前�
 | `anthropic` (Python) | latest | Claude AI 周报生成（Haiku 模型）+ `github-profile-manager` |
 | `python-dotenv` (Python) | latest | 本地 `.env` 加载 |
 | `anthropic-ai/claude-code` (npm) | latest | `claude.yml` 中 Claude Code CLI |
+| `requirements.txt` | 根目录 | CI pip 缓存键（`anthropic` + `python-dotenv`），供 `setup-python@v5 cache: pip` 使用 |
 
 ---
 
