@@ -14,6 +14,10 @@
   - 根因：`gh repo view`（不带参数）依赖 `.git` 目录探测当前仓库，但 job 未执行 `actions/checkout`
   - 修复：改用内置环境变量 `$GITHUB_REPOSITORY`（值固定为 `owner/repo`，不依赖 git）
 
+- **`auto-deploy-to-new-repos.yml`**：修复 `deploy_file` 对不存在文件的误判（false-positive "已存在"）
+  - 根因：`gh api` 遇到 404 时会把错误 JSON 写入 stdout；用 `|| true` 清零退出码后，bash 命令替换捕获到非空错误 JSON，导致文件不存在却误判为"已存在"而跳过部署
+  - 修复：改用 `|| existing_sha=""` 在 `gh api` 失败时显式清空变量，确保 404 时 `existing_sha` 为空
+
 ## [1.10.0] - 2026-09-11
 
 ### Added（新增）
