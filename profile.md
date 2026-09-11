@@ -49,11 +49,10 @@ Architecture taught constraint satisfaction. PM work taught product judgment. Th
 ## 🚀 This week
 
 <!-- WEEKLY_PROGRESS_START -->
-*Week 2026-W36 (2026-08-31 → 2026-09-06) · 1 project updated*
+*Week 2026-W37 (2026-09-07 → 2026-09-13) · 0 projects updated*
 
-**🐍 Github Weekly Progress** — scripts: add refresh-portfolio.sh for local Pi-driven weekly run *(42 commits)*
 
-📄 [Full report →](https://github.com/laiyinyizao007/projectmanagement/blob/main/weekly-reports/2026-W36.md)
+📄 [Full report →](https://github.com/laiyinyizao007/projectmanagement/blob/main/weekly-reports/2026-W37.md)
 <!-- WEEKLY_PROGRESS_END -->
 
 ---
@@ -80,7 +79,7 @@ Architecture taught constraint satisfaction. PM work taught product judgment. Th
 | **[🤖 GitHub RAG Agent](https://github.com/laiyinyizao007/projectmanagement/blob/main/projects/mygithubprojectagent.md)** | RAG agent for private repo Q&A with automatic sensitive-data sanitization | `Python · RAG · LLM` |
 | **[📓 Obsidian Second Brain](https://github.com/laiyinyizao007/projectmanagement/blob/main/projects/obs-averivendell.md)** | Claude Code + Obsidian second-brain starter kit (PARA, Git, mobile access) | `Obsidian · Claude Code · MCP` |
 
-*auto-updated 2026-09-06 UTC*
+*auto-updated 2026-09-11 UTC*
 <!-- GITHUB_PROJECTS_END -->
 
 ---
@@ -90,11 +89,11 @@ Architecture taught constraint satisfaction. PM work taught product judgment. Th
 <!-- GITHUB_STATS_START -->
 <div align="center">
 
-![](https://img.shields.io/badge/Repos-4-58A6FF?style=flat-square&logo=github&logoColor=white)  ![](https://img.shields.io/badge/Followers-1-orange?style=flat-square&logo=github&logoColor=white)  ![](https://img.shields.io/badge/Top__Lang-Python-3776AB?style=flat-square&logo=python&logoColor=white)  ![](https://img.shields.io/badge/Active__90d-1_repos-3ECF8E?style=flat-square)
+![](https://img.shields.io/badge/Repos-5-58A6FF?style=flat-square&logo=github&logoColor=white)  ![](https://img.shields.io/badge/Followers-1-orange?style=flat-square&logo=github&logoColor=white)  ![](https://img.shields.io/badge/Top__Lang-Python-3776AB?style=flat-square&logo=python&logoColor=white)  ![](https://img.shields.io/badge/Active__90d-1_repos-3ECF8E?style=flat-square)
 
 </div>
 
-*auto-updated 2026-09-06 UTC*
+*auto-updated 2026-09-11 UTC*
 <!-- GITHUB_STATS_END -->
 
 ---
@@ -109,4 +108,4 @@ Architecture taught constraint satisfaction. PM work taught product judgment. Th
 
 ---
 
-*Last updated: <!-- LAST_UPDATED -->2026-09-06 05:29 UTC · [source](https://github.com/laiyinyizao007/projectmanagement)*
+*Last updated: <!-- LAST_UPDATED -->2026-09-11 08:01 UTC · [source](https://github.com/laiyinyizao007/projectmanagement)*
