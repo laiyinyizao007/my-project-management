@@ -1,0 +1,33 @@
+name: Claude 任务
+description: 提交一个需要 Claude 处理的任务
+title: "[Task]: "
+body:
+  - type: textarea
+    id: task
+    attributes:
+      label: 任务描述
+      description: 请描述你希望 Claude 完成的任务
+      placeholder: "@claude 请帮我..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: task-type
+    attributes:
+      label: 任务类型
+      options:
+        - 代码分析
+        - 代码生成
+        - 技术咨询
+        - 文档撰写
+        - 其他
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 补充上下文
+      description: 相关代码、链接、背景信息等
+    validations:
+      required: false
