@@ -51,7 +51,7 @@ jobs:
           deploy_file() {
             local repo="$1" path="$2" content="$3"
             local existing_sha
-            existing_sha=$(gh api "repos/${repo}/contents/${path}" --jq '.sha // empty' 2>/dev/null || true)
+            existing_sha=$(gh api "repos/${repo}/contents/${path}" --jq '.sha' 2>/dev/null) || existing_sha=""
 
             if [[ -n "$existing_sha" && "$existing_sha" != "null" ]]; then
               if [[ "$FORCE_UPDATE" == "true" ]]; then
