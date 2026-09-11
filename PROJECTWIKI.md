@@ -30,7 +30,12 @@ flowchart TD
     K --> M[update_profile.py]
     K --> N[weekly_report.py]
     N -->|Claude AI| O[weekly-reports/]
-    M -->|PROFILE_SYNC_TOKEN→PROJECT_TOKEN| P[laiyinyizao007/laiyinyizao007\nProfile README]
+    M -->|PROJECT_TOKEN| P[PROFILE_REPO\nProfile README]
+
+    Q[每周一 UTC 01:00] -->|schedule| R[auto-create-sprint.yml\njob: create-sprint]
+    R -->|workflow_call\nneeds: create-sprint| S[weekly-plan.yml\njob: create-weekly-plan]
+    S -->|generate_weekly_plan.py\nClaude Haiku| T[Weekly Issue]
+    Q2[每周一 UTC 01:05] -->|schedule| U[create-milestone.yml]
 ```
 
 ### Issue 自动入看板流程
@@ -98,6 +103,13 @@ sequenceDiagram
 
 ## 3. 架构决策记录（ADR）
 
+### ADR-004：用 `workflow_call` 替代 `repository_dispatch` 驱动周计划生成
+
+- **背景**：原设计中 `weekly-plan.yml` 同时有 `schedule` 和 `repository_dispatch` 两个触发器，每周一两者在同一 cron 点（`0 1 * * 1`）几乎同时启动，存在重复创建 Issue 的竞态风险；且 dispatch 使用 `if: always()` 会在 Sprint 创建失败时仍然触发。
+- **决策**：将 `weekly-plan.yml` 改为 `workflow_call` 目标，由 `auto-create-sprint.yml` 通过 job dependency（`needs: create-sprint`）显式调用，移除 `schedule` 和 `repository_dispatch` 触发器。
+- **替代方案**：保留 `schedule`，通过幂等检查防止重复创建（已有，但不能防止两次并发都通过检查）。
+- **影响**：消除双触发竞态；job 依赖自动保证 Sprint 成功后才调用 weekly-plan；GitHub Actions UI 可视化展示调用图；数据通过 typed inputs 传递，无需额外 API 调用；`if: always()` smell 被移除。
+
 ### ADR-001：使用 PAT 而非 GITHUB_TOKEN 操作 Project v2
 
 - **背景**：私有仓库的 `GITHUB_TOKEN` 默认无 `projects: write` 权限，调用 Project v2 GraphQL API 时返回 403。
@@ -153,15 +165,20 @@ sequenceDiagram
 
 ### 5.3 weekly-plan.yml
 
-- **路径**：`.github/workflows/weekly-plan.yml`
-- **触发**：每周一 UTC 01:00（北京时间 09:00）
-- **功能**：自动创建 `[Weekly] YYYY-WXX` Issue，包含每日回顾模板
+- **路径**：`.github/workflows/weekly-plan.yml`（仅管理仓库）
+- **触发**：
+  - `workflow_call`（主路径）：由 `auto-create-sprint.yml` 的 `call-weekly-plan` job 调用，inputs: `sprint_title` / `rolled_over`
+  - `workflow_dispatch`（兜底）：手动触发，相同 inputs 供临时运行
+- **功能**：运行 `generate_weekly_plan.py`，自动创建 `[Weekly] YYYY-WXX` Issue（含 AI 建议 + 续期任务 + 每日回顾模板）
+- **幂等性**：Python 脚本检查 `type: weekly-plan` label 下已有同标题 Issue，重复则跳过
+- **依赖**：`secrets.ANTHROPIC_API_KEY`、`secrets.PROJECT_TOKEN`、`vars.PROJECT_NUMBER`
+- **注意**：不再有独立 schedule 触发；每周一唯一入口为 `auto-create-sprint.yml`（见 ADR-004）
 
 ### 5.4 create-milestone.yml
 
-- **路径**：`.github/workflows/create-milestone.yml`
-- **触发**：每周一 UTC 01:00（与 weekly-plan.yml 同步）
-- **功能**：自动创建 `Sprint YYYY-WXX` Milestone，due_on 设为当周周五
+- **路径**：`.github/workflows/create-milestone.yml`（仅管理仓库）
+- **触发**：每周一 UTC 01:05（北京时间 09:05），错峰 5 分钟，避免与 `auto-create-sprint.yml`（01:00）拥塞
+- **功能**：自动创建 `Sprint YYYY-WXX` Milestone，due_on 设为当周周五 23:59:59 UTC；已存在则跳过（幂等）
 
 ### 5.5 sync-labels.yml
 
@@ -202,9 +219,12 @@ sequenceDiagram
 ### 5.10 auto-create-sprint.yml
 
 - **路径**：`.github/workflows/auto-create-sprint.yml`（仅管理仓库）
-- **触发**：每周一 UTC 01:00（北京时间 09:00）、`workflow_dispatch`
-- **功能**：自动创建本周 Sprint 迭代（格式 `Sprint YYYY-WNN`，与 Milestone 命名对齐），并将上一 Sprint 未关闭的 Issue 续期到新 Sprint
-- **去重**：基于 `startDate` 判断，若本周已有迭代则跳过（幂等）
+- **触发**：每周一 UTC 01:00（北京时间 09:00）、`workflow_dispatch`（周计划流程的唯一 cron 入口）
+- **功能**：两个 job 串联执行：
+  1. `create-sprint`：创建本周 Sprint 迭代（格式 `Sprint YYYY-WNN`），将上一 Sprint 未关闭 Issue 续期，输出 `sprint_title` / `rolled_over`
+  2. `call-weekly-plan`：`needs: create-sprint`，通过 `workflow_call` 调用 `weekly-plan.yml`，传递 inputs；create-sprint 失败则自动跳过
+- **GraphQL 兼容性**：使用 `repositoryOwner(login:)` + inline fragments（`... on User` / `... on Organization`），同时兼容个人账号和 Org 账号（ADR-004 修复点）
+- **去重**：基于 `startDate` 判断，若本周已有迭代则跳过（幂等），`call-weekly-plan` job 仍继续执行
 - **依赖**：`secrets.PROJECT_TOKEN`、`vars.PROJECT_NUMBER`
 
 ### 5.11 scripts/common.ps1
@@ -265,8 +285,9 @@ sequenceDiagram
 
 - **路径**：`.github/workflows/weekly-update.yml`（仅管理仓库，不部署到目标仓库）
 - **触发**：每周日 UTC 01:00（北京时间 09:00）、`workflow_dispatch`
-- **功能**：依次运行三个 Python 脚本，完成仓库分析 → Profile 更新 → 周报生成，最终同步 Profile README 到 `laiyinyizao007/laiyinyizao007`
-- **依赖**：`secrets.ANTHROPIC_API_KEY`、`secrets.PROJECT_TOKEN`（复用，用于跨仓库写 Profile README）
+- **功能**：依次运行三个 Python 脚本，完成仓库分析 → Profile 更新 → 周报生成，最终同步 Profile README 到目标 Profile 仓库
+- **目标仓库**：`${{ vars.PROFILE_REPO || format('{0}/{0}', github.repository_owner) }}`（可通过仓库变量覆盖，默认 `owner/owner`）
+- **依赖**：`secrets.ANTHROPIC_API_KEY`、`secrets.PROJECT_TOKEN`（用于跨仓库写 Profile README）
 
 ### 5.17 repo_analyzer.py
 
@@ -287,6 +308,20 @@ sequenceDiagram
 - **路径**：`weekly_report.py`（根目录）
 - **功能**：读取各追踪仓库近期提交，调用 Claude Haiku（`claude-haiku-4-5-20251001`）生成中文周报，写入 `weekly-reports/YYYY-WXX.md`，同时更新 `profile.md` 的 `WEEKLY_PROGRESS_START/END` 区块
 - **CLI**：`--no-push`、`--dry-run`
+
+### 5.24 generate_weekly_plan.py
+
+- **路径**：`generate_weekly_plan.py`（根目录）
+- **功能**：由 `weekly-plan.yml` 调用，全自动生成并创建每周计划 Issue
+- **执行步骤**：
+  1. 计算本周 ISO 8601 周号 + 日期范围（处理跨年边界）
+  2. 幂等检查：搜索 `type: weekly-plan` label 下同标题 Issue，已存在则退出
+  3. 读取 `profile.md` 的 `WEEKLY_PROGRESS_START/END` 区块作为上周进展
+  4. GraphQL 查询 Project v2 当前 Sprint 的 open Issues（分页，最多 100 条/页）；失败时降级为 `gh issue list --state open`
+  5. 调用 Claude Haiku（`claude-haiku-4-5-20251001`）生成本周重点 + 建议执行顺序；无 ANTHROPIC_API_KEY 时跳过
+  6. 构建 Issue 正文（AI 建议 + 上周进展 + 续期任务 checklist + 每日回顾 + 周回顾），via `gh issue create`
+- **环境变量**：`GH_TOKEN`（PROJECT_TOKEN）、`ANTHROPIC_API_KEY`（可选）、`PROJECT_NUMBER`、`SPRINT_TITLE`（由 inputs 传入）、`ROLLED_OVER`、`GH_OWNER`（`${{ github.repository_owner }}`）
+- **用户名解析**：`os.environ.get("GH_OWNER") or os.environ.get("GITHUB_REPOSITORY_OWNER") or "laiyinyizao007"`（硬编码作最后 fallback）
 
 ### 5.7 install-to-repo.ps1
 
@@ -400,10 +435,33 @@ flowchart LR
 
 ### 周计划流程
 
-每周一自动触发：
-1. `create-milestone.yml` → 创建 `Sprint YYYY-WXX` Milestone
-2. `weekly-plan.yml` → 创建 `[Weekly] YYYY-WXX` Issue（含每日回顾模板）
-3. `auto-add-to-project.yml` → 将 Issue 自动加入看板
+每周一 UTC 01:00 自动触发（唯一 cron 入口：`auto-create-sprint.yml`）：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as auto-create-sprint.yml
+    participant W as weekly-plan.yml<br/>(workflow_call)
+    participant P as generate_weekly_plan.py
+    participant C as Claude Haiku
+
+    S->>S: job create-sprint：创建 Sprint YYYY-WXX，续期上周未完成 Issue
+    Note over S: outputs: sprint_title / rolled_over
+    S->>W: job call-weekly-plan（needs: create-sprint）
+    W->>P: python3 generate_weekly_plan.py
+    P->>P: 幂等检查：已有同标题 Issue 则退出
+    P->>P: 读 profile.md WEEKLY_PROGRESS 区块
+    P->>P: GraphQL 查询 Sprint open Issues
+    P->>C: 生成本周重点 + 建议执行顺序
+    C-->>P: AI 建议文本
+    P->>P: 构建 Issue 正文并调用 gh issue create
+```
+
+并行（UTC 01:05，错峰）：
+- `create-milestone.yml` → 创建 `Sprint YYYY-WXX` Milestone，due_on 当周周五
+
+Issue 创建后：
+- `auto-add-to-project.yml` → 将 `[Weekly]` Issue 自动加入看板
 
 ### 新仓库接入流程（实时）
 
@@ -475,9 +533,12 @@ Todo 列堆积大量未规划 Issue 是正常的（backlog），不影响当前�
 |------|------|
 | PAT | Personal Access Token，GitHub 个人访问令牌 |
 | Project v2 | GitHub Projects 第二代，基于 GraphQL |
-| repository_dispatch | GitHub Actions 自定义事件触发机制 |
+| repository_dispatch | GitHub Actions 自定义事件触发机制（旧版跨 workflow 通信方式） |
+| workflow_call | GitHub Actions 可复用 workflow 调用机制，支持 typed inputs 和 job dependency |
 | Sealed Box | libsodium 非对称加密方式，GitHub Secrets 加密标准 |
 | Worker | Cloudflare Workers，边缘计算无服务器函数 |
+| ISO 8601 Week | 国际周数标准：周一为一周第一天，包含当年第一个周四的那周为 W01 |
+| rollover | Sprint 续期：将上一个 Sprint 未关闭的 Issue 移入新 Sprint |
 
 ---
 

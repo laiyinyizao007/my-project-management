@@ -6,6 +6,40 @@
 
 ## [Unreleased]
 
+## [1.15.0] - 2026-09-11
+
+### Added（新增）
+
+- **`generate_weekly_plan.py`**：AI 驱动的每周计划 Issue 生成脚本（447 行）
+  - 计算本周 ISO 周号和日期范围（处理跨年边界）
+  - 幂等检查：已存在本周 `[Weekly]` Issue 则退出（label `type: weekly-plan` 检索）
+  - 读取 `profile.md` 的 `WEEKLY_PROGRESS` 区块作为上周进展上下文
+  - GraphQL 查询 Project v2 当前 Sprint 的 open Issues（分页），降级为 repo 全量 open
+  - 调用 Claude Haiku 生成本周重点（3条）+ 建议执行顺序（checklist），无 ANTHROPIC_API_KEY 时跳过
+  - 构建完整 Issue 正文（AI 建议 + 上周进展 + 续期任务 + 每日回顾 + 周回顾模板）
+
+### Changed（变更）
+
+- **`weekly-plan.yml`**：架构重构，消除双触发竞态
+  - 移除 `schedule: '0 1 * * 1'` 和 `repository_dispatch` 触发器
+  - 新增 `workflow_call`（有类型输入 `sprint_title`/`rolled_over`），作为 auto-create-sprint 的调用目标
+  - 保留 `workflow_dispatch`（相同 inputs）用于手动兜底触发
+  - 新增 `GH_OWNER: ${{ github.repository_owner }}` 替代 Python 中的硬编码用户名
+  - 执行 `generate_weekly_plan.py` 替代原内嵌 shell 脚本
+
+- **`auto-create-sprint.yml`**：成为周计划流程的唯一 cron 入口
+  - `create-sprint` job 新增 `outputs: sprint_title / rolled_over`
+  - 新增 `call-weekly-plan` job：`needs: create-sprint` + `uses: ./.github/workflows/weekly-plan.yml`，通过 job dependency 保证顺序和成功性，`secrets: inherit` 透传
+  - 删除原末尾的 bash dispatch step（约 15 行 jq + gh api 调用）
+  - 修复 GraphQL：`user(login:)` → `repositoryOwner(login:)`，新增 `... on Organization` inline fragment，同时兼容个人账号和 Org 账号
+  - `core.setOutput` 提前到 early-return 之前，确保 `call-weekly-plan` job 始终获得有效值
+
+- **`create-milestone.yml`**：cron 从 `0 1 * * 1` 改为 `5 1 * * 1`，与 `auto-create-sprint` 错峰 5 分钟，减少 GitHub Actions 调度拥塞
+
+- **`weekly-update.yml`**：Profile README 目标仓库路径变量化
+  - 将 `laiyinyizao007/laiyinyizao007` 硬编码替换为 `${{ vars.PROFILE_REPO || format('{0}/{0}', github.repository_owner) }}`
+  - 支持通过仓库 Variables 覆盖，同时兼容 User / Org 账号
+
 ## [1.14.0] - 2026-09-11
 
 ### Added（新增）
