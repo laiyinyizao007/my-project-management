@@ -51,25 +51,27 @@ jobs:
 
             console.log(`Label "${label}" → ${targetField} = "${targetOption}"`);
 
-            // 查询 project 字段信息
+            // 查询 project 字段信息（repositoryOwner 兼容 User 和 Org 账号）
             const projectData = await github.graphql(`
-              query($login: String!, $num: Int!) {
-                user(login: $login) {
-                  projectV2(number: $num) {
-                    id
-                    fields(first: 30) {
-                      nodes {
-                        __typename
-                        ... on ProjectV2SingleSelectField {
-                          id name options { id name }
-                        }
-                      }
+              fragment proj on ProjectV2 {
+                id
+                fields(first: 30) {
+                  nodes {
+                    __typename
+                    ... on ProjectV2SingleSelectField {
+                      id name options { id name }
                     }
                   }
                 }
+              }
+              query($login: String!, $num: Int!) {
+                repositoryOwner(login: $login) {
+                  ... on User         { projectV2(number: $num) { ...proj } }
+                  ... on Organization { projectV2(number: $num) { ...proj } }
+                }
               }`, { login: owner, num: projectNum });
 
-            const project = projectData.user?.projectV2;
+            const project = projectData.repositoryOwner?.projectV2;
             if (!project) {
               console.log(`Project #${projectNum} not found for ${owner}`);
               return;
@@ -92,23 +94,37 @@ jobs:
               return;
             }
 
-            // 找 issue 在 project 中的 item node ID
-            const itemData = await github.graphql(`
-              query($id: ID!) {
-                node(id: $id) {
-                  ... on Issue {
-                    projectItems(first: 10) {
-                      nodes { id project { id } }
+            // 找 issue 在 project 中的 item node ID（3 次重试应对竞态条件）
+            const findItem = async () => {
+              const itemData = await github.graphql(`
+                query($id: ID!) {
+                  node(id: $id) {
+                    ... on Issue {
+                      projectItems(first: 10) {
+                        nodes { id project { id } }
+                      }
                     }
                   }
-                }
-              }`, { id: issueNodeId });
+                }`, { id: issueNodeId });
+              return itemData.node?.projectItems?.nodes
+                ?.find(n => n.project.id === project.id);
+            };
 
-            const item = itemData.node?.projectItems?.nodes
-              ?.find(n => n.project.id === project.id);
+            let item = null;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              item = await findItem();
+              if (item) break;
+              if (attempt < 3) {
+                console.log(`Issue not in project yet (attempt ${attempt}/3), retrying in 5s...`);
+                await new Promise(r => setTimeout(r, 5000));
+              }
+            }
 
             if (!item) {
-              console.log('Issue not in project yet (add-to-project may still be running). Skipping.');
+              core.warning(
+                `Issue #${context.payload.issue.number} still not in project #${projectNum} ` +
+                `after 3 attempts; field "${targetField}" was not set.`
+              );
               return;
             }
 

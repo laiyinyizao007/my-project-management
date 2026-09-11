@@ -18,21 +18,24 @@ jobs:
             const issueNodeId = context.payload.issue.node_id;
             const projectNum = parseInt(process.env.PROJECT_NUMBER);
 
-            // Query project Status field and issue's project item in one call
+            // Query project Status field and issue's project item in one call.
+            // repositoryOwner is used instead of user() to support both User and Org accounts.
             const data = await github.graphql(`
-              query($login: String!, $num: Int!, $issueId: ID!) {
-                user(login: $login) {
-                  projectV2(number: $num) {
-                    id
-                    fields(first: 20) {
-                      nodes {
-                        __typename
-                        ... on ProjectV2SingleSelectField {
-                          id name options { id name }
-                        }
-                      }
+              fragment proj on ProjectV2 {
+                id
+                fields(first: 20) {
+                  nodes {
+                    __typename
+                    ... on ProjectV2SingleSelectField {
+                      id name options { id name }
                     }
                   }
+                }
+              }
+              query($login: String!, $num: Int!, $issueId: ID!) {
+                repositoryOwner(login: $login) {
+                  ... on User         { projectV2(number: $num) { ...proj } }
+                  ... on Organization { projectV2(number: $num) { ...proj } }
                 }
                 node(id: $issueId) {
                   ... on Issue {
@@ -43,8 +46,8 @@ jobs:
                 }
               }`, { login: owner, num: projectNum, issueId: issueNodeId });
 
-            const project = data.user?.projectV2;
-            if (!project) return console.log('Project not found');
+            const project = data.repositoryOwner?.projectV2;
+            if (!project) return console.log(`Project #${projectNum} not found for ${owner}`);
 
             const statusField = project.fields.nodes.find(
               f => f.__typename === 'ProjectV2SingleSelectField' && f.name === 'Status'

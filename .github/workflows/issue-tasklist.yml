@@ -1,0 +1,146 @@
+name: Generate Issue Task List
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    # Only run if the Issue body has no existing task list and the title is
+    # non-empty. Actions expressions have no length() function, so the
+    # "title is meaningful" check lives in the Python step below.
+    if: |
+      !contains(github.event.issue.body || '', '- [ ]') &&
+      github.event.issue.title != null &&
+      github.event.issue.title != ''
+    env:
+      REPO: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      TITLE: ${{ github.event.issue.title }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Generate and post task list
+        run: |
+          cat > /tmp/tasklist.py << 'PYEOF'
+          import re, sys, os, json
+          import urllib.request
+
+          title = os.environ['TITLE']
+          repo = os.environ['REPO']
+
+          MIN_TITLE_LENGTH = 10
+
+          if len(title) <= MIN_TITLE_LENGTH:
+              print(f'Title too short ({len(title)} chars). Skipping.')
+              sys.exit(0)
+
+          # Conventional Commits allow an optional scope and a breaking-change
+          # marker: "feat(api)!: ...". Normalize both away so the prefix rules
+          # below only ever need to match "feat:".
+          SCOPE_RE = re.compile(r'^([a-z]+)\([^)]*\)(!?):', re.I)
+
+          def generate_tasks(title):
+              """Generate task list based on issue title prefix using rule engine."""
+              title_lower = SCOPE_RE.sub(r'\1:', title.strip().lower())
+
+              if re.match(r'^(fix|fixes|bug|bugs|bugfix|patch|hotfix)[:\s]', title_lower):
+                  return [
+                      'Reproduce the issue with a minimal test case',
+                      'Identify the root cause',
+                      'Implement the fix',
+                      'Add a regression test',
+                      'Verify the fix in staging',
+                  ]
+
+              if re.match(r'^(add|implement|create|build|develop|make|feat|feature)[:\s]', title_lower):
+                  return [
+                      'Define requirements and acceptance criteria',
+                      'Design the solution',
+                      'Implement the feature',
+                      'Write tests',
+                      'Update documentation',
+                  ]
+
+              if re.match(r'^(refactor|cleanup|reorganize|rename|move|migrate|restructure)[:\s]', title_lower):
+                  return [
+                      'Identify the scope of the refactor',
+                      'Ensure tests cover the current behavior',
+                      'Apply the refactor incrementally',
+                      'Confirm no behavioral changes (tests green)',
+                      'Update documentation if affected',
+                  ]
+
+              if re.match(r'^(improve|enhance|optimize|upgrade|update|perf|performance|speed|faster)[:\s]', title_lower):
+                  return [
+                      'Measure the current baseline',
+                      'Identify the bottleneck',
+                      'Implement the improvement',
+                      'Measure again and confirm the gain',
+                      'Document the change',
+                  ]
+
+              # Documentation patterns
+              if re.match(r'^(docs|doc|documentation)[:\s]', title_lower):
+                  return [
+                      'Identify which docs are out of date or missing',
+                      'Write / update the content',
+                      'Verify all examples and links still work',
+                      'Proofread and review',
+                  ]
+
+              # Test patterns
+              if re.match(r'^(test|tests|testing|spec)[:\s]', title_lower):
+                  return [
+                      'Identify the uncovered paths / scenarios',
+                      'Write the test cases',
+                      'Confirm they fail against the old behavior and pass after',
+                      'Wire the tests into CI',
+                  ]
+
+              # CI / pipeline patterns
+              if re.match(r'^(ci|cd|pipeline|workflow)[:\s]', title_lower):
+                  return [
+                      'Describe the desired pipeline behavior',
+                      'Update the workflow configuration',
+                      'Validate on a test branch or with a dry run',
+                      'Document the change for other contributors',
+                  ]
+
+              # Chore / maintenance patterns
+              if re.match(r'^(chore|maintenance|housekeeping|style|lint)[:\s]', title_lower):
+                  return [
+                      'Scope exactly what will change',
+                      'Apply the change',
+                      'Confirm no behavioral impact (tests / CI green)',
+                      'Update docs or config if affected',
+                  ]
+
+              # Generic fallback
+              return [
+                  'Clarify requirements and acceptance criteria',
+                  'Design the approach',
+                  'Implement',
+                  'Test',
+                  'Document',
+              ]
+
+          tasks = generate_tasks(title)
+          task_list = '\n'.join(f'- [ ] {t}' for t in tasks)
+          body = f'## Task List\n\n{task_list}'
+
+          issue_number = os.environ['ISSUE_NUMBER']
+          token = os.environ['GH_TOKEN']
+          url = f'https://api.github.com/repos/{repo}/issues/{issue_number}/comments'
+          data = json.dumps({'body': body}).encode()
+          req = urllib.request.Request(url, data=data, method='POST')
+          req.add_header('Authorization', f'Bearer {token}')
+          req.add_header('Content-Type', 'application/json')
+          req.add_header('Accept', 'application/vnd.github+json')
+          req.add_header('X-GitHub-Api-Version', '2022-11-28')
+          with urllib.request.urlopen(req) as resp:
+              print(f'✅ Posted task list comment (HTTP {resp.status})')
+          PYEOF
+          python3 /tmp/tasklist.py
