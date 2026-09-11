@@ -6,6 +6,14 @@
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-09-11
+
+### Fixed（修复）
+
+- **`auto-deploy-to-new-repos.yml`**：修复 `gh repo view` 在无 checkout 步骤时报 `fatal: not a git repository` 的错误
+  - 根因：`gh repo view`（不带参数）依赖 `.git` 目录探测当前仓库，但 job 未执行 `actions/checkout`
+  - 修复：改用内置环境变量 `$GITHUB_REPOSITORY`（值固定为 `owner/repo`，不依赖 git）
+
 ## [1.10.0] - 2026-09-11
 
 ### Added（新增）
@@ -195,7 +203,8 @@
 - workflow 文件重命名（commit `f944f49`）：统一命名规范
 
 <!-- 比对链接 -->
-[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.10.1...HEAD
+[1.10.1]: https://github.com/laiyinyizao007/my-project-management/compare/v1.10.0...v1.10.1
 [1.10.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.7.0...v1.8.0
