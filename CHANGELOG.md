@@ -6,6 +6,43 @@
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-09-11
+
+### Added（新增）
+
+- **`CLAUDE.md`**：Claude 行为规范文档
+  - 定义 Claude 在各仓库 Issue 中的角色、响应语言、工作边界和行为规范
+  - 响应格式：理解 / 分析 / 行动 / 注意事项四段式
+  - 语言策略：与 Issue 语言一致（中文 Issue → 中文回复，英文 Issue → 英文回复）
+
+- **`.github/ISSUE_TEMPLATE/claude-task.yml`**：Claude 任务 Issue 模板
+  - 专为 `@claude` 触发设计，含"任务描述"（必填）、"任务类型"下拉框（代码分析/代码生成/技术咨询/文档撰写/其他）、"补充上下文"三个字段
+  - 与 `claude.yml` 配合使用，让用户通过标准模板提交 Claude 任务
+
+### Changed（变更）
+
+- 合并 `laiyinyizao007/issuefighter` 仓库内容（将其独有的 `CLAUDE.md` 和 `claude-task.yml` 纳入本仓库管理）
+- 归档 `laiyinyizao007/issuefighter`（保留历史记录，仅接受只读访问）
+
+## [1.9.0] - 2026-09-11
+
+### Added（新增）
+
+- **`.github/workflows/claude.yml`**：Claude Issue 处理器
+  - 触发：`issue_comment[created]`（含 `@claude`）、`issues[opened]`（标题/正文含 `@claude`）、`workflow_dispatch`
+  - 仅限仓库 Owner 触发（防止外部调用）
+  - 安装 `@anthropic-ai/claude-code` CLI，提取 prompt，调用 `claude --print`，将结果发布为 Issue 评论
+  - 依赖：`secrets.ANTHROPIC_API_KEY`（必填）、`secrets.ANTHROPIC_BASE_URL`（可选）
+  - 已纳入全仓库自动部署
+
+### Changed（变更）
+
+- **`auto-deploy-to-new-repos.yml`**：新增 `ANTHROPIC_API_KEY` / `ANTHROPIC_BASE_URL` Secret 传播
+  - 部署时自动将管理仓库的两个 Secret 写入目标仓库（仅在 Secret 非空时传播）
+- **`scripts/install-to-repo.ps1`**：新增 `-AnthropicApiKey` 和 `-AnthropicBaseUrl` 参数
+  - 手动安装时可选传入 API Key，脚本自动调用 `gh secret set` 写入目标仓库
+  - 完成摘要中动态显示 `ANTHROPIC_API_KEY` 是否已设置
+
 ## [1.8.0] - 2026-09-10
 
 ### Changed（变更）
@@ -158,7 +195,9 @@
 - workflow 文件重命名（commit `f944f49`）：统一命名规范
 
 <!-- 比对链接 -->
-[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.9.0...v1.10.0
+[1.9.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.7.0...v1.8.0
 [1.7.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.5.0...v1.6.0

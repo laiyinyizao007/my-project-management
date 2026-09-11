@@ -97,6 +97,7 @@ sequenceDiagram
 | Worker 错误告警 | 当前 Worker 失败仅记录日志，无通知机制 | 低 |
 | 多 Project 支持 | 目前 PROJECT_NUMBER 默认为 1，不支持多看板（可通过参数覆盖） | 低 |
 | deploy 排除列表 | 管理仓库专用 workflow 需手动加入两处排除列表（yaml + PS 脚本）；新增可部署 workflow 无需修改任何列表 | 低 |
+| CLAUDE.md 分发 | `CLAUDE.md` 目前仅在管理仓库，不自动推送到目标仓库；如需目标仓库也有 Claude 指令，需扩展 auto-deploy 逻辑 | 低 |
 
 ---
 
@@ -116,7 +117,8 @@ sequenceDiagram
 - **功能**：向目标仓库完成 5 步部署（workflow + 变量 + Secret + 权限 + 注册）
 - **WF 列表**：动态枚举源仓库 `.github/workflows/` 下所有文件，过滤排除列表（管理仓库专用项）；新增可部署 workflow 无需修改此文件
 - **排除列表**：`auto-deploy-to-new-repos.yml`、`auto-create-sprint.yml`、`weekly-plan.yml`、`create-milestone.yml`、`sync-labels.yml`
-- **依赖**：`secrets.PROJECT_TOKEN`（PAT，同时用于传播自身）
+- **Secret 传播**：部署时自动写入 `PROJECT_TOKEN`；若管理仓库配置了 `ANTHROPIC_API_KEY` / `ANTHROPIC_BASE_URL`，也一并传播到目标仓库
+- **依赖**：`secrets.PROJECT_TOKEN`（PAT，同时用于传播自身）、`secrets.ANTHROPIC_API_KEY`（可选）
 
 ### 5.3 weekly-plan.yml
 
@@ -180,11 +182,28 @@ sequenceDiagram
   - `Remove-ProjectToken`：会话结束时清理临时环境变量
   - `Get-CurrentRepo`：动态获取当前仓库 `Owner`/`Name`/`Full`（消除硬编码）
 
+### 5.12 claude.yml
+
+- **路径**：`.github/workflows/claude.yml`
+- **触发**：`issue_comment[created]`（评论含 `@claude`）、`issues[opened]`（标题或正文含 `@claude`）、`workflow_dispatch`
+- **条件**：`github.actor == github.repository_owner`（仅限仓库 Owner，防外部触发）
+- **功能**：提取 Issue/评论中的 prompt，调用 `claude --print` 运行 Claude Code CLI，将结果以评论形式发布到原 Issue
+- **依赖**：`secrets.ANTHROPIC_API_KEY`（必填）、`secrets.ANTHROPIC_BASE_URL`（可选）
+- **已部署**：通过 `auto-deploy-to-new-repos.yml` 自动部署到所有目标仓库
+
+### 5.13 CLAUDE.md
+
+- **路径**：`CLAUDE.md`（根目录）
+- **用途**：Claude Code 在各仓库中的行为规范文档（仅供 Claude 读取，不影响 workflow 执行）
+- **内容**：角色定义（仅限 `@claude` 触发）、响应语言策略（与 Issue 语言一致）、工作边界（不修改 workflow、代码变更走 PR）
+- **注意**：此文件**不通过 auto-deploy 推送**到目标仓库，属于本管理仓库的全局指令
+
 ### 5.7 install-to-repo.ps1
 
 - **路径**：`scripts/install-to-repo.ps1`
 - **用途**：手动将 workflow 部署到指定仓库（备用方案，正常由 Worker 自动触发）
-- **用法**：`pwsh scripts/install-to-repo.ps1 -TargetRepo "owner/repo"`
+- **用法**：`pwsh scripts/install-to-repo.ps1 -TargetRepo "owner/repo" [-AnthropicApiKey "sk-ant-..."] [-AnthropicBaseUrl "..."]`
+- **参数**：`-AnthropicApiKey` / `-AnthropicBaseUrl`（可选）——传入后自动调用 `gh secret set` 写入目标仓库
 
 ---
 
@@ -195,6 +214,8 @@ sequenceDiagram
 | Secret 名 | 说明 | 来源 |
 |-----------|------|------|
 | `PROJECT_TOKEN` | classic PAT，scope: `repo + project` | 自动传播（auto-deploy workflow） |
+| `ANTHROPIC_API_KEY` | Claude API 密钥，供 `claude.yml` 调用 Claude Code CLI | 自动传播（管理仓库有配置时）|
+| `ANTHROPIC_BASE_URL` | 可选，自定义 Claude API 端点 | 自动传播（管理仓库有配置时）|
 
 ### GitHub Actions Variables（每个目标仓库）
 
