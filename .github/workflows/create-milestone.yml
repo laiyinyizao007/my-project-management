@@ -2,8 +2,8 @@ name: Create Weekly Sprint Milestone
 
 on:
   schedule:
-    # 每周一 UTC 01:00 = 北京时间 09:00（与 weekly-plan.yml 对齐）
-    - cron: '0 1 * * 1'
+    # 每周一 UTC 01:05 = 北京时间 09:05（错峰：auto-create-sprint 在 01:00 启动）
+    - cron: '5 1 * * 1'
   workflow_dispatch:
 
 permissions:

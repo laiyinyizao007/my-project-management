@@ -1,104 +1,47 @@
 name: Create Weekly Plan Issue
 
 on:
-  schedule:
-    # 每周一 UTC 01:00 = 北京时间 09:00
-    - cron: '0 1 * * 1'
+  workflow_call:
+    inputs:
+      sprint_title:
+        description: 'Sprint 名称（由 auto-create-sprint 传入）'
+        type: string
+        default: ''
+      rolled_over:
+        description: '续期 Issue 数量'
+        type: string
+        default: '0'
   workflow_dispatch:
+    inputs:
+      sprint_title:
+        description: 'Sprint 名称（留空则自动计算当周）'
+        required: false
+        default: ''
+      rolled_over:
+        description: '续期 Issue 数量'
+        required: false
+        default: '0'
 
 permissions:
   issues: write
+  contents: read
 
 jobs:
   create-weekly-plan:
     runs-on: ubuntu-latest
     steps:
-      - name: Create weekly plan issue
-        uses: actions/github-script@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          script: |
-            const now = new Date();
-
-            // 正确的 ISO 周数计算（处理跨年边界）
-            const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-            const dayNum = d.getUTCDay() || 7;
-            d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-            const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-            const weekNum = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
-            const isoYear = d.getUTCFullYear();
-            const weekStr = String(weekNum).padStart(2, '0');
-            const title = `[Weekly] ${isoYear}-W${weekStr}`;
-
-            // 当周周一和周日的日期范围
-            const todayDayNum = now.getUTCDay() || 7;
-            const monday = new Date(now);
-            monday.setUTCDate(now.getUTCDate() + (1 - todayDayNum));
-            const sunday = new Date(monday);
-            sunday.setUTCDate(monday.getUTCDate() + 6);
-            const mondayStr = monday.toISOString().split('T')[0];
-            const sundayStr = sunday.toISOString().split('T')[0];
-
-            // 检查本周 Issue 是否已存在
-            const { data: issues } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'all',
-              labels: 'type: weekly-plan',
-              per_page: 20,
-            });
-            const existing = issues.find(i => i.title === title);
-            if (existing) {
-              console.log(`⏭️  本周计划 Issue 已存在：#${existing.number} ${title}`);
-              return;
-            }
-
-            const body = [
-              `## ${mondayStr} ~ ${sundayStr}`,
-              '',
-              '### 本周目标',
-              '',
-              '（请在本节写下本周最重要的 3 个目标）',
-              '',
-              '### 计划任务',
-              '',
-              '（用 checklist 列出本周要做的事）',
-              '',
-              '- [ ] ',
-              '',
-              '### 每日回顾',
-              '',
-              `#### 周一 ${mondayStr}`,
-              '- 完成：',
-              '- 阻塞：',
-              '',
-              '#### 周二',
-              '- 完成：',
-              '- 阻塞：',
-              '',
-              '#### 周三',
-              '- 完成：',
-              '- 阻塞：',
-              '',
-              '#### 周四',
-              '- 完成：',
-              '- 阻塞：',
-              '',
-              '#### 周五',
-              '- 完成：',
-              '- 阻塞：',
-              '',
-              '### 周回顾（周日填写）',
-              '',
-              '- 完成率：',
-              '- 下周重点：',
-              ''
-            ].join('\n');
-
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: title,
-              body: body,
-              labels: ['type: weekly-plan', 'status: todo'],
-            });
-            console.log(`✅ 已创建周计划 Issue：${title}`);
+          python-version: '3.11'
+      - name: 安装依赖
+        run: pip install anthropic
+      - name: 生成并创建周计划 Issue
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+          SPRINT_TITLE: ${{ inputs.sprint_title }}
+          ROLLED_OVER: ${{ inputs.rolled_over }}
+          GH_OWNER: ${{ github.repository_owner }}
+        run: python3 generate_weekly_plan.py

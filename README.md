@@ -144,11 +144,18 @@ pwsh scripts/setup.ps1
 
 | 工作流 | 触发条件 | 功能 |
 |--------|---------|------|
-| **Create Weekly Plan Issue** | 每周一 09:00（北京时间），或手动触发 | 自动创建本周计划 Issue |
-| **Create Weekly Sprint Milestone** | 每周一 09:00（北京时间），或手动触发 | 自动创建当周 Sprint Milestone |
-| **Sync repository labels** | 推送到 main，或手动触发 | 同步标签配置 |
-| **Add Issue to Project** | 新 Issue 创建时 | 自动加入 GitHub Project 看板 |
-| **Weekly Progress Update** | 每周日 09:00（北京时间），或手动触发 | 运行仓库分析 + 生成周报 + 更新 GitHub Profile |
+| **Create Weekly Plan Issue** | 每周一 09:00（北京时间），手动触发 | 自动创建本周计划 Issue |
+| **Create Weekly Sprint Milestone** | 每周一 09:00（北京时间），手动触发 | 自动创建当周 Sprint Milestone |
+| **Auto Create Sprint** | 每周一 09:00（北京时间），手动触发 | 在 Project 内创建迭代 + 续期未完成任务 |
+| **Sync repository labels** | 推送到 main，手动触发 | 同步标签配置（25 个） |
+| **Add Issue to Project** | 新 Issue 创建/重开/转移时 | 自动加入 GitHub Project 看板 |
+| **Set Project Fields from Labels** | Issue 打标签时 | 自动同步 Priority/Category/Size/Status 到看板字段 |
+| **Issue Closed → Done** | Issue 关闭时 | 自动将看板状态设为 Done |
+| **Detect Duplicate Issues** | 新 Issue 创建时 | 检测重复 Issue，相似度 ≥ 0.6 时评论提示 |
+| **Generate Issue Task List** | 新 Issue 创建时 | 根据标题前缀（feat/fix/docs 等）自动生成任务清单 |
+| **Claude Issue Handler** | Issue/评论含 `@claude` 时（仅 Owner） | Claude AI 自动响应，可读写代码、创建 PR |
+| **Auto-deploy to New Repos** | 推送改动 workflow/scripts、新建仓库、每 6 小时 | 将 workflow 和脚本部署到所有仓库 |
+| **Weekly Progress Update** | 每周日 09:00（北京时间），手动触发 | 仓库分析 + AI 周报 + GitHub Profile 同步 |
 
 **手动触发工作流：**
 

@@ -37,21 +37,23 @@ jobs:
           git diff --staged --quiet \
             || git commit -m "chore: 自动周报 $(date -u +%Y-W%V)"
           git push
-      - name: 同步个人主页 README（laiyinyizao007/laiyinyizao007）
+      - name: 同步个人主页 README
         env:
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          # PROFILE_REPO 可在仓库 Variables 中覆盖，默认为 owner/owner（Profile README 仓库惯例）
+          PROFILE_REPO: ${{ vars.PROFILE_REPO || format('{0}/{0}', github.repository_owner) }}
         run: |
-          sha=$(gh api /repos/laiyinyizao007/laiyinyizao007/contents/README.md \
+          sha=$(gh api /repos/${PROFILE_REPO}/contents/README.md \
                 --jq '.sha' 2>/dev/null || echo "")
           content=$(base64 -w 0 profile.md)
           if [ -n "$sha" ]; then
             gh api --method PUT \
-              /repos/laiyinyizao007/laiyinyizao007/contents/README.md \
+              /repos/${PROFILE_REPO}/contents/README.md \
               -f message="chore: sync profile" \
               -f content="$content" \
               -f sha="$sha"
-            echo "✅ 个人主页 README 已同步"
+            echo "✅ 个人主页 README 已同步（${PROFILE_REPO}）"
           else
-            echo "⚠️  README.md 未找到或无权访问（检查 PROFILE_SYNC_TOKEN）"
+            echo "⚠️  README.md 未找到或无权访问（检查 PROJECT_TOKEN 和 PROFILE_REPO=${PROFILE_REPO}）"
             exit 1
           fi

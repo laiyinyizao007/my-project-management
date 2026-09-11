@@ -8,8 +8,12 @@ on:
 jobs:
   create-sprint:
     runs-on: ubuntu-latest
+    outputs:
+      sprint_title: ${{ steps.create-sprint.outputs.sprint_title }}
+      rolled_over: ${{ steps.create-sprint.outputs.rolled_over }}
     steps:
       - uses: actions/github-script@v7
+        id: create-sprint
         env:
           PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
         with:
@@ -17,40 +21,6 @@ jobs:
           script: |
             const projectNum = parseInt(process.env.PROJECT_NUMBER);
             const owner = context.repo.owner;
-
-            // 查询 Sprint 迭代字段和 Project ID
-            const data = await github.graphql(`
-              query($login: String!, $num: Int!) {
-                user(login: $login) {
-                  projectV2(number: $num) {
-                    id
-                    fields(first: 30) {
-                      nodes {
-                        __typename
-                        ... on ProjectV2IterationField {
-                          id name
-                          configuration {
-                            iterations           { id title startDate duration }
-                            completedIterations  { id title startDate duration }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }`, { login: owner, num: projectNum });
-
-            const project = data.user?.projectV2;
-            if (!project) { console.log(`Project #${projectNum} not found`); return; }
-            const projectId = project.id;
-
-            const sprintField = project.fields.nodes.find(
-              f => f.__typename === 'ProjectV2IterationField' && f.name === 'Sprint'
-            );
-            if (!sprintField) { console.log('Sprint field not found, run setup-project-board.ps1 first'); return; }
-
-            const active    = sprintField.configuration.iterations ?? [];
-            const completed = sprintField.configuration.completedIterations ?? [];
 
             // 本周一日期（与 weekly-plan.yml / create-milestone.yml 相同算法）
             const now      = new Date();
@@ -68,9 +38,68 @@ jobs:
             const weekStr   = String(weekNum).padStart(2, '0');
             const sprintTitle = `Sprint ${isoYear}-W${weekStr}`;
 
-            // 本周已有迭代则跳过
+            // 提前设置 outputs（在 early-return 前，确保 call-weekly-plan job 始终有值）
+            core.setOutput('sprint_title', sprintTitle);
+            core.setOutput('start_date', startDate);
+
+            // 查询 Sprint 迭代字段和 Project ID
+            // 使用 repositoryOwner 同时兼容 User 和 Organization 账号
+            const data = await github.graphql(`
+              query($login: String!, $num: Int!) {
+                repositoryOwner(login: $login) {
+                  ... on User {
+                    projectV2(number: $num) {
+                      id
+                      fields(first: 30) {
+                        nodes {
+                          __typename
+                          ... on ProjectV2IterationField {
+                            id name
+                            configuration {
+                              iterations           { id title startDate duration }
+                              completedIterations  { id title startDate duration }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                  ... on Organization {
+                    projectV2(number: $num) {
+                      id
+                      fields(first: 30) {
+                        nodes {
+                          __typename
+                          ... on ProjectV2IterationField {
+                            id name
+                            configuration {
+                              iterations           { id title startDate duration }
+                              completedIterations  { id title startDate duration }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }`, { login: owner, num: projectNum });
+
+            const project = data.repositoryOwner?.projectV2;
+            if (!project) { console.log(`Project #${projectNum} not found`); core.setOutput('rolled_over', '0'); return; }
+            const projectId = project.id;
+
+            const sprintField = project.fields.nodes.find(
+              f => f.__typename === 'ProjectV2IterationField' && f.name === 'Sprint'
+            );
+            if (!sprintField) { console.log('Sprint field not found, run setup-project-board.ps1 first'); core.setOutput('rolled_over', '0'); return; }
+
+            const active    = sprintField.configuration.iterations ?? [];
+            const completed = sprintField.configuration.completedIterations ?? [];
+
+            // 本周已有迭代则跳过创建，call-weekly-plan job 仍会执行
             if (active.some(i => i.startDate === startDate)) {
               console.log(`Sprint for week ${startDate} already exists, skipping`);
+              core.setOutput('rolled_over', '0');
               return;
             }
 
@@ -107,6 +136,7 @@ jobs:
 
             if (!previousSprintId) {
               console.log('No previous sprint, skipping rollover');
+              core.setOutput('rolled_over', '0');
               return;
             }
 
@@ -127,6 +157,7 @@ jobs:
 
             if (!newSprintId) {
               console.log('Could not find new sprint ID, skipping rollover');
+              core.setOutput('rolled_over', '0');
               return;
             }
 
@@ -193,3 +224,12 @@ jobs:
             }
 
             console.log(`🔄 Rolled over ${rolledOver} incomplete item(s) to ${sprintTitle}`);
+            core.setOutput('rolled_over', String(rolledOver));
+
+  call-weekly-plan:
+    needs: create-sprint
+    uses: ./.github/workflows/weekly-plan.yml
+    with:
+      sprint_title: ${{ needs.create-sprint.outputs.sprint_title }}
+      rolled_over: ${{ needs.create-sprint.outputs.rolled_over }}
+    secrets: inherit

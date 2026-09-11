@@ -71,6 +71,29 @@ sequenceDiagram
     AC->>R: 创建 .github/.keep（注册 workflow）
 ```
 
+### Issue 创建完整自动化流程
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as 用户
+    participant R as 仓库（任意已部署）
+    participant P as Project v2 看板
+
+    U->>R: 创建 Issue
+    par 并发触发
+        R->>R: auto-add-to-project.yml → Issue 入看板 (Todo)
+        R->>R: issue-tasklist.yml → 根据标题生成任务清单评论
+        R->>R: dedup.yml → 检测重复 Issue，相似时评论提示
+    end
+    U->>R: 给 Issue 打标签
+    R->>P: auto-set-project-fields.yml → Priority/Category/Size/Status 字段同步
+    U->>R: 评论 @claude 指令
+    R->>R: claude.yml → Claude Code CLI 响应，回复评论
+    U->>R: 关闭 Issue
+    R->>P: auto-close-issue.yml → Status → Done
+```
+
 ---
 
 ## 3. 架构决策记录（ADR）
@@ -272,6 +295,41 @@ sequenceDiagram
 - **用法**：`pwsh scripts/install-to-repo.ps1 -TargetRepo "owner/repo" [-AnthropicApiKey "sk-ant-..."] [-AnthropicBaseUrl "..."]`
 - **参数**：`-AnthropicApiKey` / `-AnthropicBaseUrl`（可选）——传入后自动调用 `gh secret set` 写入目标仓库
 
+### 5.20 auto-close-issue.yml
+
+- **路径**：`.github/workflows/auto-close-issue.yml`
+- **触发**：`issues: [closed]`
+- **功能**：Issue 关闭时，通过 GraphQL 将 Project v2 看板中对应 item 的 Status 字段设为 Done
+- **特性**：指数退避重试；Issue 不在看板时静默跳过，不报错
+- **依赖**：`secrets.PROJECT_TOKEN`、`vars.PROJECT_NUMBER`
+- **已部署**：通过 `auto-deploy-to-new-repos.yml` 自动部署到所有目标仓库
+
+### 5.21 tools/github-profile-manager/
+
+- **路径**：`tools/github-profile-manager/`
+- **功能**：使用 Claude AI（`claude-sonnet-4-6`）批量为名下仓库生成/更新描述
+- **触发**：每周一 UTC 02:00（北京时间 10:00），或手动 `workflow_dispatch`
+- **workflow**：`tools/github-profile-manager/.github/workflows/update-descriptions.yml`
+- **脚本**：`update_descriptions.py`
+- **配置**：`skip_repos.txt`（跳过列表），`.env.example`（密钥模板）
+- **依赖**：`secrets.GITHUB_PAT`、`secrets.ANTHROPIC_API_KEY`
+
+### 5.22 tools/mygithubprojectagent/
+
+- **路径**：`tools/mygithubprojectagent/`
+- **功能**：基于 RAG 的 GitHub 仓库知识库 Agent 工具，支持本地知识库构建与查询
+- **模块**：`chunker` / `embedder` / `knowledge_base` / `rag_engine` / `retriever` / `sanitizer` / `report_generator`
+- **文档**：`tools/mygithubprojectagent/docs/PROJECTWIKI.md`
+- **安装**：`pip install -r requirements.txt`
+
+### 5.23 scripts/refresh-portfolio.sh
+
+- **路径**：`scripts/refresh-portfolio.sh`
+- **功能**：在本地（如树莓派）运行与 `weekly-update.yml` 等效的完整周报流水线
+- **用途**：绕过 `GITHUB_TOKEN` 无法跨仓库读取私有仓库 commits 的限制，使用本地 gh CLI PAT
+- **CLI**：`--dry-run`、`--push`、`--no-push`（默认不推送）
+- **依赖**：gh CLI 已登录、python3、`ANTHROPIC_API_KEY` 环境变量
+
 ---
 
 ## 6. API 手册
@@ -355,6 +413,23 @@ flowchart LR
 4. `auto-deploy-to-new-repos.yml` 完成 5 步部署
 5. 新仓库具备完整 Issue 追踪能力
 
+### Issue 创建完整自动化流程
+
+Issue 在任意已部署仓库中创建后，多条自动化链路并发触发：
+
+1. `auto-add-to-project` → Issue 入看板 Todo 列
+2. `issue-tasklist` → 根据标题前缀（feat/fix/refactor/docs 等）生成分类 Task List 评论
+3. `dedup` → 检测重复 Issue，相似度 ≥ 0.6 时评论提示并列出最相似的 5 条
+
+给 Issue 打标签后：
+4. `auto-set-project-fields` → 同步 Priority / Category / Size / Status 到看板字段（3 次指数退避应对竞态）
+
+评论 `@claude` 后：
+5. `claude.yml` → Claude Code CLI 响应，可读写代码、创建 PR、多轮对话（仅 Owner 可触发）
+
+关闭 Issue 后：
+6. `auto-close-issue` → 看板 Status → Done
+
 ### 每周规划工作流（多项目管理）
 
 **核心原则**：Sprint 字段 = 本周工作队列，未分配 Sprint 的 Issue 视为 backlog。
@@ -379,8 +454,9 @@ Todo 列堆积大量未规划 Issue 是正常的（backlog），不影响当前�
 | `EndBug/label-sync` | `v2` | 同步标签 |
 | Cloudflare Workers | 免费套餐 | webhook 中继 |
 | wrangler | `4.58.0` | Worker 部署工具 |
-| `anthropic` (Python) | latest | Claude AI 周报生成（Haiku 模型） |
+| `anthropic` (Python) | latest | Claude AI 周报生成（Haiku 模型）+ `github-profile-manager` |
 | `python-dotenv` (Python) | latest | 本地 `.env` 加载 |
+| `anthropic-ai/claude-code` (npm) | latest | `claude.yml` 中 Claude Code CLI |
 
 ---
 
