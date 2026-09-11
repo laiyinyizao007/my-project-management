@@ -27,6 +27,8 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
       FORCE_UPDATE: ${{ inputs.force_update || 'false' }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
     steps:
       - name: Deploy workflows
         run: |
@@ -91,6 +93,13 @@ jobs:
 
             gh variable set PROJECT_NUMBER --body "$PROJECT_NUM" --repo "$repo"
             gh secret set PROJECT_TOKEN --body "$GH_TOKEN" --repo "$repo"
+
+            if [[ -n "$ANTHROPIC_API_KEY" ]]; then
+              gh secret set ANTHROPIC_API_KEY --body "$ANTHROPIC_API_KEY" --repo "$repo"
+            fi
+            if [[ -n "$ANTHROPIC_BASE_URL" ]]; then
+              gh secret set ANTHROPIC_BASE_URL --body "$ANTHROPIC_BASE_URL" --repo "$repo"
+            fi
 
             printf '{"default_workflow_permissions":"write","can_approve_pull_request_reviews":false}' \
             | gh api "repos/${repo}/actions/permissions/workflow" \

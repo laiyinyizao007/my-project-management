@@ -7,6 +7,7 @@
 # 用法：
 #   pwsh scripts/install-to-repo.ps1 -TargetRepo "laiyinyizao007/other-repo"
 #   pwsh scripts/install-to-repo.ps1 -TargetRepo "laiyinyizao007/foo" -ProjectNumber 2
+#   pwsh scripts/install-to-repo.ps1 -TargetRepo "laiyinyizao007/foo" -AnthropicApiKey "sk-ant-..."
 #
 # 唯一手动步骤（每次脚本运行时输入一次 PAT）：
 #   脚本会提示输入 PAT（不会显示到屏幕），用它自动给目标仓库加 PROJECT_TOKEN Secret。
@@ -23,7 +24,11 @@ param(
 
     [string]$ProjectNumber = '1',
 
-    [string]$ProjectToken = ''
+    [string]$ProjectToken = '',
+
+    [string]$AnthropicApiKey = '',
+
+    [string]$AnthropicBaseUrl = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -93,6 +98,18 @@ Remove-ProjectToken -Cleanup $cleanupToken
 Write-Host "   ✅ Secret 已添加（不会保存到任何文件）" -ForegroundColor Green
 Write-Host ""
 
+# 4) 设置 Claude API Key（claude.yml workflow 需要）
+if ($AnthropicApiKey) {
+    Write-Host "🔐 [3b/5] 给 $TargetRepo 添加 Secret: ANTHROPIC_API_KEY ..." -ForegroundColor Yellow
+    gh secret set ANTHROPIC_API_KEY --body $AnthropicApiKey --repo $TargetRepo
+    Write-Host "   ✅ ANTHROPIC_API_KEY 已设置" -ForegroundColor Green
+    if ($AnthropicBaseUrl) {
+        gh secret set ANTHROPIC_BASE_URL --body $AnthropicBaseUrl --repo $TargetRepo
+        Write-Host "   ✅ ANTHROPIC_BASE_URL 已设置" -ForegroundColor Green
+    }
+    Write-Host ""
+}
+
 # 5) 修目标仓库的 Actions 权限为 write（避免新增的仓库再失败）
 Write-Host "🔧 [4/5] 设置 $TargetRepo 的 Actions workflow 权限为 write ..." -ForegroundColor Yellow
 
@@ -132,6 +149,7 @@ Write-Host "✅ 本次已为 $TargetRepo 部署："
 foreach ($wf in $workflows) { Write-Host "   • Workflow: $wf" }
 Write-Host "   • 仓库变量: PROJECT_NUMBER=$ProjectNumber"
 Write-Host "   • 仓库 Secret: PROJECT_TOKEN（PAT 未写入文件）"
+if ($AnthropicApiKey) { Write-Host "   • 仓库 Secret: ANTHROPIC_API_KEY" }
 Write-Host "   • Actions workflow 权限: write"
 Write-Host ""
 Write-Host "📌 下一步：" -ForegroundColor Yellow
