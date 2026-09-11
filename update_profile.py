@@ -4,6 +4,7 @@
 每周运行一次，拉取最新活跃仓库并更新文件
 """
 
+import os
 import subprocess
 import json
 import re
@@ -13,7 +14,11 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 PROFILE_PATH = str(Path(__file__).parent / "profile.md")
-GITHUB_USER = "laiyinyizao007"
+GITHUB_USER = (
+    os.environ.get("GH_OWNER")
+    or os.environ.get("GITHUB_REPOSITORY_OWNER")
+    or "laiyinyizao007"
+)
 
 NO_PUSH = "--no-push" in sys.argv
 
@@ -107,7 +112,11 @@ def get_active_repos():
     ])
     if not output:
         return []
-    repos = json.loads(output)
+    try:
+        repos = json.loads(output)
+    except json.JSONDecodeError as e:
+        print(f"[warn] repo list 解析失败: {e}", file=sys.stderr)
+        return []
     active = [r for r in repos if not r["isArchived"]]
     active.sort(key=lambda x: x.get("pushedAt", ""), reverse=True)
     return active
@@ -140,7 +149,7 @@ def format_one_project(repo, meta):
     pushed = repo.get("pushedAt", "")[:10]
 
     return [
-        f"**{meta['icon']} [{meta['name']}](https://github.com/laiyinyizao007/{repo['name']})**"
+        f"**{meta['icon']} [{meta['name']}](https://github.com/{GITHUB_USER}/{repo['name']})**"
         f" — {desc}",
         f"`{'` · `'.join(tags[:4])}` · *updated {pushed}*",
         "",
@@ -152,7 +161,8 @@ def format_project_section(repos):
     updated = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     # ── Work ──
-    BASE_URL = "https://github.com/laiyinyizao007/projectmanagement/blob/main/projects"
+    _repo_name = os.environ.get("GITHUB_REPOSITORY", "projectmanagement").split("/")[-1]
+    BASE_URL = f"https://github.com/{GITHUB_USER}/{_repo_name}/blob/main/projects"
 
     work_rows = []
     for keyword in WORK_SERIES_KEYS:

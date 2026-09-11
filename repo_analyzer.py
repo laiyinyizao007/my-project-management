@@ -37,7 +37,11 @@ PROFILE_PATH = BASE_DIR / "profile.md"
 CONFIG_PATH   = BASE_DIR / "tracked_config.json"
 CACHE_PATH    = BASE_DIR / "repo_cache.json"
 DATABASE_PATH = BASE_DIR / "repo_database.md"
-GITHUB_USER   = "laiyinyizao007"
+GITHUB_USER   = (
+    os.environ.get("GH_OWNER")
+    or os.environ.get("GITHUB_REPOSITORY_OWNER")
+    or "laiyinyizao007"
+)
 
 # 语言 → emoji 映射（用于自动推断图标）
 LANG_ICONS = {
@@ -201,10 +205,6 @@ def batch_detect_readmes(repos, cache, skip_archived=True):
 
 
 # ── Step 3: 分析层 ────────────────────────────────────────────────────
-def load_tracked_repos():
-    return TRACKED_REPO_NAMES.copy()
-
-
 def load_profile_repos(profile_path):
     """从 profile.md 的 GITHUB_PROJECTS_START~END 区块提取已展示的仓库名"""
     if not profile_path.exists():

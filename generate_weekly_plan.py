@@ -118,15 +118,31 @@ def get_sprint_issues(sprint_title):
     # 先获取 Project ID 和 Sprint field ID
     query = """
 query($login: String!, $num: Int!) {
-  user(login: $login) {
-    projectV2(number: $num) {
-      id
-      fields(first: 30) {
-        nodes {
-          __typename
-          ... on ProjectV2IterationField {
-            id name
-            configuration { iterations { id title startDate } }
+  repositoryOwner(login: $login) {
+    ... on User {
+      projectV2(number: $num) {
+        id
+        fields(first: 30) {
+          nodes {
+            __typename
+            ... on ProjectV2IterationField {
+              id name
+              configuration { iterations { id title startDate } }
+            }
+          }
+        }
+      }
+    }
+    ... on Organization {
+      projectV2(number: $num) {
+        id
+        fields(first: 30) {
+          nodes {
+            __typename
+            ... on ProjectV2IterationField {
+              id name
+              configuration { iterations { id title startDate } }
+            }
           }
         }
       }
@@ -140,7 +156,7 @@ query($login: String!, $num: Int!) {
 
     try:
         data = json.loads(out)
-        project = data["data"]["user"]["projectV2"]
+        project = data["data"]["repositoryOwner"]["projectV2"]
         project_id = project["id"]
         sprint_field = next(
             (f for f in project["fields"]["nodes"]
@@ -191,11 +207,12 @@ query($pid: ID!, $cursor: String) {
 }"""
 
     issues = []
-    cursor = "null"
+    cursor = None
     while True:
-        cursor_arg = f'"{cursor}"' if cursor != "null" else "null"
-        page_query = items_query.replace("$cursor: String", f"$cursor: String = {cursor_arg}")
-        out = run_gh(["api", "graphql", "-f", f"query={page_query}", "-f", f"pid={project_id}"])
+        args = ["api", "graphql", "-f", f"query={items_query}", "-f", f"pid={project_id}"]
+        if cursor:
+            args += ["-f", f"cursor={cursor}"]
+        out = run_gh(args)
         if not out:
             break
         try:
@@ -222,7 +239,8 @@ query($pid: ID!, $cursor: String) {
             if not page["pageInfo"]["hasNextPage"]:
                 break
             cursor = page["pageInfo"]["endCursor"]
-        except (KeyError, TypeError):
+        except (KeyError, TypeError) as e:
+            print(f"[warn] 分页解析失败: {e}", file=sys.stderr)
             break
 
     return issues if issues else None

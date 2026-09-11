@@ -33,7 +33,11 @@ BASE_DIR    = Path(__file__).parent
 REPORT_DIR  = BASE_DIR / "weekly-reports"
 PROFILE_PATH = BASE_DIR / "profile.md"
 CONFIG_PATH  = BASE_DIR / "tracked_config.json"
-GITHUB_USER = "laiyinyizao007"
+GITHUB_USER = (
+    os.environ.get("GH_OWNER")
+    or os.environ.get("GITHUB_REPOSITORY_OWNER")
+    or "laiyinyizao007"
+)
 
 
 def _load_tracked_repos_from_config():
