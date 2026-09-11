@@ -48,6 +48,10 @@ jobs:
             $skip || echo ".github/workflows/$name"
           done)
 
+          # 动态枚举 .github/scripts/ 中所有脚本（无排除列表）
+          SCRIPTS=$(gh api "repos/${SOURCE}/contents/.github/scripts" --jq '.[].name' 2>/dev/null | \
+            while read -r name; do echo ".github/scripts/$name"; done)
+
           deploy_file() {
             local repo="$1" path="$2" content="$3"
             local existing_sha
@@ -75,10 +79,16 @@ jobs:
             local repo="$1"
             [[ "$repo" == "$SOURCE" ]] && return
 
+            # 检查 workflows 和 scripts 是否已全部存在
             local all_ok=true
             while IFS= read -r wf; do
               gh api "repos/${repo}/contents/${wf}" &>/dev/null 2>&1 || { all_ok=false; break; }
             done <<< "$WORKFLOWS"
+            if $all_ok && [[ -n "$SCRIPTS" ]]; then
+              while IFS= read -r sc; do
+                gh api "repos/${repo}/contents/${sc}" &>/dev/null 2>&1 || { all_ok=false; break; }
+              done <<< "$SCRIPTS"
+            fi
 
             if $all_ok && [[ "$FORCE_UPDATE" != "true" ]]; then
               echo "⏭️  ${repo}: 已全部部署，跳过"
@@ -90,6 +100,12 @@ jobs:
               content=$(gh api "repos/${SOURCE}/contents/${wf}" --jq '.content' | tr -d '\n')
               deploy_file "$repo" "$wf" "$content"
             done <<< "$WORKFLOWS"
+            if [[ -n "$SCRIPTS" ]]; then
+              while IFS= read -r sc; do
+                content=$(gh api "repos/${SOURCE}/contents/${sc}" --jq '.content' | tr -d '\n')
+                deploy_file "$repo" "$sc" "$content"
+              done <<< "$SCRIPTS"
+            fi
 
             gh variable set PROJECT_NUMBER --body "$PROJECT_NUM" --repo "$repo"
             gh secret set PROJECT_TOKEN --body "$GH_TOKEN" --repo "$repo"

@@ -75,10 +75,21 @@ $workflows = @(gh api "repos/$SOURCE_REPO/contents/.github/workflows" --jq '.[].
     Where-Object { $_ -notin $exclude } |
     ForEach-Object { ".github/workflows/$_" })
 
-Write-Host "🚀 [1/5] 部署 $($workflows.Count) 个 workflow 到 $TargetRepo ..." -ForegroundColor Yellow
+# 动态枚举 .github/scripts/ 中所有脚本（无排除列表）
+$scripts = @()
+$rawScripts = gh api "repos/$SOURCE_REPO/contents/.github/scripts" --jq '.[].name' 2>$null
+if ($LASTEXITCODE -eq 0 -and $rawScripts) {
+    $scripts = @($rawScripts | ForEach-Object { ".github/scripts/$_" })
+}
+
+Write-Host "🚀 [1/5] 部署 $($workflows.Count) 个 workflow + $($scripts.Count) 个脚本到 $TargetRepo ..." -ForegroundColor Yellow
 foreach ($wf in $workflows) {
     $label = [System.IO.Path]::GetFileNameWithoutExtension($wf)
     Deploy-Workflow $wf $label
+}
+foreach ($sc in $scripts) {
+    $label = [System.IO.Path]::GetFileName($sc)
+    Deploy-Workflow $sc $label
 }
 
 Write-Host ""
@@ -147,6 +158,7 @@ Write-Host "🎉 全部完成！$TargetRepo 已配置为自动将 Issue 加入 P
 Write-Host ""
 Write-Host "✅ 本次已为 $TargetRepo 部署："
 foreach ($wf in $workflows) { Write-Host "   • Workflow: $wf" }
+foreach ($sc in $scripts)   { Write-Host "   • Script:   $sc" }
 Write-Host "   • 仓库变量: PROJECT_NUMBER=$ProjectNumber"
 Write-Host "   • 仓库 Secret: PROJECT_TOKEN（PAT 未写入文件）"
 if ($AnthropicApiKey) { Write-Host "   • 仓库 Secret: ANTHROPIC_API_KEY" }
