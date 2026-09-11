@@ -1,6 +1,12 @@
 name: Auto-deploy to New Repos
 
 on:
+  # push 到 main 且改动了可部署文件时，自动全量同步到所有仓库
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/*.yml'
+      - '.github/scripts/**'
   # Cloudflare Worker 触发（新仓库创建时）
   repository_dispatch:
     types: [new-repo-created]
@@ -26,7 +32,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
-      FORCE_UPDATE: ${{ inputs.force_update || 'false' }}
+      # push 触发时始终强制更新；手动触发时遵从输入；其他触发（schedule/dispatch）默认 false
+      FORCE_UPDATE: ${{ github.event_name == 'push' && 'true' || inputs.force_update || 'false' }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
     steps:
