@@ -6,6 +6,29 @@
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-09-11
+
+### Added（新增）
+
+- **周报系统**：合并 `github-weekly-progress` 仓库，新增 AI 驱动的每周自动化流程
+  - `weekly_report.py`：调用 Claude Haiku 生成中文周报，写入 `weekly-reports/YYYY-WXX.md`
+  - `update_profile.py`：自动更新 `profile.md` 的 GITHUB_PROJECTS 区块
+  - `repo_analyzer.py`：全量仓库分析评分（0-60 分），维护 `tracked_config.json` 和 `repo_database.md`
+  - `weekly-update.yml`：每周日 UTC 01:00 自动运行，串联三个脚本并同步 Profile README
+  - `tracked_config.json`：追踪仓库配置（质量分 ≥40 自动加入）
+  - `profile.md`：GitHub Profile README 模板（含 WEEKLY_PROGRESS / GITHUB_PROJECTS / GITHUB_STATS 区块）
+  - `weekly-reports/`：历史周报存档目录
+  - `projects/`：9 个项目详情文件
+  - `tools/github-profile-manager/`：GitHub Profile 描述批量管理工具
+  - `tools/mygithubprojectagent/`：GitHub Agent RAG 工具
+
+### Changed（变更）
+
+- `auto-deploy-to-new-repos.yml`：排除列表新增 `weekly-update.yml`，防止部署到目标仓库
+- `scripts/install-to-repo.ps1`：同步更新排除列表
+- `weekly-update.yml`：使用 `PROJECT_TOKEN` 替代独立 `PROFILE_SYNC_TOKEN`，无需新增 Secret
+- `.gitignore`：新增 `.env`、`repo_cache.json`、`reports/`
+
 ## [1.13.0] - 2026-09-11
 
 ### Changed（变更）

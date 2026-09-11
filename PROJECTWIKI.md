@@ -2,10 +2,10 @@
 
 ## 1. 项目概述
 
-- **目标**：基于 GitHub Issues 构建个人任务管理系统，实现 Issue 自动入 Project 看板、周计划自动创建、Sprint Milestone 自动生成，以及新仓库的全自动化接入。
-- **背景**：个人账号无法使用 Organization 级功能，通过 GitHub App + Cloudflare Worker + GitHub Actions 三层架构实现等效的全自动化。
-- **范围**：个人 GitHub 账号（`laiyinyizao007`）下的所有私有/公开仓库。
-- **运行环境**：GitHub Actions（ubuntu-latest）、Cloudflare Workers（免费套餐）。
+- **目标**：基于 GitHub Issues + Projects 构建综合个人管理系统，包含任务看板管理、Sprint 自动化、AI 周报生成、GitHub Profile 自动更新及仓库质量分析。
+- **背景**：个人账号无法使用 Organization 级功能，通过 GitHub App + Cloudflare Worker + GitHub Actions 三层架构实现等效的全自动化。原 `github-weekly-progress` 仓库已于 2026-09-11 合并至本仓库。
+- **范围**：个人 GitHub 账号（`laiyinyizao007`）下的所有私有/公开仓库，以及 `laiyinyizao007/laiyinyizao007` Profile README 的自动同步。
+- **运行环境**：GitHub Actions（ubuntu-latest）、Cloudflare Workers（免费套餐）、Claude AI（Haiku 模型）。
 
 ---
 
@@ -24,6 +24,13 @@ flowchart TD
 
     H[定时每6小时] -->|schedule| D
     I[手动触发] -->|workflow_dispatch| D
+
+    J[每周日 UTC 1:00] -->|schedule| K[weekly-update.yml]
+    K --> L[repo_analyzer.py]
+    K --> M[update_profile.py]
+    K --> N[weekly_report.py]
+    N -->|Claude AI| O[weekly-reports/]
+    M -->|PROFILE_SYNC_TOKEN→PROJECT_TOKEN| P[laiyinyizao007/laiyinyizao007\nProfile README]
 ```
 
 ### Issue 自动入看板流程
@@ -117,7 +124,7 @@ sequenceDiagram
 - **触发**：`repository_dispatch[new-repo-created]`、`schedule(每6小时)`、`workflow_dispatch`
 - **功能**：向目标仓库完成 5 步部署（workflow + 变量 + Secret + 权限 + 注册）
 - **WF 列表**：动态枚举源仓库 `.github/workflows/` 下所有文件，过滤排除列表（管理仓库专用项）；新增可部署 workflow 无需修改此文件
-- **排除列表**：`auto-deploy-to-new-repos.yml`、`auto-create-sprint.yml`、`weekly-plan.yml`、`create-milestone.yml`、`sync-labels.yml`
+- **排除列表**：`auto-deploy-to-new-repos.yml`、`auto-create-sprint.yml`、`weekly-plan.yml`、`create-milestone.yml`、`sync-labels.yml`、`weekly-update.yml`
 - **Secret 传播**：部署时自动写入 `PROJECT_TOKEN`；若管理仓库配置了 `ANTHROPIC_API_KEY` / `ANTHROPIC_BASE_URL`，也一并传播到目标仓库
 - **依赖**：`secrets.PROJECT_TOKEN`（PAT，同时用于传播自身）、`secrets.ANTHROPIC_API_KEY`（可选）
 
@@ -231,6 +238,33 @@ sequenceDiagram
 - **依赖**：`secrets.GITHUB_TOKEN`（内置，无需额外配置）
 - **已部署**：通过 `auto-deploy-to-new-repos.yml` 自动部署到所有目标仓库
 
+### 5.16 weekly-update.yml
+
+- **路径**：`.github/workflows/weekly-update.yml`（仅管理仓库，不部署到目标仓库）
+- **触发**：每周日 UTC 01:00（北京时间 09:00）、`workflow_dispatch`
+- **功能**：依次运行三个 Python 脚本，完成仓库分析 → Profile 更新 → 周报生成，最终同步 Profile README 到 `laiyinyizao007/laiyinyizao007`
+- **依赖**：`secrets.ANTHROPIC_API_KEY`、`secrets.PROJECT_TOKEN`（复用，用于跨仓库写 Profile README）
+
+### 5.17 repo_analyzer.py
+
+- **路径**：`repo_analyzer.py`（根目录）
+- **功能**：获取账号下全量仓库（最多 200 个），按 stars / README / description / in_profile 四维度评分（满分 60），更新 `tracked_config.json` 和 `repo_database.md`，支持生成 README 草稿
+- **评分规则**：stars 0-20、README 0-15、description 0-10、in_profile 0-15；≥40 自动加入追踪、≤25 自动移除
+- **缓存**：`repo_cache.json`（基于 `pushedAt` 增量检测 README，不纳入版本控制）
+- **CLI**：`--dry-run`、`--skip-readme-gen`、`--no-auto-update`、`--output DIR`
+
+### 5.18 update_profile.py
+
+- **路径**：`update_profile.py`（根目录）
+- **功能**：读取 `tracked_config.json`，更新 `profile.md` 的 `GITHUB_PROJECTS_START/END` 区块，生成项目卡片列表
+- **CLI**：`--no-push`（仅本地更新，不同步到远程）
+
+### 5.19 weekly_report.py
+
+- **路径**：`weekly_report.py`（根目录）
+- **功能**：读取各追踪仓库近期提交，调用 Claude Haiku（`claude-haiku-4-5-20251001`）生成中文周报，写入 `weekly-reports/YYYY-WXX.md`，同时更新 `profile.md` 的 `WEEKLY_PROGRESS_START/END` 区块
+- **CLI**：`--no-push`、`--dry-run`
+
 ### 5.7 install-to-repo.ps1
 
 - **路径**：`scripts/install-to-repo.ps1`
@@ -241,6 +275,13 @@ sequenceDiagram
 ---
 
 ## 6. API 手册
+
+### GitHub Actions Secrets（管理仓库 projectmanagement）
+
+| Secret 名 | 说明 | 用途 |
+|-----------|------|------|
+| `PROJECT_TOKEN` | classic PAT，scope: `repo + project` | 部署 workflow、写 Profile README（weekly-update.yml 复用） |
+| `ANTHROPIC_API_KEY` | Claude API 密钥 | `claude.yml` + `weekly_report.py` |
 
 ### GitHub Actions Secrets（每个目标仓库）
 
@@ -290,6 +331,15 @@ flowchart LR
 
 ## 8. 核心流程
 
+### 周报生成流程
+
+每周日 UTC 01:00 自动触发：
+1. `repo_analyzer.py --skip-readme-gen` → 全量分析仓库，更新 `tracked_config.json` 和 `repo_database.md`
+2. `update_profile.py --no-push` → 更新 `profile.md` 的项目列表区块
+3. `weekly_report.py --no-push` → AI 生成周报，写入 `weekly-reports/`，更新 `profile.md` 周进展区块
+4. git commit & push → 提交 `weekly-reports/ profile.md tracked_config.json repo_database.md`
+5. 同步 `profile.md` → `laiyinyizao007/laiyinyizao007/README.md`（via `PROJECT_TOKEN`）
+
 ### 周计划流程
 
 每周一自动触发：
@@ -329,6 +379,8 @@ Todo 列堆积大量未规划 Issue 是正常的（backlog），不影响当前�
 | `EndBug/label-sync` | `v2` | 同步标签 |
 | Cloudflare Workers | 免费套餐 | webhook 中继 |
 | wrangler | `4.58.0` | Worker 部署工具 |
+| `anthropic` (Python) | latest | Claude AI 周报生成（Haiku 模型） |
+| `python-dotenv` (Python) | latest | 本地 `.env` 加载 |
 
 ---
 
