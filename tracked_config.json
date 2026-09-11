@@ -1,0 +1,95 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-09-06",
+  "settings": {
+    "auto_add_threshold": 40,
+    "auto_remove_threshold": 25
+  },
+  "tracked_repos": {
+    "green-compass-net-f3505092": {
+      "name": "Green Compass",
+      "icon": "🌿",
+      "type": "work",
+      "added_date": "2026-08-28",
+      "score_history": [
+        {
+          "date": "2026-08-28",
+          "score": 45
+        }
+      ]
+    },
+    "lovable-life-hub": {
+      "name": "LifeOS",
+      "icon": "🧠",
+      "type": "personal",
+      "added_date": "2026-08-28",
+      "score_history": [
+        {
+          "date": "2026-08-28",
+          "score": 45
+        }
+      ]
+    },
+    "mygithubprojectagent": {
+      "name": "GitHub RAG Agent",
+      "icon": "🤖",
+      "type": "personal",
+      "added_date": "2026-08-28",
+      "score_history": [
+        {
+          "date": "2026-08-28",
+          "score": 45
+        }
+      ]
+    },
+    "obs-averivendell": {
+      "name": "Obsidian Second Brain",
+      "icon": "📓",
+      "type": "personal",
+      "added_date": "2026-08-28",
+      "score_history": [
+        {
+          "date": "2026-08-28",
+          "score": 45
+        }
+      ]
+    },
+    "arksusdemo": {
+      "name": "Arksu",
+      "icon": "🚀",
+      "type": "work",
+      "added_date": "2026-08-28",
+      "score_history": [
+        {
+          "date": "2026-08-28",
+          "score": 45
+        }
+      ]
+    },
+    "projectmanagement": {
+      "name": "Project Management",
+      "icon": "🗂️",
+      "type": "personal",
+      "added_date": "2026-09-11",
+      "score_history": [
+        {
+          "date": "2026-09-11",
+          "score": 45
+        }
+      ]
+    },
+    "my-digital-twin-8cc5688b": {
+      "name": "Digital Twin",
+      "icon": "🌐",
+      "type": "personal",
+      "added_date": "2026-08-28",
+      "score_history": [
+        {
+          "date": "2026-08-28",
+          "score": 45
+        }
+      ]
+    }
+  },
+  "ignored_repos": []
+}

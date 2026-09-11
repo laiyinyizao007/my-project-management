@@ -148,10 +148,47 @@ pwsh scripts/setup.ps1
 | **Create Weekly Sprint Milestone** | 每周一 09:00（北京时间），或手动触发 | 自动创建当周 Sprint Milestone |
 | **Sync repository labels** | 推送到 main，或手动触发 | 同步标签配置 |
 | **Add Issue to Project** | 新 Issue 创建时 | 自动加入 GitHub Project 看板 |
+| **Weekly Progress Update** | 每周日 09:00（北京时间），或手动触发 | 运行仓库分析 + 生成周报 + 更新 GitHub Profile |
 
 **手动触发工作流：**
 
 仓库 → **Actions** → 选择工作流 → **Run workflow**
+
+---
+
+## 周报系统
+
+每周日 09:00（北京时间）自动运行，也可在 Actions 中手动触发。
+
+### 脚本说明
+
+| 脚本 | 功能 |
+|------|------|
+| `repo_analyzer.py` | 获取全量仓库，评分排序，更新 `tracked_config.json` 和 `repo_database.md` |
+| `update_profile.py` | 读取 `tracked_config.json`，更新 `profile.md` 的 GITHUB_PROJECTS 区块 |
+| `weekly_report.py` | 读取各追踪仓库的近期提交，用 Claude AI 生成周报，写入 `weekly-reports/` |
+
+### 本地运行
+
+```bash
+# 需要 gh auth login 和 ANTHROPIC_API_KEY 环境变量
+python3 repo_analyzer.py --skip-readme-gen   # 仅分析，跳过 README 草稿
+python3 update_profile.py --no-push          # 更新 profile.md，不同步到 GitHub
+python3 weekly_report.py --no-push           # 生成周报，不推送
+python3 weekly_report.py --dry-run           # 预览模式，不写文件
+```
+
+### 配置文件
+
+- `tracked_config.json` — 追踪仓库列表，支持自动发现（质量分 ≥ 40 自动加入）
+- `profile.md` — GitHub Profile README 模板（含 WEEKLY_PROGRESS、GITHUB_PROJECTS、GITHUB_STATS 区块）
+
+### 必需 Secrets
+
+| Secret | 说明 |
+|--------|------|
+| `ANTHROPIC_API_KEY` | Claude API 密钥（已有） |
+| `PROFILE_SYNC_TOKEN` | 用于写 `laiyinyizao007/laiyinyizao007` profile README 的 PAT |
 
 ---
 
@@ -166,7 +203,15 @@ pwsh scripts/setup.ps1
 │   └── epic.yml            # 大任务模板
 ├── workflows/
 │   ├── weekly-plan.yml     # 每周一自动创建周计划 Issue
-│   └── sync-labels.yml     # 同步标签
+│   ├── sync-labels.yml     # 同步标签
+│   └── weekly-update.yml   # 每周日：仓库分析 + 周报 + Profile 同步
 └── labels.yml              # 标签定义（25 个）
+weekly_report.py            # AI 周报生成脚本
+update_profile.py           # GitHub Profile 更新脚本
+repo_analyzer.py            # 仓库全量分析脚本
+tracked_config.json         # 追踪仓库配置
+profile.md                  # GitHub Profile README
+weekly-reports/             # 历史周报存档
+projects/                   # 项目详情文件
 README.md                   # 本文件
 ```

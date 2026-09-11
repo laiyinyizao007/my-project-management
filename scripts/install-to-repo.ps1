@@ -70,7 +70,7 @@ function Deploy-Workflow {
 
 # 动态枚举源仓库中待部署的 workflow（排除管理仓库专用项）
 # 新增仅管理仓库的 workflow 时，在此同步更新（auto-deploy-to-new-repos.yml 有权威列表）
-$exclude = @('auto-deploy-to-new-repos.yml', 'auto-create-sprint.yml', 'weekly-plan.yml', 'create-milestone.yml', 'sync-labels.yml')
+$exclude = @('auto-deploy-to-new-repos.yml', 'auto-create-sprint.yml', 'weekly-plan.yml', 'create-milestone.yml', 'sync-labels.yml', 'weekly-update.yml')
 $workflows = @(gh api "repos/$SOURCE_REPO/contents/.github/workflows" --jq '.[].name' |
     Where-Object { $_ -notin $exclude } |
     ForEach-Object { ".github/workflows/$_" })

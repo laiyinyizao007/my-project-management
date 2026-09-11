@@ -1,1 +1,5 @@
 proj.json
+.env
+*.env.local
+repo_cache.json
+reports/

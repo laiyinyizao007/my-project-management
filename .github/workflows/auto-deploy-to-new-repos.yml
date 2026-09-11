@@ -43,7 +43,7 @@ jobs:
           SOURCE="$GITHUB_REPOSITORY"
           # 排除列表：仅在管理仓库运行的 workflow，不部署到目标仓库
           # 新增仅管理仓库的 workflow 时，在此同步更新（install-to-repo.ps1 有镜像列表）
-          EXCLUDE="auto-deploy-to-new-repos.yml auto-create-sprint.yml weekly-plan.yml create-milestone.yml sync-labels.yml"
+          EXCLUDE="auto-deploy-to-new-repos.yml auto-create-sprint.yml weekly-plan.yml create-milestone.yml sync-labels.yml weekly-update.yml"
           PROJECT_NUM="${{ vars.PROJECT_NUMBER }}"
 
           # 动态枚举源仓库中所有待部署 workflow
