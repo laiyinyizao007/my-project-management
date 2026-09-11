@@ -157,7 +157,8 @@ sequenceDiagram
   - `task/bug/feature/research/epic` → Category 字段
   - `size: XS/S/M/L/XL` → Size 字段
   - `status: todo/in-progress/blocked/review/done` → Status 字段
-- **竞态处理**：Issue 开启时 `auto-add-to-project` 与本 workflow 同时触发，Issue 可能尚未进入 Project；改为 3 次重试（每次间隔 5s），仍失败则输出 `core.warning`
+- **竞态处理**：Issue 开启时 `auto-add-to-project` 与本 workflow 同时触发，Issue 可能尚未进入 Project；3 次指数退避重试（2s→4s→8s），仍失败则 `core.warning` + Step Summary
+- **API 韧性**：`graphqlWithRetry` 辅助函数，指数退避重试（1s→2s），401/403 不重试；成功/失败均写 Step Summary
 - **Org 兼容**：GraphQL 查询改用 `repositoryOwner(login:)` with inline fragments，同时支持个人账号和 Org 账号
 - **依赖**：`secrets.PROJECT_TOKEN`、`vars.PROJECT_NUMBER`
 
@@ -226,6 +227,7 @@ sequenceDiagram
   - Conventional Commits 前缀剥离后再比较，避免前缀干扰
   - 有效词少于 2 个时自动跳过（短标题误报率高）
   - 最多列出 5 条相似 Issue，按相似度倒序排列
+- **API 韧性**：`api_request()` 函数，timeout=30，指数退避重试（1s→2s→4s），错误分类（401/403/404 不重试；429 读 Retry-After；5xx + 网络错误重试）；单页失败时降级运行；评论失败时 fallback 打印到日志，exit 0 不阻断 Issue 流程
 - **依赖**：`secrets.GITHUB_TOKEN`（内置，无需额外配置）
 - **已部署**：通过 `auto-deploy-to-new-repos.yml` 自动部署到所有目标仓库
 

@@ -6,6 +6,32 @@
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-09-11
+
+### Changed（变更）
+
+- **`dedup.py`**：完整重写 HTTP 层，应用最佳实践
+  - 提取 `api_request()` 辅助函数：`timeout=30`，3 次指数退避重试（1s→2s→4s）
+  - 错误分类：401/403/404/422 不重试（立即失败）；429 读取 `Retry-After` 等待后重试；5xx + 网络错误指数退避重试
+  - `get_open_issues`：每页请求独立捕获，单页失败时以已抓取数据降级运行，不中断检测
+  - `post_comment`：全部重试耗尽后 fallback 打印完整 comment body 到 Action 日志，`sys.exit(0)` 不阻断 Issue 流程
+  - `main()`：顶层 try/except 捕获所有未处理异常，以 exit 0 退出（dedup 是辅助功能）
+
+- **`issue-tasklist.yml`**：内嵌 Python 同步升级 HTTP 层
+  - 内嵌 `api_request()` 与 dedup.py 策略一致（timeout=30、指数退避、429 Retry-After）
+  - POST 失败 fallback：打印 task list body 到 Action 日志，`sys.exit(0)` 不阻断 Issue 流程
+
+- **`auto-set-project-fields.yml`**：GraphQL 层重写为最佳实践
+  - 新增 `graphqlWithRetry(query, vars, max=3)`：指数退避（1s→2s），401/403 不重试
+  - 竞态重试由固定 5s×3 改为指数退避 2s→4s→8s，3 次仍失败改写 `core.warning`
+  - 全流程 try/catch：成功和失败均写入 Step Summary（`core.summary`），Action 运行页可见
+  - 意外异常写 `core.error` + Step Summary 错误行
+
+- **`auto-close-issue.yml`**：GraphQL 层重写为最佳实践
+  - 新增 `graphqlWithRetry`（同上）
+  - 全流程 try/catch：异常以 `core.warning` 记录（关闭 Issue 不是硬错误，workflow 不标红）
+  - Issue 不在 Project 中时静默跳过（正常情况，不报错）
+
 ## [1.12.0] - 2026-09-11
 
 ### Added（新增）
@@ -246,7 +272,8 @@
 - workflow 文件重命名（commit `f944f49`）：统一命名规范
 
 <!-- 比对链接 -->
-[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/laiyinyizao007/my-project-management/compare/v1.13.0...HEAD
+[1.13.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/laiyinyizao007/my-project-management/compare/v1.10.1...v1.11.0
 [1.10.1]: https://github.com/laiyinyizao007/my-project-management/compare/v1.10.0...v1.10.1

@@ -6,15 +6,20 @@ Usage:
 """
 
 import json
-import os
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
 from difflib import SequenceMatcher
 
 SIMILARITY_THRESHOLD = 0.6
 MAX_SIMILAR_TO_REPORT = 5
 MIN_MEANINGFUL_TOKENS = 2
+
+API_BASE = 'https://api.github.com'
+REQUEST_TIMEOUT = 30
+MAX_RETRIES = 3
 
 PREFIX_RE = re.compile(
     r'^(feat|feature|fix|docs?|chore|refactor|test|tests|ci|cd|perf|build|style|revert)'
@@ -30,6 +35,59 @@ STOP_WORDS = {
     'feat', 'feature', 'docs', 'doc', 'chore', 'test', 'tests',
     'refactor', 'ci', 'cd', 'perf', 'style',
 }
+
+# Errors that should never be retried — they won't resolve on their own.
+_NO_RETRY_CODES = {401, 403, 404, 422}
+
+
+def _build_request(url: str, token: str, data: bytes | None = None, method: str | None = None) -> urllib.request.Request:
+    req = urllib.request.Request(url, data=data, method=method or ('POST' if data else 'GET'))
+    req.add_header('Authorization', f'Bearer {token}')
+    req.add_header('Accept', 'application/vnd.github+json')
+    req.add_header('X-GitHub-Api-Version', '2022-11-28')
+    if data:
+        req.add_header('Content-Type', 'application/json')
+    return req
+
+
+def api_request(url: str, token: str, *, data: bytes | None = None, method: str | None = None) -> dict | list:
+    """Make a GitHub API request with timeout, exponential backoff, and error classification.
+
+    Raises on permanent errors (auth, not found).
+    Retries on transient errors (5xx, network) up to MAX_RETRIES times.
+    Respects Retry-After on 429.
+    """
+    last_exc: Exception | None = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            req = _build_request(url, token, data=data, method=method)
+            with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as resp:
+                return json.loads(resp.read())
+
+        except urllib.error.HTTPError as exc:
+            if exc.code in _NO_RETRY_CODES:
+                raise  # permanent — don't retry
+
+            if exc.code == 429:
+                wait = int(exc.headers.get('Retry-After', 60))
+                print(f'[rate-limit] 429 — waiting {wait}s before retry {attempt}/{MAX_RETRIES}')
+                time.sleep(wait)
+                last_exc = exc
+                continue
+
+            # 5xx or other transient HTTP errors
+            last_exc = exc
+
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last_exc = exc
+
+        if attempt < MAX_RETRIES:
+            delay = 2 ** (attempt - 1)  # 1s, 2s, 4s
+            print(f'[retry] attempt {attempt}/{MAX_RETRIES} failed ({last_exc}), retrying in {delay}s...')
+            time.sleep(delay)
+
+    raise RuntimeError(f'API request failed after {MAX_RETRIES} attempts: {last_exc}') from last_exc
 
 
 def normalize_title(title: str) -> str:
@@ -61,23 +119,20 @@ def combined_score(a: str, b: str) -> float:
 
 
 def get_open_issues(repo: str, exclude_number: int, token: str) -> list:
-    issues = []
+    issues: list = []
     page = 1
     while True:
-        url = (
-            f'https://api.github.com/repos/{repo}/issues'
-            f'?state=open&per_page=100&page={page}'
-        )
-        req = urllib.request.Request(url)
-        req.add_header('Authorization', f'Bearer {token}')
-        req.add_header('Accept', 'application/vnd.github+json')
-        req.add_header('X-GitHub-Api-Version', '2022-11-28')
-        with urllib.request.urlopen(req) as resp:
-            batch = json.loads(resp.read())
+        url = f'{API_BASE}/repos/{repo}/issues?state=open&per_page=100&page={page}'
+        try:
+            batch = api_request(url, token)
+        except Exception as exc:
+            # Partial failure: log and return whatever we've collected so far.
+            print(f'[warn] Failed to fetch page {page} of issues: {exc}. Using {len(issues)} issue(s) already fetched.')
+            break
+
         if not batch:
             break
         for issue in batch:
-            # Skip pull requests (they appear in issues list too)
             if 'pull_request' in issue:
                 continue
             if issue['number'] == exclude_number:
@@ -90,15 +145,20 @@ def get_open_issues(repo: str, exclude_number: int, token: str) -> list:
 
 
 def post_comment(repo: str, issue_number: int, body: str, token: str) -> None:
-    url = f'https://api.github.com/repos/{repo}/issues/{issue_number}/comments'
+    url = f'{API_BASE}/repos/{repo}/issues/{issue_number}/comments'
     data = json.dumps({'body': body}).encode()
-    req = urllib.request.Request(url, data=data, method='POST')
-    req.add_header('Authorization', f'Bearer {token}')
-    req.add_header('Content-Type', 'application/json')
-    req.add_header('Accept', 'application/vnd.github+json')
-    req.add_header('X-GitHub-Api-Version', '2022-11-28')
-    with urllib.request.urlopen(req) as resp:
-        print(f'Posted comment (HTTP {resp.status})')
+    try:
+        api_request(url, token, data=data)
+        print('✅ Duplicate warning comment posted.')
+    except urllib.error.HTTPError as exc:
+        if exc.code in (401, 403):
+            print(f'[error] Authentication failed (HTTP {exc.code}). Check that GITHUB_TOKEN has issues:write permission.')
+        else:
+            print(f'[error] Failed to post comment (HTTP {exc.code}). Comment body follows for log retention:')
+            print(body)
+    except Exception as exc:
+        print(f'[error] Failed to post comment after {MAX_RETRIES} retries: {exc}. Comment body follows for log retention:')
+        print(body)
 
 
 def main() -> None:
@@ -111,51 +171,57 @@ def main() -> None:
     repo = sys.argv[3]
     token = sys.argv[4]
 
-    normalized = normalize_title(issue_title)
-    meaningful = tokenize(normalized)
-    if len(meaningful) < MIN_MEANINGFUL_TOKENS:
-        print(
-            f'Only {len(meaningful)} meaningful word(s) in "{normalized}". '
-            'Too short to compare — skipping.'
-        )
-        return
+    try:
+        normalized = normalize_title(issue_title)
+        meaningful = tokenize(normalized)
+        if len(meaningful) < MIN_MEANINGFUL_TOKENS:
+            print(
+                f'Only {len(meaningful)} meaningful word(s) in "{normalized}". '
+                'Too short to compare — skipping.'
+            )
+            return
 
-    print(f'Checking for duplicates of: "{issue_title}" (normalized: "{normalized}")')
-    existing_issues = get_open_issues(repo, issue_number, token)
-    print(f'Comparing against {len(existing_issues)} open issue(s)...')
+        print(f'Checking for duplicates of: "{issue_title}" (normalized: "{normalized}")')
+        existing_issues = get_open_issues(repo, issue_number, token)
+        print(f'Comparing against {len(existing_issues)} open issue(s)...')
 
-    scored = []
-    for issue in existing_issues:
-        score = combined_score(issue_title, issue['title'])
-        if score >= SIMILARITY_THRESHOLD:
-            scored.append((score, issue))
+        scored = []
+        for issue in existing_issues:
+            score = combined_score(issue_title, issue['title'])
+            if score >= SIMILARITY_THRESHOLD:
+                scored.append((score, issue))
 
-    scored.sort(key=lambda x: x[0], reverse=True)
-    top = scored[:MAX_SIMILAR_TO_REPORT]
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top = scored[:MAX_SIMILAR_TO_REPORT]
 
-    if not top:
-        print('No similar issues found.')
-        return
+        if not top:
+            print('No similar issues found.')
+            return
 
-    lines = [
-        '## ⚠️ 可能存在重复 Issue',
-        '',
-        f'以下 Issue 与本 Issue 标题高度相似（相似度阈值：{SIMILARITY_THRESHOLD:.0%}）：',
-        '',
-    ]
-    for score, issue in top:
-        lines.append(
-            f'- #{issue["number"]} [{issue["title"]}]({issue["html_url"]}) '
-            f'— 相似度 {score:.0%}'
-        )
-    lines += [
-        '',
-        '> 如果这不是重复 Issue，请忽略此提示。',
-    ]
-    body = '\n'.join(lines)
+        lines = [
+            '## ⚠️ 可能存在重复 Issue',
+            '',
+            f'以下 Issue 与本 Issue 标题高度相似（相似度阈值：{SIMILARITY_THRESHOLD:.0%}）：',
+            '',
+        ]
+        for score, issue in top:
+            lines.append(
+                f'- #{issue["number"]} [{issue["title"]}]({issue["html_url"]}) '
+                f'— 相似度 {score:.0%}'
+            )
+        lines += [
+            '',
+            '> 如果这不是重复 Issue，请忽略此提示。',
+        ]
+        body = '\n'.join(lines)
 
-    print(f'Found {len(top)} similar issue(s). Posting comment...')
-    post_comment(repo, issue_number, body, token)
+        print(f'Found {len(top)} similar issue(s). Posting comment...')
+        post_comment(repo, issue_number, body, token)
+
+    except Exception as exc:
+        # Dedup is a non-critical auxiliary task. Never block the Issue workflow.
+        print(f'[error] Unhandled exception in dedup: {exc}')
+        sys.exit(0)
 
 
 if __name__ == '__main__':
