@@ -403,6 +403,69 @@
       "type": "personal",
       "added_date": "2026-09-15",
       "score_history": []
+    },
+    "redroid-agent": {
+      "name": "redroid-agent",
+      "icon": "📦",
+      "type": "personal",
+      "added_date": "2026-09-15",
+      "score_history": []
+    },
+    "resume-renew": {
+      "name": "resume-renew",
+      "icon": "📦",
+      "type": "personal",
+      "added_date": "2026-09-15",
+      "score_history": []
+    },
+    "racknerdVPN": {
+      "name": "racknerdVPN",
+      "icon": "📦",
+      "type": "personal",
+      "added_date": "2026-09-15",
+      "score_history": []
+    },
+    "pi-monitor": {
+      "name": "pi-monitor",
+      "icon": "📦",
+      "type": "personal",
+      "added_date": "2026-09-15",
+      "score_history": []
+    },
+    "pixelclaw": {
+      "name": "pixelclaw",
+      "icon": "📦",
+      "type": "personal",
+      "added_date": "2026-09-15",
+      "score_history": []
+    },
+    "clarity-briefing-hub": {
+      "name": "clarity-briefing-hub",
+      "icon": "📦",
+      "type": "personal",
+      "added_date": "2026-09-15",
+      "score_history": []
+    },
+    "averypi-obsidian": {
+      "name": "averypi-obsidian",
+      "icon": "📦",
+      "type": "personal",
+      "added_date": "2026-09-15",
+      "score_history": []
+    },
+    "homeassistant-manager": {
+      "name": "homeassistant-manager",
+      "icon": "📦",
+      "type": "personal",
+      "added_date": "2026-09-15",
+      "score_history": []
+    },
+    "averivendell-others": {
+      "name": "averivendell-others",
+      "icon": "📦",
+      "type": "personal",
+      "added_date": "2026-09-15",
+      "score_history": []
     }
   },
   "ignored_repos": []
