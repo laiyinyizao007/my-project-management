@@ -642,6 +642,8 @@ def main():
         sprint_issues = get_open_issues_fallback() or []
     elif sprint_issues is None:
         sprint_issues = get_open_issues_fallback() or []
+    # 周计划 Issue 本身不应出现在续期任务列表中
+    sprint_issues = [i for i in sprint_issues if "type: weekly-plan" not in i.get("labels", [])]
     print(f"   找到 {len(sprint_issues)} 个续期/open Issue")
 
     # 幂等检查：若 Issue 已存在
