@@ -820,13 +820,15 @@ def generate_daily_ai_review(today_commits_by_repo):
 
     if batch_only:
         rep_msgs = [m for m in deduped[batch_only[0]] if m in shared]
-        repo_names = " / ".join(
-            today_commits_by_repo[r]["info"].get("name", r) for r in batch_only
-        )
-        sections += f"\n【批量同步组：{repo_names}】\n"
-        sections += "  共有操作：\n" + "\n".join(f"    {m}" for m in rep_msgs[:8]) + "\n"
+        # 仓库名太多时缩写，避免 prompt 超长
+        show_names = [today_commits_by_repo[r]["info"].get("name", r) for r in batch_only[:10]]
+        extra = len(batch_only) - 10
+        name_str = " / ".join(show_names) + (f"…等 {extra} 个仓库" if extra > 0 else "")
+        sections += f"\n【批量同步组：{name_str}（共 {len(batch_only)} 个仓库）】\n"
+        sections += "  共有操作：\n" + "\n".join(f"    {m}" for m in rep_msgs[:6]) + "\n"
 
-    for repo in with_unique:
+    # 独立仓库最多显示 20 个，避免 prompt 过长
+    for repo in with_unique[:20]:
         data = today_commits_by_repo[repo]
         name = data["info"].get("name", repo)
         msgs = deduped[repo]
@@ -835,23 +837,23 @@ def generate_daily_ai_review(today_commits_by_repo):
         total = len(data["commits"])
         sections += f"\n【{name}】（{total} commits）\n"
         if unique:
-            sections += "  独有工作：\n" + "\n".join(f"    {m}" for m in unique[:12]) + "\n"
+            sections += "  独有工作：\n" + "\n".join(f"    {m}" for m in unique[:8]) + "\n"
         if common:
-            sections += "  另同步：" + "、".join(common[:5]) + "\n"
+            sections += "  另同步：" + "、".join(common[:3]) + "\n"
+    if len(with_unique) > 20:
+        sections += f"\n（另有 {len(with_unique) - 20} 个仓库有独立工作，略）\n"
 
     prompt = f"""根据以下分组信息，写简洁的每日完成总结。
 
 {sections}
-输出规则：
-1. 批量同步组（多仓库相同操作）合并为一行：
-   - **批量同步（仓库A / 仓库B / 仓库C …）**：具体做了什么（列文件名或功能点，不要笼统说"工作流文件"）
-2. 有独有工作的仓库各自一行：
-   - **仓库名**：独有工作内容（若另有同步内容则一并简述）
-3. 描述具体，直接列文件名或功能点（如 dedup.py 去重逻辑、daily-review.yml 工作流部署）
+输出规则（严格遵守，每行必须以 "- " 开头）：
+1. 批量同步组合并为一行：- **批量同步（仓库A/仓库B/…共N个）**：做了什么（具体列操作内容）
+2. 有独有工作的仓库各自一行：- **仓库名**：工作内容
+3. 描述具体，列文件名或功能点，不要笼统说"工作流文件"
 
-只返回 bullet 列表行，不要其他文字。"""
+只返回 bullet 列表行（每行以 "- " 开头），不要任何其他文字。"""
 
-    resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=500,
+    resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=1500,
                         messages=[{"role": "user", "content": prompt}])
     text = resp.content[0].text.strip()
     bullet_lines = [ln for ln in text.splitlines() if ln.strip().startswith("-")]
