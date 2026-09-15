@@ -781,23 +781,53 @@ def generate_daily_ai_review(today_commits_by_repo):
     if not today_commits_by_repo:
         return "- （今日无 commit 活动）", "无"
 
-    # 每仓库去重后的 commit 集合，用于跨仓库对比
+    from collections import Counter
+
     deduped = {
         repo: _dedup_ordered(data["commits"])
         for repo, data in today_commits_by_repo.items()
     }
-    all_msg_sets = [set(msgs) for msgs in deduped.values()]
-    n = len(all_msg_sets)
+    n = len(deduped)
 
-    # 在 ≥ max(2, n-1) 个仓库中都出现的 commit 视为"共有"
-    from collections import Counter
-    msg_freq = Counter(m for msgs in all_msg_sets for m in msgs)
-    threshold = max(2, n - 1)
+    # 批量同步检测阈值：仓库数多时用 40%，避免 n-1 导致阈值过高
+    if n >= 5:
+        threshold = max(3, int(n * 0.4))
+    else:
+        threshold = max(2, n - 1)
+
+    msg_freq = Counter(m for msgs in deduped.values() for m in set(msgs))
     shared = {m for m, cnt in msg_freq.items() if cnt >= threshold}
 
-    # 构建给 AI 的上下文
+    # 按是否有独有工作分组
+    batch_only = []   # 只有共有 commits，无独有 → 归入批量同步组
+    with_unique = []  # 有独有 commits（可能也有共有）→ 单独列一行
+
+    for repo, msgs in deduped.items():
+        msg_set = set(msgs)
+        has_unique = bool(msg_set - shared)
+        has_shared = bool(msg_set & shared)
+        if has_unique or not has_shared:
+            with_unique.append(repo)
+        else:
+            batch_only.append(repo)
+
+    # 批量同步组少于 2 个时不成组
+    if len(batch_only) < 2:
+        with_unique.extend(batch_only)
+        batch_only = []
+
     sections = ""
-    for repo, data in today_commits_by_repo.items():
+
+    if batch_only:
+        rep_msgs = [m for m in deduped[batch_only[0]] if m in shared]
+        repo_names = " / ".join(
+            today_commits_by_repo[r]["info"].get("name", r) for r in batch_only
+        )
+        sections += f"\n【批量同步组：{repo_names}】\n"
+        sections += "  共有操作：\n" + "\n".join(f"    {m}" for m in rep_msgs[:8]) + "\n"
+
+    for repo in with_unique:
+        data = today_commits_by_repo[repo]
         name = data["info"].get("name", repo)
         msgs = deduped[repo]
         unique = [m for m in msgs if m not in shared]
@@ -805,23 +835,23 @@ def generate_daily_ai_review(today_commits_by_repo):
         total = len(data["commits"])
         sections += f"\n【{name}】（{total} commits）\n"
         if unique:
-            sections += "  本仓库独有：\n" + "\n".join(f"    {m}" for m in unique[:12]) + "\n"
+            sections += "  独有工作：\n" + "\n".join(f"    {m}" for m in unique[:12]) + "\n"
         if common:
-            sections += "  与其他仓库共有（去重后）：" + "、".join(common[:10]) + "\n"
+            sections += "  另同步：" + "、".join(common[:5]) + "\n"
 
-    prompt = f"""根据以下各仓库今日 commit 分析，写简洁的每日完成总结。
+    prompt = f"""根据以下分组信息，写简洁的每日完成总结。
 
 {sections}
 输出规则：
-1. 若多个仓库做了完全相同的工作（只有"共有"commits，无独有），将它们合并为一行：
-   - **仓库A / 仓库B / 仓库C**：做了什么（具体列出涉及的文件/模块名，不要笼统说"工作流文件"）
-2. 若某仓库有独有 commits，单独列一行并重点描述独有部分：
-   - **仓库名**：独有工作内容；另同步了共有维护内容
-3. 描述具体，直接列文件名或功能点（如 dedup.py 去重逻辑、daily-review.yml 工作流部署、auto-close-issue.yml 自动关闭规则）
+1. 批量同步组（多仓库相同操作）合并为一行：
+   - **批量同步（仓库A / 仓库B / 仓库C …）**：具体做了什么（列文件名或功能点，不要笼统说"工作流文件"）
+2. 有独有工作的仓库各自一行：
+   - **仓库名**：独有工作内容（若另有同步内容则一并简述）
+3. 描述具体，直接列文件名或功能点（如 dedup.py 去重逻辑、daily-review.yml 工作流部署）
 
 只返回 bullet 列表行，不要其他文字。"""
 
-    resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=400,
+    resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=500,
                         messages=[{"role": "user", "content": prompt}])
     text = resp.content[0].text.strip()
     bullet_lines = [ln for ln in text.splitlines() if ln.strip().startswith("-")]
