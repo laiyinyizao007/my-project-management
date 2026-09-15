@@ -21,6 +21,10 @@ on:
         description: '续期 Issue 数量'
         required: false
         default: '0'
+      fill_ai:
+        description: '补填已有 Issue 的 AI 建议（true/false）'
+        required: false
+        default: 'false'
 
 permissions:
   issues: write
@@ -46,4 +50,7 @@ jobs:
           SPRINT_TITLE: ${{ inputs.sprint_title }}
           ROLLED_OVER: ${{ inputs.rolled_over }}
           GH_OWNER: ${{ github.repository_owner }}
-        run: python3 generate_weekly_plan.py
+        run: |
+          ARGS=""
+          if [ "${{ inputs.fill_ai }}" = "true" ]; then ARGS="--fill-ai"; fi
+          python3 generate_weekly_plan.py $ARGS

@@ -505,9 +505,55 @@ def create_issue(title, body):
         sys.exit(1)
 
 
+# ── 8. 补填已有 Issue 的 AI 建议区块 ─────────────────────────────────────
+
+def fill_ai_for_existing_issue(issue_number, week_info, weekly_progress, sprint_issues):
+    """为已存在但 AI 建议缺失的 Issue 生成并更新 AI 建议区块"""
+    ai_plan = generate_ai_plan(week_info, weekly_progress, sprint_issues)
+    if not ai_plan:
+        print("ℹ️  AI 计划生成失败，跳过更新", file=sys.stderr)
+        return
+
+    # 获取当前 body
+    repo = os.environ.get("GITHUB_REPOSITORY", "").split("/")[-1] or "my-project-management"
+    r = subprocess.run(
+        ["gh", "api", f"repos/{GITHUB_USER}/{repo}/issues/{issue_number}", "--jq", ".body"],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        print(f"❌ 获取 Issue #{issue_number} 失败", file=sys.stderr)
+        return
+    body = r.stdout.strip()
+
+    # 替换 AI 建议区块（无论是占位文字还是已有内容，都整块替换）
+    body = re.sub(
+        r"### 🤖 AI 本周建议\n\n.*?(?=\n---)",
+        f"### 🤖 AI 本周建议\n\n{ai_plan}",
+        body,
+        flags=re.DOTALL,
+    )
+
+    import json as _json, tempfile as _tmp, os as _os
+    with _tmp.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        _json.dump({"body": body}, f, ensure_ascii=False)
+        tmp = f.name
+    r2 = subprocess.run(
+        ["gh", "api", "--method", "PATCH", f"repos/{GITHUB_USER}/{repo}/issues/{issue_number}",
+         "--input", tmp, "--jq", ".number,.updated_at"],
+        capture_output=True, text=True,
+    )
+    _os.unlink(tmp)
+    if r2.returncode == 0:
+        print(f"✅ Issue #{issue_number} AI 建议已更新")
+    else:
+        print(f"❌ 更新失败: {r2.stderr[:200]}", file=sys.stderr)
+
+
 # ── main ───────────────────────────────────────────────────────────────────
 
 def main():
+    fill_ai = "--fill-ai" in sys.argv
+
     week_info = get_week_info()
     print(f"📅 生成周计划：{week_info['week_id']}  ({week_info['monday']} ~ {week_info['sunday']})")
 
@@ -522,13 +568,17 @@ def main():
         sprint_issues = get_open_issues_fallback() or []
     print(f"   找到 {len(sprint_issues)} 个续期/open Issue")
 
-    # 幂等检查：若 Issue 已存在，仍尝试加入 Project（修复历史 Issue 未分配 Sprint 的情况）
+    # 幂等检查：若 Issue 已存在
     existing_number = get_existing_issue_number(week_info["title"])
     if existing_number:
         print(f"⏭️  本周计划 Issue 已存在：{week_info['title']} (#{existing_number})")
         if project_id:
             print("   尝试确保 Issue 已加入 Project board...")
             add_issue_to_project(existing_number, project_id, sprint_field_id, iteration_id)
+        if fill_ai:
+            print("   --fill-ai：补填 AI 建议区块...")
+            weekly_progress = read_weekly_progress()
+            fill_ai_for_existing_issue(existing_number, week_info, weekly_progress, sprint_issues)
         return
 
     # 读上周进展
