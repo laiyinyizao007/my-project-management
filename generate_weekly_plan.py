@@ -591,6 +591,21 @@ def fill_ai_for_existing_issue(issue_number, week_info, weekly_progress, sprint_
             body,
             flags=re.DOTALL,
         )
+    # 替换续期任务区块（反映当前 Sprint open issues）
+    if sprint_issues:
+        task_lines = ""
+        for i in sprint_issues:
+            labels_str = f" `{'` `'.join(i['labels'])}`" if i["labels"] else ""
+            task_lines += f"- [ ] #{i['number']} [{i['title']}]({i['url']}){labels_str}\n"
+        rolled_block = f"### 🔄 续期任务（{len(sprint_issues)} 项）\n\n{task_lines.rstrip()}"
+    else:
+        rolled_block = "### 🔄 续期任务（0 项）\n\n> 本周 Sprint 无续期任务。"
+    body = re.sub(
+        r"### 🔄 续期任务（\d+ 项）\n\n.*?(?=\n---)",
+        rolled_block,
+        body,
+        flags=re.DOTALL,
+    )
 
     import json as _json, tempfile as _tmp, os as _os
     with _tmp.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
