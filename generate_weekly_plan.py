@@ -826,12 +826,139 @@ def patch_weekly_review(issue_number, review_text):
         print(f"❌ 更新失败", file=sys.stderr)
 
 
+# ── 10. 每日自动关闭已完成 Issue ─────────────────────────────────────────────
+
+def _get_open_task_issues(repo):
+    """获取指定 repo 中带 type: task 标签的 open issues"""
+    r = subprocess.run(
+        ["gh", "issue", "list", "--repo", f"{GITHUB_USER}/{repo}",
+         "--label", "type: task", "--state", "open",
+         "--json", "number,title,url,labels", "--limit", "50"],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0 or not r.stdout.strip():
+        return []
+    try:
+        raw = json.loads(r.stdout)
+        return [
+            {"number": i["number"], "title": i["title"], "url": i["url"],
+             "labels": [l["name"] for l in i.get("labels", [])]}
+            for i in raw
+        ]
+    except Exception:
+        return []
+
+
+def _close_issue(repo, number, comment):
+    r = subprocess.run(
+        ["gh", "issue", "close", str(number), "--repo", f"{GITHUB_USER}/{repo}",
+         "--comment", comment],
+        capture_output=True, text=True,
+    )
+    return r.returncode == 0
+
+
+def _add_issue_comment(repo, number, comment):
+    subprocess.run(
+        ["gh", "issue", "comment", str(number), "--repo", f"{GITHUB_USER}/{repo}",
+         "--body", comment],
+        capture_output=True, text=True,
+    )
+
+
+def _ai_match_issues(repo, commits, open_issues):
+    """用 Claude Haiku 判断哪些 issue 已被 commits 完成"""
+    client = _make_client()
+    if not client or not commits or not open_issues:
+        return []
+    commit_lines = "\n".join(f"- {c}" for c in commits[:20])
+    issue_lines = "\n".join(f"#{i['number']} {i['title']}" for i in open_issues)
+    prompt = f"""你是 issue 管理助手。根据今日 commits 判断哪些 open issue 已完成。
+
+仓库：{repo}
+今日 commits：
+{commit_lines}
+
+Open issues（type: task）：
+{issue_lines}
+
+返回 JSON 数组，每项：{{"issue": <编号>, "confidence": "high"/"low", "reason": "<一句话>"}}
+- high：commit 明确对应该 issue 的工作内容
+- low：可能相关但不确定
+不相关的不要返回。只返回 JSON，不要其他文字。"""
+    try:
+        resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=300,
+                            messages=[{"role": "user", "content": prompt}])
+        text = resp.content[0].text.strip()
+        # 提取 JSON 部分
+        m = re.search(r'\[.*\]', text, re.DOTALL)
+        if not m:
+            return []
+        return json.loads(m.group())
+    except Exception as e:
+        print(f"⚠️  AI 匹配失败（{repo}）：{e}", file=sys.stderr)
+        return []
+
+
+def auto_close_resolved_issues():
+    """每日运行：根据今日 commits 自动关闭或提醒已完成的 type:task Issue"""
+    today_by_repo = get_today_commits_by_repo()
+    if not today_by_repo:
+        print("ℹ️  今日无 commit 活动，跳过自动关闭")
+        return
+
+    keyword_re = re.compile(r'(?:closes?|fixes?|resolves?)\s+#(\d+)', re.I)
+
+    for repo, data in today_by_repo.items():
+        commits = data["commits"]
+        open_issues = _get_open_task_issues(repo)
+        if not open_issues:
+            print(f"   {repo}：无 open type:task issue，跳过")
+            continue
+
+        open_by_num = {i["number"]: i for i in open_issues}
+        keyword_closed = set()
+
+        # 1. 关键词匹配
+        for msg in commits:
+            for num_str in keyword_re.findall(msg):
+                num = int(num_str)
+                if num in open_by_num:
+                    comment = f"🤖 根据 commit 关键词自动关闭：`{msg}`"
+                    if _close_issue(repo, num, comment):
+                        print(f"   ✅ {repo}#{num} 已关闭（关键词匹配：{msg[:60]}）")
+                        keyword_closed.add(num)
+                    else:
+                        print(f"   ❌ {repo}#{num} 关闭失败", file=sys.stderr)
+
+        # 2. AI 匹配剩余 issues
+        remaining = [i for n, i in open_by_num.items() if n not in keyword_closed]
+        if not remaining:
+            continue
+        matches = _ai_match_issues(repo, commits, remaining)
+        for m in matches:
+            num = m.get("issue")
+            confidence = m.get("confidence", "low")
+            reason = m.get("reason", "")
+            if num not in open_by_num:
+                continue
+            if confidence == "high":
+                comment = f"🤖 AI 自动关闭（高置信度）：{reason}"
+                if _close_issue(repo, num, comment):
+                    print(f"   ✅ {repo}#{num} 已关闭（AI high：{reason}）")
+            else:
+                comment = f"🤖 可能已完成，请确认后手动关闭\n\n**依据**：{reason}"
+                _add_issue_comment(repo, num, comment)
+                print(f"   💬 {repo}#{num} 留评论提醒（AI low：{reason}）")
+
+
 # ── main ───────────────────────────────────────────────────────────────────
 
 def main():
     fill_ai = "--fill-ai" in sys.argv
     daily_review = "--daily-review" in sys.argv
     weekly_review = "--weekly-review" in sys.argv
+    auto_close = "--auto-close" in sys.argv
 
     week_info = get_week_info()
     print(f"📅 生成周计划：{week_info['week_id']}  ({week_info['monday']} ~ {week_info['sunday']})")
@@ -870,6 +997,11 @@ def main():
             review_text = "（无 AI 摘要）"
         print(f"   周回顾内容：{review_text[:80]}...")
         patch_weekly_review(issue_number, review_text)
+        return
+
+    if auto_close:
+        print("🔍 --auto-close：自动关闭已完成 Issue")
+        auto_close_resolved_issues()
         return
 
     # 查本周 Sprint issues（同时获取 project 上下文，供后续 add_issue_to_project 使用）

@@ -52,3 +52,24 @@ jobs:
           PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
           GH_OWNER: ${{ github.repository_owner }}
         run: python3 generate_weekly_plan.py ${{ steps.mode.outputs.arg }}
+
+  auto-close:
+    runs-on: ubuntu-latest
+    needs: review
+    # 只在每日回顾时运行（工作日），周六周回顾不自动关闭
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode == 'daily' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      - name: 安装依赖
+        run: pip install anthropic
+      - name: 自动关闭已完成 Issue
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          GH_OWNER: ${{ github.repository_owner }}
+        run: python3 generate_weekly_plan.py --auto-close
