@@ -31,6 +31,7 @@ jobs:
       - name: 运行 weekly_report（生成周报 + 更新本周进展）
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
           GH_OWNER: ${{ github.repository_owner }}
         run: python3 weekly_report.py --no-push

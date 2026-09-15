@@ -409,7 +409,7 @@ def build_issue_body(week_info, ai_plan, weekly_progress, sprint_issues):
         lines += [
             "### 🤖 AI 本周建议",
             "",
-            "> ℹ️  未配置 ANTHROPIC_API_KEY，跳过 AI 建议生成。",
+            "> ℹ️  AI 建议生成失败（未配置 ANTHROPIC_API_KEY 或 API 调用失败）。",
             "",
             "---",
             "",
