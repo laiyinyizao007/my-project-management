@@ -66,19 +66,23 @@ def get_week_info():
 
 # ── 2. 幂等检查 ────────────────────────────────────────────────────────────
 
-def issue_already_exists(title):
+def get_existing_issue_number(title):
+    """返回已存在的同名周计划 Issue 编号，不存在返回 None"""
     r = subprocess.run(
         ["gh", "issue", "list", "--label", "type: weekly-plan",
-         "--state", "all", "--json", "title", "--limit", "10"],
+         "--state", "all", "--json", "title,number", "--limit", "10"],
         capture_output=True, text=True,
     )
     if r.returncode != 0:
-        return False
+        return None
     try:
         issues = json.loads(r.stdout)
-        return any(i["title"] == title for i in issues)
+        for i in issues:
+            if i["title"] == title:
+                return i["number"]
+        return None
     except Exception:
-        return False
+        return None
 
 
 # ── 3. 读上周进展 ──────────────────────────────────────────────────────────
@@ -108,12 +112,18 @@ def run_gh(args):
 
 
 def get_sprint_issues(sprint_title):
-    """GraphQL 查询 Project v2 当前 Sprint 的 open items，返回列表或 None"""
+    """GraphQL 查询 Project v2 当前 Sprint 的 open items。
+
+    Returns:
+        (issues, project_id, sprint_field_id, iteration_id)
+        issues 为列表或 None（查询失败/无结果），其余三项在查询失败时为 None。
+    """
+    _NONE = (None, None, None, None)
     project_num = os.environ.get("PROJECT_NUMBER", "1")
     try:
         project_num_int = int(project_num)
     except ValueError:
-        return None
+        return _NONE
 
     # 先获取 Project ID 和 Sprint field ID
     query = """
@@ -152,7 +162,7 @@ query($login: String!, $num: Int!) {
     out = run_gh(["api", "graphql", "-f", f"query={query}",
                   "-f", f"login={GITHUB_USER}", "-F", f"num={project_num_int}"])
     if not out:
-        return None
+        return _NONE
 
     try:
         data = json.loads(out)
@@ -164,8 +174,9 @@ query($login: String!, $num: Int!) {
             None,
         )
         if not sprint_field:
-            return None
+            return (None, project_id, None, None)
 
+        sprint_field_id = sprint_field["id"]
         current_iter = next(
             (i for i in sprint_field["configuration"]["iterations"]
              if i["title"] == sprint_title),
@@ -176,10 +187,10 @@ query($login: String!, $num: Int!) {
             iters = sprint_field["configuration"]["iterations"]
             current_iter = iters[-1] if iters else None
         if not current_iter:
-            return None
+            return (None, project_id, sprint_field_id, None)
         iteration_id = current_iter["id"]
     except (KeyError, TypeError, StopIteration):
-        return None
+        return _NONE
 
     # 查 Sprint 中的 open issues
     items_query = """
@@ -243,7 +254,69 @@ query($pid: ID!, $cursor: String) {
             print(f"[warn] 分页解析失败: {e}", file=sys.stderr)
             break
 
-    return issues if issues else None
+    return (issues if issues else None), project_id, sprint_field_id, iteration_id
+
+
+def add_issue_to_project(issue_number, project_id, sprint_field_id, iteration_id):
+    """将 Issue 加入 Project v2 并设置 Sprint 字段。幂等：重复添加无副作用。"""
+    if not project_id:
+        return
+
+    # 获取 Issue node_id
+    r = subprocess.run(
+        ["gh", "api", f"repos/{GITHUB_USER}/{os.environ.get('GITHUB_REPOSITORY', '').split('/')[-1] or 'my-project-management'}/issues/{issue_number}",
+         "--jq", ".node_id"],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0 or not r.stdout.strip():
+        print(f"   ⚠️  获取 Issue #{issue_number} node_id 失败", file=sys.stderr)
+        return
+    node_id = r.stdout.strip()
+
+    # addProjectV2ItemById → 获取 item_id
+    add_mutation = """
+mutation($pid: ID!, $cid: ID!) {
+  addProjectV2ItemById(input: {projectId: $pid, contentId: $cid}) {
+    item { id }
+  }
+}"""
+    out = run_gh(["api", "graphql",
+                  "-f", f"query={add_mutation}",
+                  "-f", f"pid={project_id}",
+                  "-f", f"cid={node_id}"])
+    if not out:
+        print(f"   ⚠️  addProjectV2ItemById 失败（Issue #{issue_number}）", file=sys.stderr)
+        return
+    try:
+        item_id = json.loads(out)["data"]["addProjectV2ItemById"]["item"]["id"]
+    except (KeyError, TypeError):
+        print(f"   ⚠️  解析 item_id 失败", file=sys.stderr)
+        return
+
+    print(f"   ✅ Issue #{issue_number} 已加入 Project")
+
+    # 设置 Sprint 字段
+    if not sprint_field_id or not iteration_id:
+        return
+    update_mutation = """
+mutation($pid: ID!, $iid: ID!, $fid: ID!, $itid: String!) {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: $pid
+    itemId: $iid
+    fieldId: $fid
+    value: { iterationId: $itid }
+  }) { projectV2Item { id } }
+}"""
+    out2 = run_gh(["api", "graphql",
+                   "-f", f"query={update_mutation}",
+                   "-f", f"pid={project_id}",
+                   "-f", f"iid={item_id}",
+                   "-f", f"fid={sprint_field_id}",
+                   "-f", f"itid={iteration_id}"])
+    if out2:
+        print(f"   ✅ Issue #{issue_number} Sprint 字段已设置")
+    else:
+        print(f"   ⚠️  Sprint 字段设置失败（Issue #{issue_number}）", file=sys.stderr)
 
 
 def get_open_issues_fallback():
@@ -409,6 +482,7 @@ def build_issue_body(week_info, ai_plan, weekly_progress, sprint_issues):
 # ── 7. 创建 Issue ──────────────────────────────────────────────────────────
 
 def create_issue(title, body):
+    """创建 Issue 并返回 Issue 编号（int）"""
     body_file = Path("/tmp/weekly_plan_body.md")
     body_file.write_text(body, encoding="utf-8")
     r = subprocess.run(
@@ -419,8 +493,13 @@ def create_issue(title, body):
         capture_output=True, text=True,
     )
     if r.returncode == 0:
+        url = r.stdout.strip()
         print(f"✅ 已创建周计划 Issue：{title}")
-        print(f"   {r.stdout.strip()}")
+        print(f"   {url}")
+        try:
+            return int(url.split("/")[-1])
+        except (ValueError, IndexError):
+            return None
     else:
         print(f"❌ Issue 创建失败：{r.stderr.strip()}", file=sys.stderr)
         sys.exit(1)
@@ -432,9 +511,24 @@ def main():
     week_info = get_week_info()
     print(f"📅 生成周计划：{week_info['week_id']}  ({week_info['monday']} ~ {week_info['sunday']})")
 
-    # 幂等检查
-    if issue_already_exists(week_info["title"]):
-        print(f"⏭️  本周计划 Issue 已存在：{week_info['title']}，跳过")
+    # 查本周 Sprint issues（同时获取 project 上下文，供后续 add_issue_to_project 使用）
+    sprint_title = os.environ.get("SPRINT_TITLE") or week_info["sprint"]
+    print(f"🔍 查询 Sprint：{sprint_title}")
+    sprint_issues, project_id, sprint_field_id, iteration_id = get_sprint_issues(sprint_title)
+    if sprint_issues is None and project_id is None:
+        print("⚠️  GraphQL 查询失败，降级为 repo 全量 open issues")
+        sprint_issues = get_open_issues_fallback() or []
+    elif sprint_issues is None:
+        sprint_issues = get_open_issues_fallback() or []
+    print(f"   找到 {len(sprint_issues)} 个续期/open Issue")
+
+    # 幂等检查：若 Issue 已存在，仍尝试加入 Project（修复历史 Issue 未分配 Sprint 的情况）
+    existing_number = get_existing_issue_number(week_info["title"])
+    if existing_number:
+        print(f"⏭️  本周计划 Issue 已存在：{week_info['title']} (#{existing_number})")
+        if project_id:
+            print("   尝试确保 Issue 已加入 Project board...")
+            add_issue_to_project(existing_number, project_id, sprint_field_id, iteration_id)
         return
 
     # 读上周进展
@@ -444,15 +538,6 @@ def main():
     else:
         print("ℹ️  profile.md 无上周进展记录，跳过该部分")
 
-    # 查本周 Sprint issues
-    sprint_title = os.environ.get("SPRINT_TITLE") or week_info["sprint"]
-    print(f"🔍 查询 Sprint：{sprint_title}")
-    sprint_issues = get_sprint_issues(sprint_title)
-    if sprint_issues is None:
-        print("⚠️  GraphQL 查询失败，降级为 repo 全量 open issues")
-        sprint_issues = get_open_issues_fallback() or []
-    print(f"   找到 {len(sprint_issues)} 个续期/open Issue")
-
     # AI 生成计划
     ai_plan = generate_ai_plan(week_info, weekly_progress, sprint_issues)
     if ai_plan:
@@ -460,9 +545,12 @@ def main():
     else:
         print("ℹ️  跳过 AI 计划（无 ANTHROPIC_API_KEY 或调用失败）")
 
-    # 构建并创建 Issue
+    # 构建并创建 Issue，然后加入 Project board
     body = build_issue_body(week_info, ai_plan, weekly_progress, sprint_issues)
-    create_issue(week_info["title"], body)
+    issue_number = create_issue(week_info["title"], body)
+    if issue_number and project_id:
+        print(f"📌 将 Issue #{issue_number} 加入 Project board...")
+        add_issue_to_project(issue_number, project_id, sprint_field_id, iteration_id)
 
 
 if __name__ == "__main__":
