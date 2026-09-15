@@ -752,7 +752,7 @@ def get_today_commits_by_repo():
     for repo, info in all_repos.items():
         r = subprocess.run(
             ["gh", "api",
-             f"/repos/{GITHUB_USER}/{repo}/commits?since={since_iso}&per_page=20",
+             f"/repos/{GITHUB_USER}/{repo}/commits?since={since_iso}&per_page=100",
              "--jq", '[.[].commit.message | split("\n")[0]]'],
             capture_output=True, text=True,
         )
