@@ -241,6 +241,8 @@ query($pid: ID!, $cursor: String) {
                 if not in_sprint:
                     continue
                 labels = [l["name"] for l in content.get("labels", {}).get("nodes", [])]
+                if "type: weekly-plan" in labels:
+                    continue
                 issues.append({
                     "number": content["number"],
                     "title": content["title"],
