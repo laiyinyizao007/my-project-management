@@ -699,6 +699,12 @@ def get_today_commits_by_repo():
     return results
 
 
+def _dedup_ordered(seq):
+    """保序去重"""
+    seen = set()
+    return [x for x in seq if not (x in seen or seen.add(x))]
+
+
 def generate_daily_ai_review(today_commits_by_repo):
     """用 Claude 生成当日各仓库完成摘要和阻塞"""
     client = _make_client()
@@ -708,24 +714,49 @@ def generate_daily_ai_review(today_commits_by_repo):
     if not today_commits_by_repo:
         return "- （今日无 commit 活动）", "无"
 
-    commit_sections = ""
+    # 每仓库去重后的 commit 集合，用于跨仓库对比
+    deduped = {
+        repo: _dedup_ordered(data["commits"])
+        for repo, data in today_commits_by_repo.items()
+    }
+    all_msg_sets = [set(msgs) for msgs in deduped.values()]
+    n = len(all_msg_sets)
+
+    # 在 ≥ max(2, n-1) 个仓库中都出现的 commit 视为"共有"
+    from collections import Counter
+    msg_freq = Counter(m for msgs in all_msg_sets for m in msgs)
+    threshold = max(2, n - 1)
+    shared = {m for m, cnt in msg_freq.items() if cnt >= threshold}
+
+    # 构建给 AI 的上下文
+    sections = ""
     for repo, data in today_commits_by_repo.items():
         name = data["info"].get("name", repo)
-        commits = data["commits"][:15]
-        commit_sections += f"\n【{name}】\n" + "\n".join(f"  {c}" for c in commits) + "\n"
+        msgs = deduped[repo]
+        unique = [m for m in msgs if m not in shared]
+        common = [m for m in msgs if m in shared]
+        total = len(data["commits"])
+        sections += f"\n【{name}】（{total} commits）\n"
+        if unique:
+            sections += "  本仓库独有：\n" + "\n".join(f"    {m}" for m in unique[:12]) + "\n"
+        if common:
+            sections += "  与其他仓库共有（去重后）：" + "、".join(common[:10]) + "\n"
 
-    prompt = f"""根据以下今日各仓库 commits，为每个仓库写一句话总结（25字以内，中文，聚焦做了什么）。
+    prompt = f"""根据以下各仓库今日 commit 分析，写简洁的每日完成总结。
 
-{commit_sections}
-输出格式（每行一个仓库，有实质工作才列出）：
-- **项目名**：做了什么
+{sections}
+输出规则：
+1. 若多个仓库做了完全相同的工作（只有"共有"commits，无独有），将它们合并为一行：
+   - **仓库A / 仓库B / 仓库C**：做了什么（具体列出涉及的文件/模块名，不要笼统说"工作流文件"）
+2. 若某仓库有独有 commits，单独列一行并重点描述独有部分：
+   - **仓库名**：独有工作内容；另同步了共有维护内容
+3. 描述具体，直接列文件名或功能点（如 dedup.py 去重逻辑、daily-review.yml 工作流部署、auto-close-issue.yml 自动关闭规则）
 
-只返回列表行，不要其他文字。如某仓库只有 chore/merge 等维护性提交，仍需简明说明维护了什么（如"同步 dedup.py 去重脚本及工作流文件"）。"""
+只返回 bullet 列表行，不要其他文字。"""
 
     resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=400,
                         messages=[{"role": "user", "content": prompt}])
     text = resp.content[0].text.strip()
-    # 提取 "- **xxx**：..." 形式的行
     bullet_lines = [ln for ln in text.splitlines() if ln.strip().startswith("-")]
     completed = "\n".join(bullet_lines) if bullet_lines else "- （详见 commits）"
     return completed, "无"
