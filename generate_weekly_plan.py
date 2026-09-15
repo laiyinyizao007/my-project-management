@@ -344,13 +344,48 @@ def get_open_issues_fallback():
         return []
 
 
-# ── 5. Claude Haiku 生成计划 ───────────────────────────────────────────────
+# ── 5. Claude API 调用（带限额重试）─────────────────────────────────────────
 
-def generate_ai_plan(week_info, weekly_progress, sprint_issues):
+def _claude_call(client, *, max_wait_seconds=300, **kwargs):
+    """调用 Claude API，遇到限额时按 retry-after 等待重试；超过 max_wait_seconds 则抛异常。"""
+    import time
+    import anthropic as _anthropic
+    for attempt in range(4):
+        try:
+            return client.messages.create(**kwargs)
+        except _anthropic.RateLimitError as e:
+            headers = getattr(getattr(e, "response", None), "headers", {}) or {}
+            retry_after = int(headers.get("retry-after", 60))
+            if retry_after > max_wait_seconds:
+                print(f"❌ API 限额，retry-after={retry_after}s 超过上限 {max_wait_seconds}s，放弃", file=sys.stderr)
+                raise
+            print(f"⏳ API 限额（第 {attempt+1} 次），{retry_after}s 后重试...", file=sys.stderr)
+            time.sleep(retry_after)
+        except _anthropic.APIStatusError as e:
+            if e.status_code == 529:  # overloaded
+                wait = 30 * (attempt + 1)
+                print(f"⏳ API 过载（第 {attempt+1} 次），{wait}s 后重试...", file=sys.stderr)
+                import time as _time; _time.sleep(wait)
+            else:
+                raise
+    raise RuntimeError("Claude API 限额，重试次数耗尽，workflow 应失败")
+
+
+def _make_client():
+    import anthropic
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         return None
+    kwargs = {"api_key": api_key}
+    base_url = os.environ.get("ANTHROPIC_BASE_URL")
+    if base_url:
+        kwargs["base_url"] = base_url
+    return anthropic.Anthropic(**kwargs)
 
+
+# ── 6. Claude Haiku 生成计划 ───────────────────────────────────────────────
+
+def generate_ai_plan(week_info, weekly_progress, sprint_issues):
     issue_list = ""
     if sprint_issues:
         for i in sprint_issues[:15]:
@@ -391,23 +426,13 @@ def generate_ai_plan(week_info, weekly_progress, sprint_issues):
 - 重点参考高优先级标签（P0/P1）和上周未完成方向
 """
 
-    try:
-        import anthropic
-        base_url = os.environ.get("ANTHROPIC_BASE_URL")
-        kwargs = {"api_key": api_key}
-        if base_url:
-            kwargs["base_url"] = base_url
-        client = anthropic.Anthropic(**kwargs)
-        resp = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=600,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw = resp.content[0].text.strip()
-        return _parse_ai_sections(raw)
-    except Exception as e:
-        print(f"⚠️  Claude API 调用失败：{e}", file=sys.stderr)
+    client = _make_client()
+    if not client:
         return None
+    resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=600,
+                        messages=[{"role": "user", "content": prompt}])
+    raw = resp.content[0].text.strip()
+    return _parse_ai_sections(raw)
 
 
 def _parse_ai_sections(raw):
@@ -671,8 +696,8 @@ def get_today_commits_by_repo():
 
 def generate_daily_ai_review(today_commits_by_repo):
     """用 Claude 生成当日完成摘要和阻塞"""
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+    client = _make_client()
+    if not client:
         return None, None
 
     if today_commits_by_repo:
@@ -691,29 +716,16 @@ def generate_daily_ai_review(today_commits_by_repo):
 完成：[今日完成的主要工作，30字以内，无活动则写"无"]
 阻塞：[遇到的阻塞，无则写"无"]"""
 
-    try:
-        import anthropic
-        kwargs = {"api_key": api_key}
-        base_url = os.environ.get("ANTHROPIC_BASE_URL")
-        if base_url:
-            kwargs["base_url"] = base_url
-        client = anthropic.Anthropic(**kwargs)
-        resp = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=100,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = resp.content[0].text.strip()
-        completed, blocked = "", ""
-        for line in text.splitlines():
-            if line.startswith("完成："):
-                completed = line[3:].strip()
-            elif line.startswith("阻塞："):
-                blocked = line[3:].strip()
-        return completed or "（详见 commits）", blocked or "无"
-    except Exception as e:
-        print(f"⚠️  Claude API 调用失败：{e}", file=sys.stderr)
-        return None, None
+    resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=100,
+                        messages=[{"role": "user", "content": prompt}])
+    text = resp.content[0].text.strip()
+    completed, blocked = "", ""
+    for line in text.splitlines():
+        if line.startswith("完成："):
+            completed = line[3:].strip()
+        elif line.startswith("阻塞："):
+            blocked = line[3:].strip()
+    return completed or "（详见 commits）", blocked or "无"
 
 
 def generate_weekly_ai_review(week_info):
@@ -738,10 +750,6 @@ def generate_weekly_ai_review(week_info):
             except Exception:
                 pass
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        return None
-
     week_summary = "\n".join(summary_lines) if summary_lines else "（本周无 commit 记录）"
 
     prompt = f"""根据以下本周 commits 摘要，生成周回顾。严格按格式输出，不要其他文字：
@@ -752,22 +760,12 @@ def generate_weekly_ai_review(week_info):
 主要成果：[本周最重要成果，一句话40字以内]
 下周重点：[建议下周重点方向，一句话40字以内]"""
 
-    try:
-        import anthropic
-        kwargs = {"api_key": api_key}
-        base_url = os.environ.get("ANTHROPIC_BASE_URL")
-        if base_url:
-            kwargs["base_url"] = base_url
-        client = anthropic.Anthropic(**kwargs)
-        resp = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=150,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.content[0].text.strip()
-    except Exception as e:
-        print(f"⚠️  Claude API 调用失败：{e}", file=sys.stderr)
+    client = _make_client()
+    if not client:
         return None
+    resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=150,
+                        messages=[{"role": "user", "content": prompt}])
+    return resp.content[0].text.strip()
 
 
 def _patch_issue_body(issue_number, new_body):
