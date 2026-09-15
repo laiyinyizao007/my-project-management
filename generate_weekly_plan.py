@@ -359,7 +359,7 @@ def generate_ai_plan(week_info, weekly_progress, sprint_issues):
 
     progress_section = weekly_progress or "（上周无进展记录）"
 
-    prompt = f"""你是一个个人效率助手。根据以下信息，为本周（{week_info['week_id']}）生成工作计划建议。
+    prompt = f"""你是一个个人效率助手。根据以下信息，为本周（{week_info['week_id']}）生成工作计划。
 
 ## 上周进展
 {progress_section}
@@ -367,15 +367,26 @@ def generate_ai_plan(week_info, weekly_progress, sprint_issues):
 ## 本周 Sprint 续期任务
 {issue_list}
 
-请生成：
-1. **本周重点**：3 条最重要的目标（一句话，动词开头）
-2. **建议执行顺序**：从续期任务中选出优先处理的 3-5 项，用 checklist 格式（`- [ ] #编号 任务名`）
+请严格按以下格式输出，不要添加任何其他文字：
+
+=== SUGGESTIONS ===
+（本周重点：3 条目标，动词开头，每条不超过 40 字）
+（建议执行顺序：从续期任务选 3-5 项，格式 `- [ ] #编号 任务名`）
+
+=== GOALS ===
+- 目标1
+- 目标2
+- 目标3
+
+=== TASKS ===
+- [ ] #编号 任务名
+- [ ] #编号 任务名
 
 要求：
-- 中文输出
-- 简洁直接，每条不超过 40 字
-- 重点参考上周未完成的方向和高优先级标签（P0/P1）
-- 仅输出这两部分内容，不要其他说明
+- 中文输出，简洁直接
+- GOALS 中每条不超过 30 字，动词开头
+- TASKS 从续期任务中选优先级最高的 3-5 项
+- 重点参考高优先级标签（P0/P1）和上周未完成方向
 """
 
     try:
@@ -387,13 +398,37 @@ def generate_ai_plan(week_info, weekly_progress, sprint_issues):
         client = anthropic.Anthropic(**kwargs)
         resp = client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=400,
+            max_tokens=600,
             messages=[{"role": "user", "content": prompt}],
         )
-        return resp.content[0].text.strip()
+        raw = resp.content[0].text.strip()
+        return _parse_ai_sections(raw)
     except Exception as e:
         print(f"⚠️  Claude API 调用失败：{e}", file=sys.stderr)
         return None
+
+
+def _parse_ai_sections(raw):
+    """将 AI 输出按 === SECTION === 标记解析为 dict"""
+    sections = {"suggestions": "", "goals": "", "tasks": ""}
+    current = None
+    buf = []
+    for line in raw.splitlines():
+        stripped = line.strip()
+        if stripped in ("=== SUGGESTIONS ===", "=== GOALS ===", "=== TASKS ==="):
+            if current and buf:
+                sections[current] = "\n".join(buf).strip()
+            current = stripped.strip("= ").lower()
+            buf = []
+        else:
+            if current:
+                buf.append(line)
+    if current and buf:
+        sections[current] = "\n".join(buf).strip()
+    # 兜底：如果解析失败，把整段放进 suggestions
+    if not any(sections.values()):
+        sections["suggestions"] = raw
+    return sections
 
 
 # ── 6. 构建 Issue 正文 ─────────────────────────────────────────────────────
@@ -403,8 +438,9 @@ def build_issue_body(week_info, ai_plan, weekly_progress, sprint_issues):
     lines = [f"## {monday} ~ {sunday}", ""]
 
     # AI 建议部分
-    if ai_plan:
-        lines += ["### 🤖 AI 本周建议", "", ai_plan, "", "---", ""]
+    suggestions = (ai_plan or {}).get("suggestions", "") if ai_plan else ""
+    if suggestions:
+        lines += ["### 🤖 AI 本周建议", "", suggestions, "", "---", ""]
     else:
         lines += [
             "### 🤖 AI 本周建议",
@@ -438,15 +474,17 @@ def build_issue_body(week_info, ai_plan, weekly_progress, sprint_issues):
             "",
         ]
 
-    # 人工填写部分
+    # 本周目标 + 计划任务（AI 自动填写，无 AI 则留空）
+    goals = (ai_plan or {}).get("goals", "") if ai_plan else ""
+    tasks = (ai_plan or {}).get("tasks", "") if ai_plan else ""
     lines += [
         "### 本周目标",
         "",
-        "（基于上方 AI 建议编辑，或自行填写）",
+        goals if goals else "（请填写本周目标）",
         "",
         "### 计划任务",
         "",
-        "- [ ] ",
+        tasks if tasks else "- [ ] ",
         "",
         "### 每日回顾",
         "",
@@ -508,11 +546,15 @@ def create_issue(title, body):
 # ── 8. 补填已有 Issue 的 AI 建议区块 ─────────────────────────────────────
 
 def fill_ai_for_existing_issue(issue_number, week_info, weekly_progress, sprint_issues):
-    """为已存在但 AI 建议缺失的 Issue 生成并更新 AI 建议区块"""
+    """为已存在但 AI 建议缺失的 Issue 生成并更新 AI 建议、本周目标、计划任务区块"""
     ai_plan = generate_ai_plan(week_info, weekly_progress, sprint_issues)
     if not ai_plan:
         print("ℹ️  AI 计划生成失败，跳过更新", file=sys.stderr)
         return
+
+    suggestions = ai_plan.get("suggestions", "")
+    goals = ai_plan.get("goals", "")
+    tasks = ai_plan.get("tasks", "")
 
     # 获取当前 body
     repo = os.environ.get("GITHUB_REPOSITORY", "").split("/")[-1] or "my-project-management"
@@ -525,13 +567,30 @@ def fill_ai_for_existing_issue(issue_number, week_info, weekly_progress, sprint_
         return
     body = r.stdout.strip()
 
-    # 替换 AI 建议区块（无论是占位文字还是已有内容，都整块替换）
-    body = re.sub(
-        r"### 🤖 AI 本周建议\n\n.*?(?=\n---)",
-        f"### 🤖 AI 本周建议\n\n{ai_plan}",
-        body,
-        flags=re.DOTALL,
-    )
+    # 替换 AI 建议区块
+    if suggestions:
+        body = re.sub(
+            r"### 🤖 AI 本周建议\n\n.*?(?=\n---)",
+            f"### 🤖 AI 本周建议\n\n{suggestions}",
+            body,
+            flags=re.DOTALL,
+        )
+    # 替换本周目标区块
+    if goals:
+        body = re.sub(
+            r"(### 本周目标\n\n).*?(\n\n### )",
+            rf"\g<1>{goals}\g<2>",
+            body,
+            flags=re.DOTALL,
+        )
+    # 替换计划任务区块
+    if tasks:
+        body = re.sub(
+            r"(### 计划任务\n\n).*?(\n\n### )",
+            rf"\g<1>{tasks}\g<2>",
+            body,
+            flags=re.DOTALL,
+        )
 
     import json as _json, tempfile as _tmp, os as _os
     with _tmp.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
@@ -544,7 +603,7 @@ def fill_ai_for_existing_issue(issue_number, week_info, weekly_progress, sprint_
     )
     _os.unlink(tmp)
     if r2.returncode == 0:
-        print(f"✅ Issue #{issue_number} AI 建议已更新")
+        print(f"✅ Issue #{issue_number} AI 建议、本周目标、计划任务已更新")
     else:
         print(f"❌ 更新失败: {r2.stderr[:200]}", file=sys.stderr)
 
