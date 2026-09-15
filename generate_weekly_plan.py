@@ -625,13 +625,254 @@ def fill_ai_for_existing_issue(issue_number, week_info, weekly_progress, sprint_
         print(f"❌ 更新失败: {r2.stderr[:200]}", file=sys.stderr)
 
 
+# ── 9. 每日回顾 / 周回顾 自动更新 ─────────────────────────────────────────
+
+WEEKDAY_ZH = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+
+
+def _beijing_now():
+    return datetime.now(timezone.utc) + timedelta(hours=8)
+
+
+def _load_tracked_repos():
+    config_path = BASE_DIR / "tracked_config.json"
+    if not config_path.exists():
+        return {}
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            cfg = json.load(f)
+        return cfg.get("tracked_repos", {})
+    except Exception:
+        return {}
+
+
+def get_today_commits_by_repo():
+    """获取今日（北京时间）各追踪仓库的 commits"""
+    bn = _beijing_now()
+    today_start_utc = bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)
+    since_iso = today_start_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    results = {}
+    for repo, info in _load_tracked_repos().items():
+        r = subprocess.run(
+            ["gh", "api",
+             f"/repos/{GITHUB_USER}/{repo}/commits?since={since_iso}&per_page=20",
+             "--jq", '[.[].commit.message | split("\n")[0]]'],
+            capture_output=True, text=True,
+        )
+        if r.returncode == 0:
+            try:
+                commits = [c for c in json.loads(r.stdout) if c.strip()]
+                if commits:
+                    results[repo] = {"info": info, "commits": commits}
+            except Exception:
+                pass
+    return results
+
+
+def generate_daily_ai_review(today_commits_by_repo):
+    """用 Claude 生成当日完成摘要和阻塞"""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None, None
+
+    if today_commits_by_repo:
+        commit_lines = ""
+        for repo, data in today_commits_by_repo.items():
+            name = data["info"].get("name", repo)
+            commits = data["commits"][:5]
+            commit_lines += f"- {name}: {'; '.join(commits)}\n"
+    else:
+        commit_lines = "（今日无 commit 记录）"
+
+    prompt = f"""根据以下今日 commits，生成每日回顾。严格按格式输出，不要其他文字：
+
+{commit_lines}
+
+完成：[今日完成的主要工作，30字以内，无活动则写"无"]
+阻塞：[遇到的阻塞，无则写"无"]"""
+
+    try:
+        import anthropic
+        kwargs = {"api_key": api_key}
+        base_url = os.environ.get("ANTHROPIC_BASE_URL")
+        if base_url:
+            kwargs["base_url"] = base_url
+        client = anthropic.Anthropic(**kwargs)
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=100,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = resp.content[0].text.strip()
+        completed, blocked = "", ""
+        for line in text.splitlines():
+            if line.startswith("完成："):
+                completed = line[3:].strip()
+            elif line.startswith("阻塞："):
+                blocked = line[3:].strip()
+        return completed or "（详见 commits）", blocked or "无"
+    except Exception as e:
+        print(f"⚠️  Claude API 调用失败：{e}", file=sys.stderr)
+        return None, None
+
+
+def generate_weekly_ai_review(week_info):
+    """用 Claude 生成周回顾（周六早上触发）"""
+    bn = _beijing_now()
+    monday_bn = bn - timedelta(days=bn.weekday())
+    since_iso = (monday_bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    summary_lines = []
+    for repo, info in _load_tracked_repos().items():
+        r = subprocess.run(
+            ["gh", "api",
+             f"/repos/{GITHUB_USER}/{repo}/commits?since={since_iso}&per_page=50",
+             "--jq", "length"],
+            capture_output=True, text=True,
+        )
+        if r.returncode == 0:
+            try:
+                count = int(r.stdout.strip())
+                if count > 0:
+                    summary_lines.append(f"- {info.get('name', repo)}: {count} commits")
+            except Exception:
+                pass
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+
+    week_summary = "\n".join(summary_lines) if summary_lines else "（本周无 commit 记录）"
+
+    prompt = f"""根据以下本周 commits 摘要，生成周回顾。严格按格式输出，不要其他文字：
+
+{week_summary}
+
+完成率：[估算本周任务完成率，如 80%]
+主要成果：[本周最重要成果，一句话40字以内]
+下周重点：[建议下周重点方向，一句话40字以内]"""
+
+    try:
+        import anthropic
+        kwargs = {"api_key": api_key}
+        base_url = os.environ.get("ANTHROPIC_BASE_URL")
+        if base_url:
+            kwargs["base_url"] = base_url
+        client = anthropic.Anthropic(**kwargs)
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=150,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return resp.content[0].text.strip()
+    except Exception as e:
+        print(f"⚠️  Claude API 调用失败：{e}", file=sys.stderr)
+        return None
+
+
+def _patch_issue_body(issue_number, new_body):
+    repo = os.environ.get("GITHUB_REPOSITORY", "").split("/")[-1] or "my-project-management"
+    import json as _j, tempfile as _t, os as _o
+    with _t.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        _j.dump({"body": new_body}, f, ensure_ascii=False)
+        tmp = f.name
+    r = subprocess.run(
+        ["gh", "api", "--method", "PATCH", f"repos/{GITHUB_USER}/{repo}/issues/{issue_number}",
+         "--input", tmp, "--jq", ".number"],
+        capture_output=True, text=True,
+    )
+    _o.unlink(tmp)
+    return r.returncode == 0
+
+
+def patch_daily_review(issue_number, day_label, completed, blocked):
+    repo = os.environ.get("GITHUB_REPOSITORY", "").split("/")[-1] or "my-project-management"
+    r = subprocess.run(
+        ["gh", "api", f"repos/{GITHUB_USER}/{repo}/issues/{issue_number}", "--jq", ".body"],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        print(f"❌ 获取 Issue #{issue_number} 失败", file=sys.stderr)
+        return
+    body = r.stdout.strip()
+    pattern = rf"(#### {re.escape(day_label)}(?:\s+\d{{4}}-\d{{2}}-\d{{2}})?\n)(- 完成：[^\n]*\n- 阻塞：[^\n]*)"
+    new_body = re.sub(pattern, rf"\g<1>- 完成：{completed}\n- 阻塞：{blocked}", body)
+    if new_body == body:
+        print(f"⚠️  未找到 {day_label} 回顾区块", file=sys.stderr)
+        return
+    if _patch_issue_body(issue_number, new_body):
+        print(f"✅ Issue #{issue_number} {day_label} 每日回顾已更新")
+    else:
+        print(f"❌ 更新失败", file=sys.stderr)
+
+
+def patch_weekly_review(issue_number, review_text):
+    repo = os.environ.get("GITHUB_REPOSITORY", "").split("/")[-1] or "my-project-management"
+    r = subprocess.run(
+        ["gh", "api", f"repos/{GITHUB_USER}/{repo}/issues/{issue_number}", "--jq", ".body"],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        print(f"❌ 获取 Issue #{issue_number} 失败", file=sys.stderr)
+        return
+    body = r.stdout.strip()
+    new_body = re.sub(
+        r"(### 周回顾（周日填写）\n\n).*",
+        rf"\g<1>{review_text}",
+        body,
+        flags=re.DOTALL,
+    )
+    if _patch_issue_body(issue_number, new_body):
+        print(f"✅ Issue #{issue_number} 周回顾已更新")
+    else:
+        print(f"❌ 更新失败", file=sys.stderr)
+
+
 # ── main ───────────────────────────────────────────────────────────────────
 
 def main():
     fill_ai = "--fill-ai" in sys.argv
+    daily_review = "--daily-review" in sys.argv
+    weekly_review = "--weekly-review" in sys.argv
 
     week_info = get_week_info()
     print(f"📅 生成周计划：{week_info['week_id']}  ({week_info['monday']} ~ {week_info['sunday']})")
+
+    # ── 每日回顾模式 ──────────────────────────────────────────────
+    if daily_review:
+        bn = _beijing_now()
+        day_idx = bn.weekday()  # 0=Monday … 6=Sunday
+        day_label = WEEKDAY_ZH[day_idx]
+        print(f"📝 --daily-review：生成 {day_label} 每日回顾（北京时间 {bn.strftime('%Y-%m-%d')}）")
+        issue_number = get_existing_issue_number(week_info["title"])
+        if not issue_number:
+            print("⚠️  本周计划 Issue 不存在，跳过", file=sys.stderr)
+            return
+        today_commits = get_today_commits_by_repo()
+        total_commits = sum(len(d["commits"]) for d in today_commits.values())
+        print(f"   今日 commits：{total_commits} 条（{len(today_commits)} 个仓库有活动）")
+        completed, blocked = generate_daily_ai_review(today_commits)
+        if completed is None:
+            completed = "（无 AI 摘要）"
+            blocked = "无"
+        print(f"   完成：{completed}")
+        print(f"   阻塞：{blocked}")
+        patch_daily_review(issue_number, day_label, completed, blocked)
+        return
+
+    # ── 周回顾模式 ────────────────────────────────────────────────
+    if weekly_review:
+        print("📊 --weekly-review：生成周回顾")
+        issue_number = get_existing_issue_number(week_info["title"])
+        if not issue_number:
+            print("⚠️  本周计划 Issue 不存在，跳过", file=sys.stderr)
+            return
+        review_text = generate_weekly_ai_review(week_info)
+        if review_text is None:
+            review_text = "（无 AI 摘要）"
+        print(f"   周回顾内容：{review_text[:80]}...")
+        patch_weekly_review(issue_number, review_text)
+        return
 
     # 查本周 Sprint issues（同时获取 project 上下文，供后续 add_issue_to_project 使用）
     sprint_title = os.environ.get("SPRINT_TITLE") or week_info["sprint"]
