@@ -952,6 +952,123 @@ def auto_close_resolved_issues():
                 print(f"   💬 {repo}#{num} 留评论提醒（AI low：{reason}）")
 
 
+def _get_recently_closed_issues(repo, days=7):
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    r = subprocess.run(
+        ["gh", "issue", "list", "--repo", f"{GITHUB_USER}/{repo}",
+         "--label", "type: task", "--state", "closed",
+         "--json", "number,title,closedAt", "--limit", "50"],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0 or not r.stdout.strip():
+        return []
+    try:
+        return [i for i in json.loads(r.stdout) if i.get("closedAt", "") >= since]
+    except Exception:
+        return []
+
+
+def _create_issue_in_repo(repo, title, body, labels="type: task"):
+    import tempfile as _tf, os as _os
+    with _tf.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
+        f.write(body)
+        tmp = f.name
+    r = subprocess.run(
+        ["gh", "issue", "create", "--repo", f"{GITHUB_USER}/{repo}",
+         "--title", title, "--body-file", tmp, "--label", labels],
+        capture_output=True, text=True,
+    )
+    _os.unlink(tmp)
+    if r.returncode == 0:
+        url = r.stdout.strip()
+        try:
+            return int(url.split("/")[-1])
+        except (ValueError, IndexError):
+            return None
+    print(f"   ❌ 创建 Issue 失败（{repo}）：{r.stderr.strip()}", file=sys.stderr)
+    return None
+
+
+def backfill_missing_issues(today_commits):
+    """扫描今日 commits，为没有对应 Issue 的工作补建 Issue，并评估是否立即关闭"""
+    if not today_commits:
+        return
+    client = _make_client()
+    if not client:
+        print("ℹ️  无 Claude client，跳过 Issue 补建")
+        return
+
+    for repo, data in today_commits.items():
+        commits = data["commits"]
+        if not commits:
+            continue
+
+        open_issues = _get_open_task_issues(repo)
+        closed_recent = _get_recently_closed_issues(repo, days=7)
+        all_issue_lines = "\n".join(
+            f"#{i['number']} {i['title']}" for i in (open_issues + closed_recent)
+        ) or "（无）"
+        commit_lines = "\n".join(f"- {c}" for c in commits[:20])
+
+        prompt = f"""你是 issue 管理助手。分析今日 commits，找出没有对应 Issue 的独立工作任务。
+
+仓库：{repo}
+今日 commits：
+{commit_lines}
+
+已有 Issues（open + 近7天已关闭，type: task）：
+{all_issue_lines}
+
+规则：
+- commit 内容已有对应 Issue 的，不需要新建
+- 多个相关 commit 可以合并为一个 Issue
+- chore / fix typo / merge / 版本升级等维护性 commit 不需要建 Issue
+- 只在有实质工作内容时才建 Issue
+
+返回 JSON 数组，每项：
+{{"title": "<一句话标题（中文）>", "body": "<两三句描述>", "commits": ["msg1", ...], "should_close": true/false, "reason": "<评估理由一句话>"}}
+- should_close=true：工作已明确完成，建完 Issue 应立即关闭
+- should_close=false：工作可能还在进行，保持 open
+不需要补建时返回空数组 []。只返回 JSON，不要其他文字。"""
+
+        try:
+            resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=600,
+                                messages=[{"role": "user", "content": prompt}])
+            text = resp.content[0].text.strip()
+            m = re.search(r'\[.*\]', text, re.DOTALL)
+            if not m:
+                print(f"   ℹ️  {repo}：AI 返回无需补建")
+                continue
+            suggestions = json.loads(m.group())
+        except Exception as e:
+            print(f"   ⚠️  AI 分析失败（{repo}）：{e}", file=sys.stderr)
+            continue
+
+        if not suggestions:
+            print(f"   ℹ️  {repo}：无需补建 Issue")
+            continue
+
+        for s in suggestions:
+            title = s.get("title", "").strip()
+            body = s.get("body", "").strip()
+            should_close = s.get("should_close", False)
+            reason = s.get("reason", "")
+            ref_commits = s.get("commits", [])
+            if not title:
+                continue
+            num = _create_issue_in_repo(repo, title, body)
+            if num is None:
+                continue
+            if should_close:
+                commit_ref = "\n".join(f"- {c}" for c in ref_commits)
+                _close_issue(repo, num,
+                             f"🤖 自动补建并关闭：{reason}\n\n相关 commits：\n{commit_ref}")
+                print(f"   ✅ {repo}#{num} 已补建并关闭：{title}")
+            else:
+                _add_issue_comment(repo, num, f"🤖 自动补建 Issue（{reason}）")
+                print(f"   📌 {repo}#{num} 已补建（保持 open）：{title}")
+
+
 # ── main ───────────────────────────────────────────────────────────────────
 
 def main():
@@ -983,6 +1100,8 @@ def main():
         print(f"   完成：{completed}")
         print(f"   阻塞：{blocked}")
         patch_daily_review(issue_number, day_label, completed, blocked)
+        print("🔍 扫描今日 commits，补建遗漏 Issue...")
+        backfill_missing_issues(today_commits)
         return
 
     # ── 周回顾模式 ────────────────────────────────────────────────
