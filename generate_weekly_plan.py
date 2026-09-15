@@ -516,24 +516,29 @@ def build_issue_body(week_info, ai_plan, weekly_progress, sprint_issues):
         "### 每日回顾",
         "",
         f"#### 周一 {monday}",
-        "- 完成：",
-        "- 阻塞：",
+        "完成：",
+        "- （待填写）",
+        "阻塞：无",
         "",
         "#### 周二",
-        "- 完成：",
-        "- 阻塞：",
+        "完成：",
+        "- （待填写）",
+        "阻塞：无",
         "",
         "#### 周三",
-        "- 完成：",
-        "- 阻塞：",
+        "完成：",
+        "- （待填写）",
+        "阻塞：无",
         "",
         "#### 周四",
-        "- 完成：",
-        "- 阻塞：",
+        "完成：",
+        "- （待填写）",
+        "阻塞：无",
         "",
         "#### 周五",
-        "- 完成：",
-        "- 阻塞：",
+        "完成：",
+        "- （待填写）",
+        "阻塞：无",
         "",
         "### 周回顾（周日填写）",
         "",
@@ -695,37 +700,35 @@ def get_today_commits_by_repo():
 
 
 def generate_daily_ai_review(today_commits_by_repo):
-    """用 Claude 生成当日完成摘要和阻塞"""
+    """用 Claude 生成当日各仓库完成摘要和阻塞"""
     client = _make_client()
     if not client:
         return None, None
 
-    if today_commits_by_repo:
-        commit_lines = ""
-        for repo, data in today_commits_by_repo.items():
-            name = data["info"].get("name", repo)
-            commits = data["commits"][:5]
-            commit_lines += f"- {name}: {'; '.join(commits)}\n"
-    else:
-        commit_lines = "（今日无 commit 记录）"
+    if not today_commits_by_repo:
+        return "- （今日无 commit 活动）", "无"
 
-    prompt = f"""根据以下今日 commits，生成每日回顾。严格按格式输出，不要其他文字：
+    commit_sections = ""
+    for repo, data in today_commits_by_repo.items():
+        name = data["info"].get("name", repo)
+        commits = data["commits"][:15]
+        commit_sections += f"\n【{name}】\n" + "\n".join(f"  {c}" for c in commits) + "\n"
 
-{commit_lines}
+    prompt = f"""根据以下今日各仓库 commits，为每个仓库写一句话总结（25字以内，中文，聚焦做了什么）。
 
-完成：[今日完成的主要工作，30字以内，无活动则写"无"]
-阻塞：[遇到的阻塞，无则写"无"]"""
+{commit_sections}
+输出格式（每行一个仓库，有实质工作才列出）：
+- **项目名**：做了什么
 
-    resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=100,
+只返回列表行，不要其他文字。如某仓库只有 chore/merge 等维护性提交，仍需简明说明维护了什么（如"同步 dedup.py 去重脚本及工作流文件"）。"""
+
+    resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=400,
                         messages=[{"role": "user", "content": prompt}])
     text = resp.content[0].text.strip()
-    completed, blocked = "", ""
-    for line in text.splitlines():
-        if line.startswith("完成："):
-            completed = line[3:].strip()
-        elif line.startswith("阻塞："):
-            blocked = line[3:].strip()
-    return completed or "（详见 commits）", blocked or "无"
+    # 提取 "- **xxx**：..." 形式的行
+    bullet_lines = [ln for ln in text.splitlines() if ln.strip().startswith("-")]
+    completed = "\n".join(bullet_lines) if bullet_lines else "- （详见 commits）"
+    return completed, "无"
 
 
 def generate_weekly_ai_review(week_info):
@@ -793,8 +796,14 @@ def patch_daily_review(issue_number, day_label, completed, blocked):
         print(f"❌ 获取 Issue #{issue_number} 失败", file=sys.stderr)
         return
     body = r.stdout.strip()
-    pattern = rf"(#### {re.escape(day_label)}(?:\s+\d{{4}}-\d{{2}}-\d{{2}})?\n)(- 完成：[^\n]*\n- 阻塞：[^\n]*)"
-    new_body = re.sub(pattern, rf"\g<1>- 完成：{completed}\n- 阻塞：{blocked}", body)
+    # 匹配整个当日块：从标题行到下一个 #### / ### 之前（含新旧两种格式）
+    pattern = rf"(#### {re.escape(day_label)}(?:\s+\d{{4}}-\d{{2}}-\d{{2}})?\n)完成：\n(?:.*\n)*?阻塞：[^\n]*"
+    replacement = rf"\g<1>完成：\n{completed}\n阻塞：{blocked}"
+    new_body = re.sub(pattern, replacement, body)
+    if new_body == body:
+        # 兼容旧格式 "- 完成：xxx\n- 阻塞：xxx"
+        old_pattern = rf"(#### {re.escape(day_label)}(?:\s+\d{{4}}-\d{{2}}-\d{{2}})?\n)(- 完成：[^\n]*\n- 阻塞：[^\n]*)"
+        new_body = re.sub(old_pattern, rf"\g<1>完成：\n{completed}\n阻塞：{blocked}", body)
     if new_body == body:
         print(f"⚠️  未找到 {day_label} 回顾区块", file=sys.stderr)
         return
@@ -1095,9 +1104,9 @@ def main():
         print(f"   今日 commits：{total_commits} 条（{len(today_commits)} 个仓库有活动）")
         completed, blocked = generate_daily_ai_review(today_commits)
         if completed is None:
-            completed = "（无 AI 摘要）"
+            completed = "- （无 AI 摘要）"
             blocked = "无"
-        print(f"   完成：{completed}")
+        print(f"   完成：\n{completed}")
         print(f"   阻塞：{blocked}")
         patch_daily_review(issue_number, day_label, completed, blocked)
         print("🔍 扫描今日 commits，补建遗漏 Issue...")
