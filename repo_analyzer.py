@@ -387,7 +387,12 @@ def auto_discover_new_repos(repos, config, today):
         name = repo["name"]
         if name in tracked or name in ignored or repo["isArchived"]:
             continue
-        if repo["score"] < threshold:
+
+        score_ok = repo["score"] >= threshold
+        days = repo.get("days_since_push", -1)
+        recently_active = 0 <= days <= 7  # 7天内有推送，无视评分
+
+        if not score_ok and not recently_active:
             continue
 
         config["tracked_repos"][name] = {

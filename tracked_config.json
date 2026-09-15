@@ -82,7 +82,7 @@
         }
       ]
     },
-    "projectmanagement": {
+    "my-project-management": {
       "name": "Project Management",
       "icon": "🗂️",
       "type": "personal",

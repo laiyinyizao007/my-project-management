@@ -676,13 +676,80 @@ def _load_tracked_repos():
         return {}
 
 
+def _load_tracked_config_raw():
+    config_path = BASE_DIR / "tracked_config.json"
+    if not config_path.exists():
+        return {"version": "1.0", "settings": {}, "tracked_repos": {}, "ignored_repos": []}
+    try:
+        with open(config_path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"version": "1.0", "settings": {}, "tracked_repos": {}, "ignored_repos": []}
+
+
+def _get_today_push_repos():
+    """从 GitHub Events API 找出今日有推送但未在 tracked_config 里的仓库"""
+    bn = _beijing_now()
+    today_start_utc = bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)
+    since_str = today_start_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    r = subprocess.run(
+        ["gh", "api", f"/users/{GITHUB_USER}/events?per_page=100",
+         "--jq", '[.[] | select(.type=="PushEvent") | {repo: .repo.name, ts: .created_at}]'],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0 or not r.stdout.strip():
+        return {}
+    try:
+        events = json.loads(r.stdout)
+    except Exception:
+        return {}
+    tracked = set(_load_tracked_repos().keys())
+    extra = {}
+    for ev in events:
+        if ev.get("ts", "") < since_str:
+            continue
+        full_name = ev.get("repo", "")
+        short = full_name.split("/")[-1] if "/" in full_name else full_name
+        if short and short not in tracked and short not in extra:
+            extra[short] = {"name": short, "icon": "📦", "type": "personal"}
+    return extra
+
+
+def _persist_new_tracked_repos(new_repos):
+    """把 Events API 发现的新仓库写入 tracked_config.json（由 workflow commit 回仓库）"""
+    if not new_repos:
+        return
+    config = _load_tracked_config_raw()
+    today = _beijing_now().strftime("%Y-%m-%d")
+    added = []
+    for repo, info in new_repos.items():
+        if repo not in config.get("tracked_repos", {}):
+            config.setdefault("tracked_repos", {})[repo] = {
+                **info,
+                "added_date": today,
+                "score_history": [],
+            }
+            added.append(repo)
+    if added:
+        with open(BASE_DIR / "tracked_config.json", "w", encoding="utf-8") as f:
+            json.dump(config, f, ensure_ascii=False, indent=2)
+        print(f"✅ 新增 {len(added)} 个活跃仓库到 tracked_config.json: {added}")
+
+
 def get_today_commits_by_repo():
-    """获取今日（北京时间）各追踪仓库的 commits"""
+    """获取今日（北京时间）各追踪仓库的 commits，同时发现并持久化未追踪的活跃仓库"""
     bn = _beijing_now()
     today_start_utc = bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)
     since_iso = today_start_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    extra = _get_today_push_repos()
+    _persist_new_tracked_repos(extra)
+
+    all_repos = dict(_load_tracked_repos())
+    all_repos.update(extra)
+
     results = {}
-    for repo, info in _load_tracked_repos().items():
+    for repo, info in all_repos.items():
         r = subprocess.run(
             ["gh", "api",
              f"/repos/{GITHUB_USER}/{repo}/commits?since={since_iso}&per_page=20",
