@@ -38,6 +38,10 @@ GITHUB_USER = (
     or os.environ.get("GITHUB_REPOSITORY_OWNER")
     or "laiyinyizao007"
 )
+REPO_NAME = (
+    os.environ.get("GITHUB_REPOSITORY", "").split("/")[-1]
+    or "my-project-management"
+)
 
 
 def _load_tracked_repos_from_config():
@@ -247,7 +251,7 @@ def build_profile_snippet(week_id, week_range, project_data):
             lines.append(f"**{info['icon']} {info['name']}** — {top} *({cnt} commits)*")
 
     lines.append("")
-    lines.append(f"📄 [Full report →](https://github.com/{GITHUB_USER}/projectmanagement/blob/main/weekly-reports/{week_id}.md)")
+    lines.append(f"📄 [Full report →](https://github.com/{GITHUB_USER}/{REPO_NAME}/blob/main/weekly-reports/{week_id}.md)")
     return "\n".join(lines)
 
 

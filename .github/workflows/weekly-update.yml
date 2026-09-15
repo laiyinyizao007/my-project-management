@@ -21,6 +21,7 @@ jobs:
       - name: 运行 repo_analyzer（增量分析 + 更新追踪配置）
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
           GH_OWNER: ${{ github.repository_owner }}
         run: python3 repo_analyzer.py --skip-readme-gen
       - name: 运行 update_profile（更新项目列表）
@@ -30,6 +31,7 @@ jobs:
       - name: 运行 weekly_report（生成周报 + 更新本周进展）
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
           GH_OWNER: ${{ github.repository_owner }}
         run: python3 weekly_report.py --no-push
       - name: Commit & Push 到 projectmanagement
