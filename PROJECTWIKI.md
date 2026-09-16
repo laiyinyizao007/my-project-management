@@ -140,6 +140,9 @@ sequenceDiagram
 | 多 Project 支持 | 目前 PROJECT_NUMBER 默认为 1，不支持多看板（可通过参数覆盖） | 低 |
 | deploy 排除列表 | 管理仓库专用 workflow 需手动加入两处排除列表（yaml + PS 脚本）；新增可部署 workflow 无需修改任何列表 | 低 |
 | CLAUDE.md 分发 | `CLAUDE.md` 目前仅在管理仓库，不自动推送到目标仓库；如需目标仓库也有 Claude 指令，需扩展 auto-deploy 逻辑 | 低 |
+| ~~`generate_weekly_plan.py` God Script~~ | ~~1315 行，6+ 模式（v1.17 已部分优化：脚本提取、`tempfile`、并发）~~ 已完成拆分：脚本提取、`tempfile`、并发拉取；剩余 God Script 整体拆分（按 CLI flag 拆分为多文件）暂缓 | 低 |
+| ~~dedup token 暴露~~ | ~~`GITHUB_TOKEN` 与 issue title 作为 CLI 参数暴露（v1.17 已修：改用 env var 注入）~~ | 已完成（v1.17） |
+| ~~`run_gh` 错误静默~~ | ~~失败时调用方仅见 `None`，CI 调试困难（v1.17 已修：打印 stderr 前 200 字符）~~ | 已完成（v1.17） |
 
 ---
 
@@ -246,6 +249,7 @@ sequenceDiagram
   - **对话历史**：评论触发时，自动拉取 Issue 正文及所有历史评论并构造上下文，Claude 可进行多轮连续对话
   - **并发控制**：`concurrency` 组 `claude-<issue_number>`，同一 Issue 的多次触发串行执行（`cancel-in-progress: false`）
   - **写权限模式**：`--permission-mode acceptEdits` + `--allowedTools` 使 Claude 可在 Action 中读写文件、创建 PR；Owner 门禁保证安全
+- **npm 缓存**（v1.17+）：`actions/cache@v4` 显式缓存 `~/.npm`，key `npm-claude-code-${{ runner.os }}`；原 `setup-node cache: 'npm'` 因仓库无 `package-lock.json` 静默失效，现已移除
 - **依赖**：`secrets.ANTHROPIC_API_KEY`（必填）、`secrets.ANTHROPIC_BASE_URL`（可选）
 - **已部署**：通过 `auto-deploy-to-new-repos.yml` 自动部署到所有目标仓库
 
@@ -258,13 +262,15 @@ sequenceDiagram
 
 ### 5.14 issue-tasklist.yml
 
-- **路径**：`.github/workflows/issue-tasklist.yml`
+- **路径**：`.github/workflows/issue-tasklist.yml`、`.github/scripts/generate_tasklist.py`
 - **触发**：`issues: [opened]`
 - **条件**：Issue 正文无既有 `- [ ]` 且标题非空
 - **功能**：根据 Issue 标题前缀（Conventional Commits 风格）自动生成 Task List 评论
   - 规则分组：fix / feat / refactor / improve / docs / test / ci / chore + 通用兜底
   - 标题含 scope（如 `feat(api):`）时自动剥离后再匹配
   - 标题长度 ≤ 10 字符时跳过
+- **脚本提取**（v1.17+）：原内联 161 行 Python heredoc 提取为 `.github/scripts/generate_tasklist.py`，与 `dedup.py` 风格一致，可独立运行/测试；workflow 通过 `sparse-checkout: .github/scripts` 仅拉取脚本目录
+- **API 韧性**：`api_request()` 函数，timeout=30，指数退避重试（1s→2s→4s），错误分类（401/403/404/422 不重试；429 读 `Retry-After`；网络错误重试）；POST 失败 fallback 打印 body 到日志，`exit 0` 不阻断 Issue 流程
 - **依赖**：`secrets.GITHUB_TOKEN`（内置，无需额外配置）
 - **已部署**：通过 `auto-deploy-to-new-repos.yml` 自动部署到所有目标仓库
 
@@ -278,6 +284,7 @@ sequenceDiagram
   - 有效词少于 2 个时自动跳过（短标题误报率高）
   - 最多列出 5 条相似 Issue，按相似度倒序排列
 - **API 韧性**：`api_request()` 函数，timeout=30，指数退避重试（1s→2s→4s），错误分类（401/403/404 不重试；429 读 Retry-After；5xx + 网络错误重试）；单页失败时降级运行；评论失败时 fallback 打印到日志，exit 0 不阻断 Issue 流程
+- **输入注入**（v1.17+）：Workflow 通过 `env:` 注入 `ISSUE_NUMBER` / `ISSUE_TITLE` / `REPO` / `GH_TOKEN`，脚本改用 `os.environ.get()` 读取；消除 token 在进程列表/workflow 日志的暴露，消除特殊字符 title 的 shell 注入风险
 - **依赖**：`secrets.GITHUB_TOKEN`（内置，无需额外配置）
 - **已部署**：通过 `auto-deploy-to-new-repos.yml` 自动部署到所有目标仓库
 
@@ -322,6 +329,9 @@ sequenceDiagram
   6. 构建 Issue 正文（AI 建议 + 上周进展 + 续期任务 checklist + 每日回顾 + 周回顾），via `gh issue create`
 - **环境变量**：`GH_TOKEN`（PROJECT_TOKEN）、`ANTHROPIC_API_KEY`（可选）、`PROJECT_NUMBER`、`SPRINT_TITLE`（由 inputs 传入）、`ROLLED_OVER`、`GH_OWNER`（`${{ github.repository_owner }}`）
 - **用户名解析**：`os.environ.get("GH_OWNER") or os.environ.get("GITHUB_REPOSITORY_OWNER") or "laiyinyizao007"`（硬编码作最后 fallback）
+- **临时文件**（v1.17+）：`create_issue()` 改用 `tempfile.NamedTemporaryFile(delete=False)` 写入 Issue body；并发运行（schedule 与 workflow_dispatch 同时触发）时路径唯一，`try/finally` 中 `os.unlink` 清理；消除 `/tmp/weekly_plan_body.md` 硬编码路径的并发覆盖竞态
+- **错误可观测性**（v1.17+）：`run_gh()` 失败时打印 stderr 前 200 字符（`[gh error] <args>: <stderr>`），调用方可定位失败原因；原行为：静默返回 `None`
+- **并发拉取**（v1.17+）：`get_today_commits_by_repo()` 与 `generate_weekly_ai_review()` 改用 `concurrent.futures.ThreadPoolExecutor(max_workers=8)` 并发 60+ 仓库的 `subprocess.run`；预计每次节省 60-120s
 - **GraphQL Owner 兼容**（v1.16.0）：首个 GraphQL 查询改用 `repositoryOwner(login:)` + `... on User` / `... on Organization` inline fragments，同时支持个人账号和 Org 账号（原 `user(login:)` 在 Org owner 下静默返回 null）；解析路径对应改为 `data["data"]["repositoryOwner"]["projectV2"]`
 - **GraphQL 分页 cursor**（v1.16.0）：分页不再将 cursor 值字符串拼入 query 默认值，改为通过 `-f cursor=<value>` 参数传递；`$cursor: String`（nullable）变量无需传入时自然解析为 `null`，效果等同于 `after: null` = 从头分页；分页解析异常从静默 break 改为打印 `[warn]` 日志后 break
 

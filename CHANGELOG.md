@@ -6,6 +6,35 @@
 
 ## [Unreleased]
 
+### Security（安全）
+
+- **`dedup.yml` + `dedup.py`**：消除 shell 参数暴露与潜在注入风险（commit `19cc7df`）
+  - Workflow 改为通过 `env:` 注入 `ISSUE_NUMBER` / `ISSUE_TITLE` / `REPO` / `GH_TOKEN`，脚本改用 `os.environ.get()` 读取
+  - 效果：`GITHUB_TOKEN` 不再出现在进程列表/工作流日志；含 `"` 或换行的 issue title 不再破坏 shell 解析
+
+### Fixed（修复）
+
+- **`generate_weekly_plan.py` `create_issue()`**：替换硬编码 `/tmp/weekly_plan_body.md` 为 `tempfile.NamedTemporaryFile(delete=False)` + `os.unlink`（commit `19cc7df`）
+  - 修复并发运行（`schedule` 与 `workflow_dispatch` 同时触发）时临时文件互相覆盖的竞态
+- **`generate_weekly_plan.py` `run_gh()`**：失败时打印 stderr 前 200 字符（commit `19cc7df`）
+  - 调用方不再只能看到 `None`，可定位失败原因（gh 限流、auth 失效等）
+
+### Changed（变更）
+
+- **`claude.yml`**：移除无效的 `setup-node cache: 'npm'`，改用显式 `actions/cache@v4` 缓存 `~/.npm`（commit `19cc7df`）
+  - 原因：仓库无 `package-lock.json`，`cache: 'npm'` 静默失效；显式 cache 命中后节省 npm install 时间
+
+- **`issue-tasklist.yml`**：161 行内联 Python heredoc 提取为 `.github/scripts/generate_tasklist.py`（commit `19cc7df`）
+  - 收益：脚本可独立运行/测试；YAML 与 Python 分层更清晰；与 `dedup.py` 风格一致
+
+- **`generate_weekly_plan.py`**：`get_today_commits_by_repo()` / `generate_weekly_ai_review()` 改用 `concurrent.futures.ThreadPoolExecutor(max_workers=8)` 并发 60+ 仓库的 `subprocess.run`（commit `19cc7df`）
+  - 收益：每仓库 commits 拉取从顺序 60-120s 降至 10-15s
+
+### Maintenance（维护）
+
+- **`.gitignore`**：新增 `__pycache__/`、`*.pyc`、`orgs.json`（commit `19cc7df`）
+  - `orgs.json` 是 GraphQL API 响应缓存，含用户账号信息，不应纳入版本控制
+
 ## [1.16.0] - 2026-09-11
 
 ### Fixed（修复）
