@@ -3,3 +3,6 @@ proj.json
 *.env.local
 repo_cache.json
 reports/
+__pycache__/
+*.pyc
+orgs.json

@@ -27,6 +27,8 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -108,7 +110,11 @@ def read_weekly_progress():
 
 def run_gh(args):
     r = subprocess.run(["gh"] + args, capture_output=True, text=True)
-    return r.stdout.strip() if r.returncode == 0 else None
+    if r.returncode != 0:
+        if r.stderr.strip():
+            print(f"[gh error] {' '.join(args[:3])}: {r.stderr.strip()[:200]}", file=sys.stderr)
+        return None
+    return r.stdout.strip()
 
 
 def get_sprint_issues(sprint_title):
@@ -553,15 +559,19 @@ def build_issue_body(week_info, ai_plan, weekly_progress, sprint_issues):
 
 def create_issue(title, body):
     """创建 Issue 并返回 Issue 编号（int）"""
-    body_file = Path("/tmp/weekly_plan_body.md")
-    body_file.write_text(body, encoding="utf-8")
-    r = subprocess.run(
-        ["gh", "issue", "create",
-         "--title", title,
-         "--body-file", str(body_file),
-         "--label", "type: weekly-plan,status: todo"],
-        capture_output=True, text=True,
-    )
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.md', encoding='utf-8', delete=False) as f:
+        f.write(body)
+        body_file = f.name
+    try:
+        r = subprocess.run(
+            ["gh", "issue", "create",
+             "--title", title,
+             "--body-file", body_file,
+             "--label", "type: weekly-plan,status: todo"],
+            capture_output=True, text=True,
+        )
+    finally:
+        os.unlink(body_file)
     if r.returncode == 0:
         url = r.stdout.strip()
         print(f"✅ 已创建周计划 Issue：{title}")
@@ -748,8 +758,7 @@ def get_today_commits_by_repo():
     all_repos = dict(_load_tracked_repos())
     all_repos.update(extra)
 
-    results = {}
-    for repo, info in all_repos.items():
+    def _fetch_commits(repo, info):
         r = subprocess.run(
             ["gh", "api",
              f"/repos/{GITHUB_USER}/{repo}/commits?since={since_iso}&per_page=100",
@@ -760,9 +769,19 @@ def get_today_commits_by_repo():
             try:
                 commits = [c for c in json.loads(r.stdout) if c.strip()]
                 if commits:
-                    results[repo] = {"info": info, "commits": commits}
+                    return repo, {"info": info, "commits": commits}
             except Exception:
                 pass
+        return repo, None
+
+    results = {}
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = {pool.submit(_fetch_commits, repo, info): repo
+                   for repo, info in all_repos.items()}
+        for f in as_completed(futures):
+            repo, data = f.result()
+            if data:
+                results[repo] = data
     return results
 
 
@@ -867,8 +886,7 @@ def generate_weekly_ai_review(week_info):
     monday_bn = bn - timedelta(days=bn.weekday())
     since_iso = (monday_bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    summary_lines = []
-    for repo, info in _load_tracked_repos().items():
+    def _fetch_repo_count(repo, info):
         r = subprocess.run(
             ["gh", "api",
              f"/repos/{GITHUB_USER}/{repo}/commits?since={since_iso}&per_page=50",
@@ -879,9 +897,19 @@ def generate_weekly_ai_review(week_info):
             try:
                 count = int(r.stdout.strip())
                 if count > 0:
-                    summary_lines.append(f"- {info.get('name', repo)}: {count} commits")
+                    return f"- {info.get('name', repo)}: {count} commits"
             except Exception:
                 pass
+        return None
+
+    tracked = list(_load_tracked_repos().items())
+    summary_lines = []
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(_fetch_repo_count, repo, info) for repo, info in tracked]
+        for f in as_completed(futures):
+            line = f.result()
+            if line:
+                summary_lines.append(line)
 
     week_summary = "\n".join(summary_lines) if summary_lines else "（本周无 commit 记录）"
 
