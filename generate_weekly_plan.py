@@ -15,11 +15,18 @@
   - schedule/workflow_dispatch 直接触发（兜底）
 
 环境变量：
-  GH_TOKEN           PROJECT_TOKEN PAT（repo + project scope）
-  ANTHROPIC_API_KEY  Claude API 密钥（可选，无则跳过 AI 部分）
-  PROJECT_NUMBER     Project v2 编号
-  SPRINT_TITLE       由 dispatch payload 传入的 Sprint 名（可选）
-  ROLLED_OVER        续期 Issue 数量（可选）
+  GH_TOKEN                PROJECT_TOKEN PAT（repo + project scope）
+  ANTHROPIC_API_KEY       Claude API 密钥（可选，无则跳过 AI 部分，向后兼容）
+  ANTHROPIC_BASE_URL      Claude API 自定义端点（可选，向后兼容）
+  LLM_PRIMARY_API_KEY     主 LLM key（优先于 ANTHROPIC_API_KEY）
+  LLM_PRIMARY_BASE_URL    主 LLM 端点（优先于 ANTHROPIC_BASE_URL）
+  LLM_PRIMARY_MODEL       主 LLM 模型名（默认 claude-haiku-4-5-20251001）
+  LLM_FALLBACK_API_KEY    备用 LLM key（未设 = 无 fallback）
+  LLM_FALLBACK_BASE_URL   备用 LLM 端点（可选）
+  LLM_FALLBACK_MODEL      备用 LLM 模型名（默认 MiniMax-M3）
+  PROJECT_NUMBER          Project v2 编号
+  SPRINT_TITLE            由 dispatch payload 传入的 Sprint 名（可选）
+  ROLLED_OVER             续期 Issue 数量（可选）
 """
 
 import json
@@ -350,7 +357,7 @@ def get_open_issues_fallback():
         return []
 
 
-# ── 5. Claude API 调用（带限额重试）─────────────────────────────────────────
+# ── 5. Claude API 调用（带限额重试 + fallback）────────────────────────────────
 
 def _claude_call(client, *, max_wait_seconds=300, **kwargs):
     """调用 Claude API，遇到限额时按 retry-after 等待重试；超过 max_wait_seconds 则抛异常。"""
@@ -377,16 +384,69 @@ def _claude_call(client, *, max_wait_seconds=300, **kwargs):
     raise RuntimeError("Claude API 限额，重试次数耗尽，workflow 应失败")
 
 
-def _make_client():
-    import anthropic
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+def _make_client_with_env(api_key, base_url):
+    """从给定 (api_key, base_url) 构造 anthropic.Anthropic 客户端。任一为 None 时返回 None。"""
     if not api_key:
         return None
+    import anthropic
     kwargs = {"api_key": api_key}
-    base_url = os.environ.get("ANTHROPIC_BASE_URL")
     if base_url:
         kwargs["base_url"] = base_url
     return anthropic.Anthropic(**kwargs)
+
+
+def _make_client():
+    """主 client 工厂：LLM_PRIMARY_* 优先，向后兼容 ANTHROPIC_*。"""
+    api_key = (
+        os.environ.get("LLM_PRIMARY_API_KEY")
+        or os.environ.get("ANTHROPIC_API_KEY")
+    )
+    base_url = (
+        os.environ.get("LLM_PRIMARY_BASE_URL")
+        or os.environ.get("ANTHROPIC_BASE_URL")
+    )
+    return _make_client_with_env(api_key, base_url)
+
+
+def _call_with_fallback(*, messages, max_tokens, system=None):
+    """包装层：主 client（_claude_call 4 次重试）失败 → fallback client（同 4 次重试）。
+
+    主 client 缺失或未配置 fallback 时，行为 = 现状（仅主 client，不报错）。
+    """
+    primary = _make_client()
+    if not primary:
+        return None
+
+    primary_model = os.environ.get("LLM_PRIMARY_MODEL") or "claude-haiku-4-5-20251001"
+    primary_kwargs = {"model": primary_model, "max_tokens": max_tokens, "messages": messages}
+    if system is not None:
+        primary_kwargs["system"] = system
+
+    try:
+        return _claude_call(primary, **primary_kwargs)
+    except Exception as primary_exc:
+        print(f"⚠️  主 LLM 失败：{type(primary_exc).__name__}: {primary_exc}", file=sys.stderr)
+
+    fallback_key = os.environ.get("LLM_FALLBACK_API_KEY")
+    if not fallback_key:
+        raise RuntimeError(
+            f"主 LLM 调用失败且未配置 LLM_FALLBACK_API_KEY，无法 fallback：{primary_exc}"
+        ) from primary_exc
+
+    fallback = _make_client_with_env(
+        fallback_key,
+        os.environ.get("LLM_FALLBACK_BASE_URL"),
+    )
+    if not fallback:
+        raise RuntimeError("LLM_FALLBACK_API_KEY 已设但 client 创建失败") from primary_exc
+
+    fallback_model = os.environ.get("LLM_FALLBACK_MODEL") or "MiniMax-M3"
+    fallback_kwargs = {"model": fallback_model, "max_tokens": max_tokens, "messages": messages}
+    if system is not None:
+        fallback_kwargs["system"] = system
+
+    print(f"🔄 切换到 fallback LLM（model={fallback_model}）", file=sys.stderr)
+    return _claude_call(fallback, **fallback_kwargs)
 
 
 # ── 6. Claude Haiku 生成计划 ───────────────────────────────────────────────
@@ -432,11 +492,9 @@ def generate_ai_plan(week_info, weekly_progress, sprint_issues):
 - 重点参考高优先级标签（P0/P1）和上周未完成方向
 """
 
-    client = _make_client()
-    if not client:
+    resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=600)
+    if resp is None:
         return None
-    resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=600,
-                        messages=[{"role": "user", "content": prompt}])
     raw = resp.content[0].text.strip()
     return _parse_ai_sections(raw)
 
@@ -872,8 +930,7 @@ def generate_daily_ai_review(today_commits_by_repo):
 
 只返回 bullet 列表行（每行以 "- " 开头），不要任何其他文字。"""
 
-    resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=1500,
-                        messages=[{"role": "user", "content": prompt}])
+    resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=1500)
     text = resp.content[0].text.strip()
     bullet_lines = [ln for ln in text.splitlines() if ln.strip().startswith("-")]
     completed = "\n".join(bullet_lines) if bullet_lines else "- （详见 commits）"
@@ -921,11 +978,7 @@ def generate_weekly_ai_review(week_info):
 主要成果：[本周最重要成果，一句话40字以内]
 下周重点：[建议下周重点方向，一句话40字以内]"""
 
-    client = _make_client()
-    if not client:
-        return None
-    resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=150,
-                        messages=[{"role": "user", "content": prompt}])
+    resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=150)
     return resp.content[0].text.strip()
 
 
@@ -1035,8 +1088,7 @@ def _add_issue_comment(repo, number, comment):
 
 def _ai_match_issues(repo, commits, open_issues):
     """用 Claude Haiku 判断哪些 issue 已被 commits 完成"""
-    client = _make_client()
-    if not client or not commits or not open_issues:
+    if not commits or not open_issues:
         return []
     commit_lines = "\n".join(f"- {c}" for c in commits[:20])
     issue_lines = "\n".join(f"#{i['number']} {i['title']}" for i in open_issues)
@@ -1054,8 +1106,7 @@ Open issues（type: task）：
 - low：可能相关但不确定
 不相关的不要返回。只返回 JSON，不要其他文字。"""
     try:
-        resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=300,
-                            messages=[{"role": "user", "content": prompt}])
+        resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=300)
         text = resp.content[0].text.strip()
         # 提取 JSON 部分
         m = re.search(r'\[.*\]', text, re.DOTALL)
@@ -1199,8 +1250,7 @@ def backfill_missing_issues(today_commits):
 不需要补建时返回空数组 []。只返回 JSON，不要其他文字。"""
 
         try:
-            resp = _claude_call(client, model="claude-haiku-4-5-20251001", max_tokens=600,
-                                messages=[{"role": "user", "content": prompt}])
+            resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=600)
             text = resp.content[0].text.strip()
             m = re.search(r'\[.*\]', text, re.DOTALL)
             if not m:
