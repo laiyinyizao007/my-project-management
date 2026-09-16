@@ -39,6 +39,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+# 本地运行：自动加载仓库根目录的 .env（若存在）；CI 中 dotenv 无副作用
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env", override=False)
+except ImportError:
+    pass
+
 BASE_DIR = Path(__file__).parent
 PROFILE_PATH = BASE_DIR / "profile.md"
 GITHUB_USER = (

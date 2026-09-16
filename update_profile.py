@@ -12,6 +12,10 @@ import sys
 import base64
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from dotenv import load_dotenv
+
+# 加载 .env（同目录）
+load_dotenv(Path(__file__).parent / ".env")
 
 PROFILE_PATH = str(Path(__file__).parent / "profile.md")
 GITHUB_USER = (

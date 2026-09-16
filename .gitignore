@@ -6,3 +6,5 @@ reports/
 __pycache__/
 *.pyc
 orgs.json
+
+# .env.example 是模板可提交；.env 本身含密钥被忽略
