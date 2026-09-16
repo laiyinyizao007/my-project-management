@@ -1,4 +1,6 @@
 name: Create Weekly Plan Issue
+# v1.17+：通过 LLM_FALLBACK_* 环境变量启用 Claude API 主备 fallback
+# 见 PROJECTWIKI.md §5.24 / §6
 
 on:
   workflow_call:

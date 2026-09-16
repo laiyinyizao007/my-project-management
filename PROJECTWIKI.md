@@ -332,6 +332,12 @@ sequenceDiagram
 - **临时文件**（v1.17+）：`create_issue()` 改用 `tempfile.NamedTemporaryFile(delete=False)` 写入 Issue body；并发运行（schedule 与 workflow_dispatch 同时触发）时路径唯一，`try/finally` 中 `os.unlink` 清理；消除 `/tmp/weekly_plan_body.md` 硬编码路径的并发覆盖竞态
 - **错误可观测性**（v1.17+）：`run_gh()` 失败时打印 stderr 前 200 字符（`[gh error] <args>: <stderr>`），调用方可定位失败原因；原行为：静默返回 `None`
 - **并发拉取**（v1.17+）：`get_today_commits_by_repo()` 与 `generate_weekly_ai_review()` 改用 `concurrent.futures.ThreadPoolExecutor(max_workers=8)` 并发 60+ 仓库的 `subprocess.run`；预计每次节省 60-120s
+- **本地 .env 自动加载**（v1.17+）：脚本启动时 `load_dotenv(BASE_DIR / ".env", override=False)`，本地运行无需手动 export；CI 中无副作用（依赖 `python-dotenv`，已存在）
+- **LLM 主备 fallback**（v1.17+）：`_call_with_fallback(messages, *, max_tokens)` 包装层；主 client（`_claude_call` 4 次重试）任何 anthropic 异常 → fallback client（同 4 次重试）；fallback 成功不回退主 client；fallback 失败 → `RuntimeError`
+  - 主 client 配置：`LLM_PRIMARY_*` → `ANTHROPIC_*` 回退；model 默认 `claude-haiku-4-5-20251001`
+  - fallback 配置：`LLM_FALLBACK_*`（仅新增），model 默认 `MiniMax-M3`
+  - 未设 `LLM_FALLBACK_API_KEY` 时行为完全等价于现状
+- **5 个 Claude 调用点**（v1.17+）：全部改为 `_call_with_fallback(messages=..., max_tokens=N)`，签名零改动，model 名由包装层管理
 - **GraphQL Owner 兼容**（v1.16.0）：首个 GraphQL 查询改用 `repositoryOwner(login:)` + `... on User` / `... on Organization` inline fragments，同时支持个人账号和 Org 账号（原 `user(login:)` 在 Org owner 下静默返回 null）；解析路径对应改为 `data["data"]["repositoryOwner"]["projectV2"]`
 - **GraphQL 分页 cursor**（v1.16.0）：分页不再将 cursor 值字符串拼入 query 默认值，改为通过 `-f cursor=<value>` 参数传递；`$cursor: String`（nullable）变量无需传入时自然解析为 `null`，效果等同于 `after: null` = 从头分页；分页解析异常从静默 break 改为打印 `[warn]` 日志后 break
 
@@ -387,6 +393,8 @@ sequenceDiagram
 |-----------|------|------|
 | `PROJECT_TOKEN` | classic PAT，scope: `repo + project` | 部署 workflow、写 Profile README（weekly-update.yml 复用） |
 | `ANTHROPIC_API_KEY` | Claude API 密钥 | `claude.yml` + `weekly_report.py` |
+| `LLM_FALLBACK_API_KEY` | 备用 LLM key（Anthropic 兼容中转服务） | 主 key 限流 / 失败时自动切换；未设则无 fallback |
+| `LLM_FALLBACK_BASE_URL` | 备用 LLM 端点（如 `https://your-relay.com`） | 同上 |
 
 ### GitHub Actions Secrets（每个目标仓库）
 
@@ -395,6 +403,8 @@ sequenceDiagram
 | `PROJECT_TOKEN` | classic PAT，scope: `repo + project` | 自动传播（auto-deploy workflow） |
 | `ANTHROPIC_API_KEY` | Claude API 密钥，供 `claude.yml` 调用 Claude Code CLI | 自动传播（管理仓库有配置时）|
 | `ANTHROPIC_BASE_URL` | 可选，自定义 Claude API 端点 | 自动传播（管理仓库有配置时）|
+| `LLM_FALLBACK_API_KEY` | 备用 LLM key（Anthropic 兼容中转服务） | 自动传播（管理仓库有配置时） |
+| `LLM_FALLBACK_BASE_URL` | 备用 LLM 端点 | 自动传播（管理仓库有配置时） |
 
 ### GitHub Actions Variables（每个目标仓库）
 
@@ -402,6 +412,7 @@ sequenceDiagram
 |-------------|------|--------|
 | `PROJECT_NUMBER` | Project v2 编号 | `1` |
 | `PROJECT_OWNER_TYPE` | project-url 路径前缀：`users`（个人）或 `orgs`（组织） | `users` |
+| `LLM_FALLBACK_MODEL` | 备用 LLM 模型名 | `MiniMax-M3` |
 
 ### Project v2 自定义字段（由 setup-project-board.ps1 创建）
 
@@ -537,6 +548,8 @@ Todo 列堆积大量未规划 Issue 是正常的（backlog），不影响当前�
 - **Worker 更新**：修改 `cloudflare-worker/src/index.js` 后在 `cloudflare-worker/` 目录运行 `npx wrangler deploy`。
 - **新增仓库手动接入**：`pwsh scripts/install-to-repo.ps1 -TargetRepo "laiyinyizao007/repo"`。
 - **定时扫描**：每 6 小时自动运行，可在 Actions 页面手动触发做即时全量检查。
+- **Claude API 限流**：在管理仓库 `Settings → Secrets` 设置 `LLM_FALLBACK_API_KEY` 和 `LLM_FALLBACK_BASE_URL`；下次 `auto-deploy-to-new-repos.yml` 运行时会自动传播到所有目标仓库；想立即生效可手动 Run 一次该 workflow。验证：触发 `daily-review.yml` 的 `workflow_dispatch`，在 workflow 日志搜索 `🔄 切换到 fallback LLM` 确认 fallback 被触发。
+- **本地开发**：从 `.env.example` 复制为 `.env` 并填入真实 key；`generate_weekly_plan.py` / `weekly_report.py` / `repo_analyzer.py` / `update_profile.py` 启动时自动加载（python-dotenv）。`.env` 已被 `.gitignore` 忽略。
 
 ---
 

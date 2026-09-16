@@ -6,6 +6,37 @@
 
 ## [Unreleased]
 
+### Added（新增）
+
+- **Claude API 主备 fallback 机制**（commit `9a9e76d`）：主 LLM 失败时自动切换备用
+  - `generate_weekly_plan.py`：新增 `_call_with_fallback()` 包装层 + `_make_client_with_env()` 通用工厂
+  - 主 client（`_claude_call` 4 次重试）任何 anthropic 异常 → fallback client（同 4 次重试）；fallback 失败 → `RuntimeError`，workflow 失败
+  - 单向链：fallback 成功不回退主 client；fallback 未设时行为完全等价于现状
+  - 5 个 Claude 调用点改为 `_call_with_fallback(messages=..., max_tokens=N)`，model 名由包装层管理
+- **`.env.example`**（commit `b28312e`）：完整本地运行 / 测试环境变量模板
+  - 覆盖 GitHub 认证（`PROJECT_TOKEN` / `GH_OWNER`）、主 LLM（`ANTHROPIC_*` / `LLM_PRIMARY_*`）、fallback LLM（`LLM_FALLBACK_*`）、Project v2 看板、本地代理
+  - `.env` 已在 `.gitignore` 中被忽略，`.env.example` 可提交
+
+- **`generate_weekly_plan.py` / `update_profile.py`**（commit `b28312e`）：本地启动自动加载仓库根 `.env`（python-dotenv 已存在依赖；CI 中无副作用）
+
+### Changed（变更）
+
+- **`generate_weekly_plan.py` `_make_client()`**：改为读 `LLM_PRIMARY_*` 优先，向 `ANTHROPIC_*` 回退（向后兼容已传播的 Secret）
+- **`.github/workflows/daily-review.yml`** + **`.github/workflows/weekly-plan.yml`**：在 `ANTHROPIC_*` env 旁追加 `LLM_FALLBACK_API_KEY` / `LLM_FALLBACK_BASE_URL` / `LLM_FALLBACK_MODEL`
+
+### Environment Variables
+
+新增（向后兼容，旧名仍可用）：
+
+| 变量 | 默认值 | 说明 |
+|------|-------|------|
+| `LLM_PRIMARY_API_KEY` | — | 主 LLM key（优先于 `ANTHROPIC_API_KEY`） |
+| `LLM_PRIMARY_BASE_URL` | — | 主 LLM 端点（优先于 `ANTHROPIC_BASE_URL`） |
+| `LLM_PRIMARY_MODEL` | `claude-haiku-4-5-20251001` | 主 LLM 模型名 |
+| `LLM_FALLBACK_API_KEY` | — | 备用 LLM key（未设 = 无 fallback） |
+| `LLM_FALLBACK_BASE_URL` | — | 备用 LLM 端点 |
+| `LLM_FALLBACK_MODEL` | `MiniMax-M3` | 备用 LLM 模型名 |
+
 ### Security（安全）
 
 - **`dedup.yml` + `dedup.py`**：消除 shell 参数暴露与潜在注入风险（commit `19cc7df`）
