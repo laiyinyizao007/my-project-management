@@ -927,54 +927,66 @@ def generate_daily_ai_review(today_commits_by_repo, total_tracked_count=None):
     msg_freq = Counter(m for msgs in deduped.values() for m in set(msgs))
     shared = {m for m, cnt in msg_freq.items() if cnt >= threshold}
 
-    # 按是否有独有工作分组
-    batch_only = []   # 只有共有 commits，无独有 → 归入批量同步组
-    with_unique = []  # 有独有 commits（可能也有共有）→ 单独列一行
+    # 三分类：
+    #   batch_only  —— 仅做共有工作（独有=0）→ 末尾聚合为一行
+    #   mixed       —— 既有共有也有独有 → 单独成块，独有完整列出
+    #   unique_only —— 只有独有（无共有）→ 单独成块，独有完整列出
+    # 设计：把"共有操作"在 sections 顶部独立抽出一行（每个仓库只贡献一次计数），
+    # 任何仓库的独有 commit 一条不漏（不再 unique[:8] 截断）。
+    batch_only = []
+    mixed = []
+    unique_only = []
 
     for repo, msgs in deduped.items():
-        msg_set = set(msgs)
-        has_unique = bool(msg_set - shared)
-        has_shared = bool(msg_set & shared)
-        if has_unique or not has_shared:
-            with_unique.append(repo)
+        repo_unique = [m for m in msgs if m not in shared]
+        repo_shared = [m for m in msgs if m in shared]
+        if repo_unique and repo_shared:
+            mixed.append((repo, repo_unique))
+        elif repo_unique:
+            unique_only.append((repo, repo_unique))
         else:
             batch_only.append(repo)
 
-    # 批量同步组少于 2 个时不成组
-    if len(batch_only) < 2:
-        with_unique.extend(batch_only)
-        batch_only = []
-
     sections = ""
 
-    if batch_only:
-        rep_msgs = [m for m in deduped[batch_only[0]] if m in shared]
-        # 仓库名太多时缩写，避免 prompt 超长
-        show_names = [today_commits_by_repo[r]["info"].get("name", r) for r in batch_only[:10]]
-        extra = len(batch_only) - 10
-        name_str = " / ".join(show_names) + (f"…等 {extra} 个仓库" if extra > 0 else "")
-        sections += f"\n【批量同步组：{name_str}（共 {len(batch_only)} 个仓库）】\n"
-        sections += "  共有操作：\n" + "\n".join(f"    {m}" for m in rep_msgs[:6]) + "\n"
+    # 1. 抽取共有操作（顶部一块，仓库只贡献一次计数）
+    if shared:
+        shared_sorted = sorted(shared, key=lambda m: (-msg_freq[m], m))
+        sections += f"\n【今日批量同步】共有 {len(shared)} 项操作（每个操作至少 {threshold} 个仓库执行）：\n"
+        for m in shared_sorted:
+            sections += f"  - {m}（{msg_freq[m]} 仓库）\n"
+        sections += "\n"
 
-    # 独立仓库最多显示 20 个，避免 prompt 过长
-    for repo in with_unique[:20]:
+    # 2. mixed：完整列出独有工作（不截断）
+    for repo, unique_msgs in mixed:
         data = today_commits_by_repo[repo]
         name = data["info"].get("name", repo)
-        msgs = deduped[repo]
-        unique = [m for m in msgs if m not in shared]
-        common = [m for m in msgs if m in shared]
-        total = len(data["commits"])
         files = data.get("files") or []
-        sections += f"\n【{name}】（{total} commits）\n"
-        if unique:
-            sections += "  独有工作：\n" + "\n".join(f"    {m}" for m in unique[:8]) + "\n"
-        if common:
-            sections += "  另同步：" + "、".join(common[:3]) + "\n"
-        # A2：把文件列表提供给 LLM，让摘要能具体到文件名
+        sections += f"\n【{name}】独有工作（{len(unique_msgs)} 条，另有批量同步）：\n"
+        for m in unique_msgs:
+            sections += f"  - {m}\n"
         if files:
             sections += "  涉及文件（仅供你写摘要时参考，不要直接复制）：" + "、".join(files[:10]) + "\n"
-    if len(with_unique) > 20:
-        sections += f"\n（另有 {len(with_unique) - 20} 个仓库有独立工作，略）\n"
+
+    # 3. unique_only：完整列出所有
+    for repo, unique_msgs in unique_only:
+        data = today_commits_by_repo[repo]
+        name = data["info"].get("name", repo)
+        files = data.get("files") or []
+        sections += f"\n【{name}】独有工作（{len(unique_msgs)} 条）：\n"
+        for m in unique_msgs:
+            sections += f"  - {m}\n"
+        if files:
+            sections += "  涉及文件（仅供你写摘要时参考，不要直接复制）：" + "、".join(files[:10]) + "\n"
+
+    # 4. 仅做共有工作的仓库：聚合到末尾（不再独立成行）
+    if batch_only:
+        names = [today_commits_by_repo[r]["info"].get("name", r) for r in batch_only]
+        if len(names) <= 15:
+            sections += f"\n另有 {len(batch_only)} 个仓库仅执行批量同步：{', '.join(names)}\n"
+        else:
+            head = ', '.join(names[:15])
+            sections += f"\n另有 {len(batch_only)} 个仓库仅执行批量同步（前 15 个）：{head}...\n"
 
     # A3：拆分 system 约束 + user 内容（[系统约束]/[用户内容] 双段前缀）
     # 设计原因：fallback LLM 不一定支持 Anthropic 的 system 参数，把约束拼到 user 头部
