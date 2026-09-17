@@ -802,13 +802,16 @@ def _get_today_push_repos():
         return {}
     tracked = set(_load_tracked_repos().keys())
     extra = {}
+    today_events_count = 0
     for ev in events:
         if ev.get("ts", "") < since_str:
             continue
+        today_events_count += 1
         full_name = ev.get("repo", "")
         short = full_name.split("/")[-1] if "/" in full_name else full_name
         if short and short not in tracked and short not in extra:
             extra[short] = {"name": short, "icon": "📦", "type": "personal"}
+    print(f"[INFO] Events API：共 {len(events)} 条推送事件，其中今日 {today_events_count} 条，新发现未追踪仓库 {len(extra)} 个")
     return extra
 
 
@@ -838,12 +841,14 @@ def get_today_commits_by_repo():
     bn = _beijing_now()
     today_start_utc = bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)
     since_iso = today_start_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    print(f"[INFO] 数据窗口：since_iso={since_iso}（北京时间 {bn.strftime('%H:%M')}，起点为今日 00:00）")
 
     extra = _get_today_push_repos()
     _persist_new_tracked_repos(extra)
 
     all_repos = dict(_load_tracked_repos())
     all_repos.update(extra)
+    print(f"[INFO] 仓库池：{len(all_repos) - len(extra)} 个追踪仓库 + {len(extra)} 个今日新发现 = 合计 {len(all_repos)} 个")
 
     def _fetch_commits(repo, info):
         # 取 commit message 第一段（到第一个空行）+ 涉及的文件名
@@ -856,23 +861,26 @@ def get_today_commits_by_repo():
              'files: ([.files[]?.filename] | unique | .[0:10])}]'],
             capture_output=True, text=True,
         )
-        if r.returncode == 0:
-            try:
-                rows = json.loads(r.stdout)
-                msgs = []
-                files = []
-                for row in rows:
-                    m = (row.get("msg") or "").strip()
-                    if m:
-                        # 单条 commit message 截断到 200 字符，避免 prompt 超长
-                        msgs.append(m[:200])
-                    files.extend(row.get("files") or [])
-                # 保序去重，最多 30 个文件名
-                files = list(dict.fromkeys(files))[:30]
-                if msgs:
-                    return repo, {"info": info, "commits": msgs, "files": files}
-            except Exception:
-                pass
+        if r.returncode != 0:
+            if r.stderr.strip():
+                print(f"[WARN] {repo}: gh api 失败（rc={r.returncode}）：{r.stderr.strip()[:120]}", file=sys.stderr)
+            return repo, None
+        try:
+            rows = json.loads(r.stdout)
+            msgs = []
+            files = []
+            for row in rows:
+                m = (row.get("msg") or "").strip()
+                if m:
+                    # 单条 commit message 截断到 200 字符，避免 prompt 超长
+                    msgs.append(m[:200])
+                files.extend(row.get("files") or [])
+            # 保序去重，最多 30 个文件名
+            files = list(dict.fromkeys(files))[:30]
+            if msgs:
+                return repo, {"info": info, "commits": msgs, "files": files}
+        except Exception as exc:
+            print(f"[WARN] {repo}: JSON 解析失败：{exc}", file=sys.stderr)
         return repo, None
 
     results = {}
@@ -883,6 +891,7 @@ def get_today_commits_by_repo():
             repo, data = f.result()
             if data:
                 results[repo] = data
+    print(f"[INFO] 扫描完成：{len(results)} / {len(all_repos)} 个仓库今日有活动")
     # 返回 (今日活跃仓库 dict, 追踪+今日发现的仓库总数)
     return results, len(all_repos)
 
@@ -1014,10 +1023,12 @@ def generate_daily_ai_review(today_commits_by_repo, total_tracked_count=None):
         f"直接输出 bullet 列表，不要任何解释。"
     )
     prompt = f"{system_rules}\n\n{user_payload}"
+    print(f"[INFO] LLM 输入：{n} 个仓库（shared={len(shared)}, mixed={len(mixed)}, unique_only={len(unique_only)}, batch_only={len(batch_only)}），sections {len(sections)} 字符")
 
     resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=1500)
     text = resp.content[0].text.strip()
     bullet_lines = [ln for ln in text.splitlines() if ln.strip().startswith("-")]
+    print(f"[INFO] LLM 响应：{len(text)} 字符，提取到 {len(bullet_lines)} 条摘要行")
     completed = "\n".join(bullet_lines) if bullet_lines else "- （详见 commits）"
 
     # A4：在摘要末尾追加"今日活跃 X / N 个仓库"分母，让用户能立刻判断是否漏抓
@@ -1303,6 +1314,7 @@ def backfill_missing_issues(today_commits):
     """扫描今日 commits，为没有对应 Issue 的工作补建 Issue，并评估是否立即关闭"""
     if not today_commits:
         return
+    print(f"[INFO] backfill 扫描 {len(today_commits)} 个活跃仓库")
     client = _make_client()
     if not client:
         print("ℹ️  无 Claude client，跳过 Issue 补建")
@@ -1411,6 +1423,8 @@ def main():
         day_idx = bn.weekday()  # 0=Monday … 6=Sunday
         day_label = WEEKDAY_ZH[day_idx]
         print(f"📝 --daily-review：生成 {day_label} 每日回顾（北京时间 {bn.strftime('%Y-%m-%d')}）")
+        _since_utc = bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)
+        print(f"[INFO] 北京时间：{bn.strftime('%Y-%m-%d %H:%M')}，今日数据起点（UTC）：{_since_utc.strftime('%Y-%m-%dT%H:%M:%SZ')}")
         issue_number = get_existing_issue_number(week_info["title"])
         if not issue_number:
             print("⚠️  本周计划 Issue 不存在，跳过", file=sys.stderr)

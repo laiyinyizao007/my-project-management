@@ -15,6 +15,7 @@
   - **A4 活跃仓库分母**：摘要末尾追加 `- 今日活跃 {n} / {N} 个仓库` 统计行；`get_today_commits_by_repo()` 返回值签名从 dict 升级为 `(dict, int)` 元组；用户可立即区分"漏了" vs "真的没活动"
   - **B1 schedule 延迟容差**：`main()` 入口对 `GITHUB_EVENT_NAME=schedule` 的 daily review 加 4 小时延迟容差（超过则跳过避免污染次日 Issue 区块）；`workflow_dispatch` 手动触发不受限
   - **sections 三分类重写**（v1.18.1，commits `9bbbe11` / `8ab655a`，详见 PROJECTWIKI.md §5.24 v1.18.1 条目）：修复 60+ 仓库场景下批量同步无法合并的边界 bug；共有真正抽取 + 独有一条不漏 + LLM 格式约束 7/8/9 条
+  - **执行日志补全**（v1.18.2，详见 PROJECTWIKI.md §5.24 v1.18.2 条目）：在 6 个关键位置加 `[INFO]`/`[WARN]` 日志，覆盖数据窗口时间、仓库扫描数量、API 错误、LLM 输入/输出统计，支持事后从 run 日志完整还原执行上下文
 
 ### Fixed（修复）
 
