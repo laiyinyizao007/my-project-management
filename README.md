@@ -155,6 +155,7 @@ pwsh scripts/setup.ps1
 | **Generate Issue Task List** | 新 Issue 创建时 | 根据标题前缀（feat/fix/docs 等）自动生成任务清单 |
 | **Claude Issue Handler** | Issue/评论含 `@claude` 时（仅 Owner） | Claude AI 自动响应，可读写代码、创建 PR |
 | **Auto-deploy to New Repos** | 推送改动 workflow/scripts、新建仓库、每 6 小时 | 将 workflow 和脚本部署到所有仓库 |
+| **Daily Review** | 工作日 21:30（北京时间），手动触发 | 当日 commit AI 摘要 + 自动关闭已完成 Issue（v1.18 prompt 加固、活跃分母、schedule 容差） |
 | **Weekly Progress Update** | 每周日 09:00（北京时间），手动触发 | 仓库分析 + AI 周报 + GitHub Profile 同步 |
 
 **手动触发工作流：**
