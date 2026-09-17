@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+### Added（新增）
+
+- **Daily Review 回填支持**（v1.18.3，`generate_weekly_plan.py` + `daily-review.yml`）：workflow_dispatch 新增 `backfill_date` 输入参数，脚本读取 `BACKFILL_DATE` 环境变量，支持对历史日期补跑 daily review；数据窗口自动设置 `since_iso`/`until_iso` 双边界，确保仅抓取目标日期当天的 commits
+
 ### Changed（变更）
 
 - **Daily Review 质量提升**（v1.18，关联 `daily-review.yml` / `generate_weekly_plan.py`，详见 PROJECTWIKI.md §5.24 v1.18 条目）

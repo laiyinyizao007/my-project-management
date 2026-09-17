@@ -836,12 +836,13 @@ def _persist_new_tracked_repos(new_repos):
         print(f"✅ 新增 {len(added)} 个活跃仓库到 tracked_config.json: {added}")
 
 
-def get_today_commits_by_repo(target_bn=None):
+def get_today_commits_by_repo(target_bn=None, until_iso=None):
     """获取今日（北京时间）各追踪仓库的 commits，同时发现并持久化未追踪的活跃仓库"""
     bn = target_bn or _beijing_now()
     today_start_utc = bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)
     since_iso = today_start_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
-    print(f"[INFO] 数据窗口：since_iso={since_iso}（北京时间 {bn.strftime('%H:%M')}，起点为今日 00:00）")
+    window_info = f"since={since_iso}" + (f" until={until_iso}" if until_iso else "")
+    print(f"[INFO] 数据窗口：{window_info}（北京时间 {bn.strftime('%H:%M')}，起点为今日 00:00）")
 
     extra = _get_today_push_repos(target_bn=bn)
     _persist_new_tracked_repos(extra)
@@ -853,9 +854,11 @@ def get_today_commits_by_repo(target_bn=None):
     def _fetch_commits(repo, info):
         # 取 commit message 第一段（到第一个空行）+ 涉及的文件名
         # 文件名提供给 LLM 以生成"具体到文件名"的摘要（A2 修复）
+        url = f"/repos/{GITHUB_USER}/{repo}/commits?since={since_iso}&per_page=100"
+        if until_iso:
+            url += f"&until={until_iso}"
         r = subprocess.run(
-            ["gh", "api",
-             f"/repos/{GITHUB_USER}/{repo}/commits?since={since_iso}&per_page=100",
+            ["gh", "api", url,
              "--jq",
              '[.[] | {msg: (.commit.message | split("\n\n")[0]), '
              'files: ([.files[]?.filename] | unique | .[0:10])}]'],
@@ -1398,11 +1401,24 @@ def main():
     weekly_review = "--weekly-review" in sys.argv
     auto_close = "--auto-close" in sys.argv
 
+    # BACKFILL_DATE：手动回填历史日期（workflow_dispatch 传入 YYYY-MM-DD）
+    _backfill_target_bn = None
+    _backfill_date_str = os.environ.get("BACKFILL_DATE", "").strip()
+    if daily_review and _backfill_date_str:
+        try:
+            _bd = datetime.strptime(_backfill_date_str, "%Y-%m-%d")
+            _backfill_target_bn = datetime(_bd.year, _bd.month, _bd.day, 21, 30, 0,
+                                           tzinfo=timezone(timedelta(hours=8)))
+            print(f"[INFO] 回填模式：BACKFILL_DATE={_backfill_date_str}，"
+                  f"目标北京时间 {_backfill_target_bn.strftime('%Y-%m-%d %H:%M')}")
+        except ValueError:
+            print(f"[WARN] BACKFILL_DATE 格式错误（{_backfill_date_str}），忽略", file=sys.stderr)
+
     # B1：schedule 日期修正 + 极端延迟容差
     # GitHub Actions schedule 经常延迟 4+ 小时，13:30 UTC → 17:40 UTC（01:40 北京次日）
     # 用 UTC 日期推算目标北京日期，而非 _beijing_now()，避免写到错误的日期
     _schedule_target_bn = None
-    if daily_review and os.environ.get("GITHUB_EVENT_NAME") == "schedule":
+    if daily_review and not _backfill_target_bn and os.environ.get("GITHUB_EVENT_NAME") == "schedule":
         now_utc = datetime.now(timezone.utc)
         expected_utc_hour = 13  # 北京 21:30 = UTC 13:30
         expected_min = expected_utc_hour * 60 + 30
@@ -1428,17 +1444,23 @@ def main():
 
     # ── 每日回顾模式 ──────────────────────────────────────────────
     if daily_review:
-        bn = _schedule_target_bn or _beijing_now()
+        bn = _backfill_target_bn or _schedule_target_bn or _beijing_now()
         day_idx = bn.weekday()  # 0=Monday … 6=Sunday
         day_label = WEEKDAY_ZH[day_idx]
         print(f"📝 --daily-review：生成 {day_label} 每日回顾（北京时间 {bn.strftime('%Y-%m-%d')}）")
         _since_utc = bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)
         print(f"[INFO] 北京时间：{bn.strftime('%Y-%m-%d %H:%M')}，今日数据起点（UTC）：{_since_utc.strftime('%Y-%m-%dT%H:%M:%SZ')}")
+        # 回填模式：限制 until，防止抓到目标日期之后的 commits
+        _until_iso = None
+        if _backfill_target_bn:
+            _end_utc = _backfill_target_bn.replace(hour=23, minute=59, second=59) - timedelta(hours=8)
+            _until_iso = _end_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+            print(f"[INFO] 回填数据窗口上限（UTC）：{_until_iso}")
         issue_number = get_existing_issue_number(week_info["title"])
         if not issue_number:
             print("⚠️  本周计划 Issue 不存在，跳过", file=sys.stderr)
             return
-        today_commits, total_tracked = get_today_commits_by_repo(target_bn=_schedule_target_bn)
+        today_commits, total_tracked = get_today_commits_by_repo(target_bn=bn, until_iso=_until_iso)
         total_commits = sum(len(d["commits"]) for d in today_commits.values())
         print(f"   今日 commits：{total_commits} 条（{len(today_commits)} / {total_tracked} 个仓库有活动）")
         completed, blocked = generate_daily_ai_review(today_commits, total_tracked_count=total_tracked)
