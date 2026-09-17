@@ -784,9 +784,9 @@ def _load_tracked_config_raw():
         return {"version": "1.0", "settings": {}, "tracked_repos": {}, "ignored_repos": []}
 
 
-def _get_today_push_repos():
+def _get_today_push_repos(target_bn=None):
     """从 GitHub Events API 找出今日有推送但未在 tracked_config 里的仓库"""
-    bn = _beijing_now()
+    bn = target_bn or _beijing_now()
     today_start_utc = bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)
     since_str = today_start_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     r = subprocess.run(
@@ -836,14 +836,14 @@ def _persist_new_tracked_repos(new_repos):
         print(f"✅ 新增 {len(added)} 个活跃仓库到 tracked_config.json: {added}")
 
 
-def get_today_commits_by_repo():
+def get_today_commits_by_repo(target_bn=None):
     """获取今日（北京时间）各追踪仓库的 commits，同时发现并持久化未追踪的活跃仓库"""
-    bn = _beijing_now()
+    bn = target_bn or _beijing_now()
     today_start_utc = bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)
     since_iso = today_start_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"[INFO] 数据窗口：since_iso={since_iso}（北京时间 {bn.strftime('%H:%M')}，起点为今日 00:00）")
 
-    extra = _get_today_push_repos()
+    extra = _get_today_push_repos(target_bn=bn)
     _persist_new_tracked_repos(extra)
 
     all_repos = dict(_load_tracked_repos())
@@ -1398,15 +1398,17 @@ def main():
     weekly_review = "--weekly-review" in sys.argv
     auto_close = "--auto-close" in sys.argv
 
-    # B1：schedule 延迟容差（仅对定时触发的 daily review 生效，手动触发不受限）
-    # 当定时任务延迟 > 4 小时（例如北京 21:30 → 次日 02:00），跳过避免污染次日凌晨的 Issue 区块
+    # B1：schedule 日期修正 + 极端延迟容差
+    # GitHub Actions schedule 经常延迟 4+ 小时，13:30 UTC → 17:40 UTC（01:40 北京次日）
+    # 用 UTC 日期推算目标北京日期，而非 _beijing_now()，避免写到错误的日期
+    _schedule_target_bn = None
     if daily_review and os.environ.get("GITHUB_EVENT_NAME") == "schedule":
         now_utc = datetime.now(timezone.utc)
         expected_utc_hour = 13  # 北京 21:30 = UTC 13:30
         expected_min = expected_utc_hour * 60 + 30
         now_min = now_utc.hour * 60 + now_utc.minute
         delay_min = (now_min - expected_min) % (24 * 60)
-        if delay_min > 4 * 60:
+        if delay_min > 8 * 60:
             delay_h = delay_min / 60
             print(
                 f"⚠️  schedule 延迟约 {delay_h:.1f} 小时（当前 UTC {now_utc.hour:02d}:{now_utc.minute:02d}，"
@@ -1414,13 +1416,19 @@ def main():
             )
             print("   提示：如需补跑昨日回顾，请用 workflow_dispatch 手动触发")
             return
+        # 13:30 UTC 属于同一 UTC 日，即目标北京日期（21:30 北京 = 13:30 UTC）
+        td = now_utc.date()
+        _schedule_target_bn = datetime(td.year, td.month, td.day, 21, 30, 0,
+                                       tzinfo=timezone(timedelta(hours=8)))
+        if delay_min > 0:
+            print(f"[INFO] schedule 延迟 {delay_min} 分钟，目标日期修正为 {td}（UTC 日期）")
 
     week_info = get_week_info()
     print(f"📅 生成周计划：{week_info['week_id']}  ({week_info['monday']} ~ {week_info['sunday']})")
 
     # ── 每日回顾模式 ──────────────────────────────────────────────
     if daily_review:
-        bn = _beijing_now()
+        bn = _schedule_target_bn or _beijing_now()
         day_idx = bn.weekday()  # 0=Monday … 6=Sunday
         day_label = WEEKDAY_ZH[day_idx]
         print(f"📝 --daily-review：生成 {day_label} 每日回顾（北京时间 {bn.strftime('%Y-%m-%d')}）")
@@ -1430,7 +1438,7 @@ def main():
         if not issue_number:
             print("⚠️  本周计划 Issue 不存在，跳过", file=sys.stderr)
             return
-        today_commits, total_tracked = get_today_commits_by_repo()
+        today_commits, total_tracked = get_today_commits_by_repo(target_bn=_schedule_target_bn)
         total_commits = sum(len(d["commits"]) for d in today_commits.values())
         print(f"   今日 commits：{total_commits} 条（{len(today_commits)} / {total_tracked} 个仓库有活动）")
         completed, blocked = generate_daily_ai_review(today_commits, total_tracked_count=total_tracked)
