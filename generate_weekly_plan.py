@@ -1403,12 +1403,13 @@ def main():
     if daily_review and os.environ.get("GITHUB_EVENT_NAME") == "schedule":
         now_utc = datetime.now(timezone.utc)
         expected_utc_hour = 13  # 北京 21:30 = UTC 13:30
-        if now_utc.hour > expected_utc_hour + 4 or (
-            now_utc.hour == expected_utc_hour + 4 and now_utc.minute > 30
-        ):
-            delay_h = now_utc.hour - expected_utc_hour
+        expected_min = expected_utc_hour * 60 + 30
+        now_min = now_utc.hour * 60 + now_utc.minute
+        delay_min = (now_min - expected_min) % (24 * 60)
+        if delay_min > 4 * 60:
+            delay_h = delay_min / 60
             print(
-                f"⚠️  schedule 延迟约 {delay_h} 小时（当前 UTC {now_utc.hour:02d}:{now_utc.minute:02d}，"
+                f"⚠️  schedule 延迟约 {delay_h:.1f} 小时（当前 UTC {now_utc.hour:02d}:{now_utc.minute:02d}，"
                 f"预期 {expected_utc_hour:02d}:30），跳过本次 daily review 避免污染次日 Issue"
             )
             print("   提示：如需补跑昨日回顾，请用 workflow_dispatch 手动触发")
