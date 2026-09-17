@@ -6,6 +6,21 @@
 
 ## [Unreleased]
 
+### Changed（变更）
+
+- **Daily Review 质量提升**（v1.18，关联 `daily-review.yml` / `generate_weekly_plan.py`，详见 PROJECTWIKI.md §5.24 v1.18 条目）
+  - **A1 主 LLM 失败诊断**：`_call_with_fallback` 失败时调用 `_log_primary_failure_hint` 启发式匹配 Relay/401/429 错误类型并打印建议（检查中转账号余额 / 切换 `LLM_PRIMARY_*` 等）
+  - **A2 输入侧升级**：`_fetch_commits` 从仅取 commit message 第一行 → 取 commit message 第一段 + 涉及的文件名列表（最多 30 个，保序去重）；LLM 摘要可具体到文件名（如 `docs/WechatDeployGuide.md`、`babel.config.js`），不再笼统
+  - **A3 prompt 双段加固**：`generate_daily_ai_review` prompt 改为 `[系统约束]/[用户内容]` 双段前缀；兼容主备两种 LLM，对 fallback (MiniMax-M3 等非 Anthropic 模型) 也有强格式约束
+  - **A4 活跃仓库分母**：摘要末尾追加 `- 今日活跃 {n} / {N} 个仓库` 统计行；`get_today_commits_by_repo()` 返回值签名从 dict 升级为 `(dict, int)` 元组；用户可立即区分"漏了" vs "真的没活动"
+  - **B1 schedule 延迟容差**：`main()` 入口对 `GITHUB_EVENT_NAME=schedule` 的 daily review 加 4 小时延迟容差（超过则跳过避免污染次日 Issue 区块）；`workflow_dispatch` 手动触发不受限
+
+### Fixed（修复）
+
+- **Daily Review 摘要内容笼统**：根因为主 LLM (`claude-haiku-4-5`) 中转 2026-09-16 起无可用账号、fallback 模型 (MiniMax-M3) 拿不到文件名细节；通过 A2 输入侧升级 + A3 prompt 加固解决（v1.18）
+- **Daily Review 漏仓库不可观测**：摘要末尾无活跃分母，用户无法区分"漏抓"与"无活动"；通过 A4 统计行解决（v1.18）
+- **schedule 漂移导致次日凌晨 Issue 区块污染**：cron 21:30 北京触发但 GitHub Actions 漂移到次日 01:40 时仍写入"昨日回顾"；通过 B1 延迟容差解决（v1.18）
+
 ### Added（新增）
 
 - **Claude API 主备 fallback 机制**（commit `9a9e76d`）：主 LLM 失败时自动切换备用
