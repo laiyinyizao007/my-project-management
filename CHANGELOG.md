@@ -14,12 +14,14 @@
   - **A3 prompt 双段加固**：`generate_daily_ai_review` prompt 改为 `[系统约束]/[用户内容]` 双段前缀；兼容主备两种 LLM，对 fallback (MiniMax-M3 等非 Anthropic 模型) 也有强格式约束
   - **A4 活跃仓库分母**：摘要末尾追加 `- 今日活跃 {n} / {N} 个仓库` 统计行；`get_today_commits_by_repo()` 返回值签名从 dict 升级为 `(dict, int)` 元组；用户可立即区分"漏了" vs "真的没活动"
   - **B1 schedule 延迟容差**：`main()` 入口对 `GITHUB_EVENT_NAME=schedule` 的 daily review 加 4 小时延迟容差（超过则跳过避免污染次日 Issue 区块）；`workflow_dispatch` 手动触发不受限
+  - **sections 三分类重写**（v1.18.1，commits `9bbbe11` / `8ab655a`，详见 PROJECTWIKI.md §5.24 v1.18.1 条目）：修复 60+ 仓库场景下批量同步无法合并的边界 bug；共有真正抽取 + 独有一条不漏 + LLM 格式约束 7/8/9 条
 
 ### Fixed（修复）
 
 - **Daily Review 摘要内容笼统**：根因为主 LLM (`claude-haiku-4-5`) 中转 2026-09-16 起无可用账号、fallback 模型 (MiniMax-M3) 拿不到文件名细节；通过 A2 输入侧升级 + A3 prompt 加固解决（v1.18）
 - **Daily Review 漏仓库不可观测**：摘要末尾无活跃分母，用户无法区分"漏抓"与"无活动"；通过 A4 统计行解决（v1.18）
 - **schedule 漂移导致次日凌晨 Issue 区块污染**：cron 21:30 北京触发但 GitHub Actions 漂移到次日 01:40 时仍写入"昨日回顾"；通过 B1 延迟容差解决（v1.18）
+- **批量同步仓库无法真正合并**（v1.18.1）：原 `has_unique` 二分判定导致有任何 1 条独有 commit 的仓库即被独立列出，60+ 仓库场景下共有的 9 项 chore 重复 10+ 次；通过三分类重写（commits `9bbbe11` / `8ab655a`）修复，验证见 PR #12 Run 35179691769
 
 ### Added（新增）
 
