@@ -338,6 +338,22 @@ sequenceDiagram
   - fallback 配置：`LLM_FALLBACK_*`（仅新增），model 默认 `MiniMax-M3`
   - 未设 `LLM_FALLBACK_API_KEY` 时行为完全等价于现状
 - **5 个 Claude 调用点**（v1.17+）：全部改为 `_call_with_fallback(messages=..., max_tokens=N)`，签名零改动，model 名由包装层管理
+- **Daily Review 质量修复**（v1.18+，`daily-review.yml`）：`_call_with_fallback` 失败时打印 `_log_primary_failure_hint` 启发式诊断（覆盖 Relay/401/429 三类错误）
+- **输入侧文件列表**（v1.18+）：`_fetch_commits` 从 `commit.message | split("\n")[0]` 升级为 `{msg, files[]}`；新增 `data["files"]` 字段保序去重最多 30 个文件名；LLM 摘要可具体到文件名（如 `docs/X.md`、`babel.config.js`）
+- **prompt 双段前缀**（v1.18+）：`generate_daily_ai_review` 改为 `[系统约束]/[用户内容]` 双段；fallback (MiniMax-M3 等非 Anthropic 模型) 也能遵循格式约束；输出强制 `- **仓库名**：动作1；动作2`
+- **活跃仓库分母**（v1.18+）：摘要末尾追加 `- 今日活跃 {n} / {N} 个仓库`；`get_today_commits_by_repo()` 返回值签名升级为 `(results, total_count)` 元组；让"漏仓库"主诉可观测化
+- **schedule 延迟容差**（v1.18+）：`main()` 入口对 `GITHUB_EVENT_NAME=schedule` 的 daily review 加 4 小时延迟容差，延迟过大时跳过避免污染次日凌晨 Issue 区块；`workflow_dispatch` 手动触发不受限
+- **sections 三分类重写**（v1.18.1+，commit `9bbbe11`）：`generate_daily_ai_review` 的 sections 构造从"二分（有无独有）"改为"三分（`batch_only` / `mixed` / `unique_only`）"，彻底修复 60+ 仓库场景下的两个边界 bug：
+  1. **共有真正抽取**：sections 顶部单独抽出"【今日批量同步】共有 N 项操作"块，而非平铺到每个仓库的"另同步"附注；混合仓库（`mixed`）的独有工作完整列出但不重复批量部分
+  2. **独有不截断**：移除原 `unique[:8]` 上限，任何仓库独有 commit 一条不漏；仅做批量同步的仓库（`batch_only`）聚合到末尾"另有 N 个仓库仅执行批量同步：…"
+- **LLM 格式约束 7/8/9 条**（v1.18.1+，commit `8ab655a`）：`system_rules` 追加三条面向三分类 sections 的格式规则：看到【今日批量同步】→ 合并为单行 `- **批量同步（X 仓库）**：操作1；操作2`；看到【xxx 独有工作（另有批量同步）】→ 只输出独有；看到【xxx 独有工作】→ 完整输出独有；确保 fallback LLM (MiniMax-M3) 也能正确格式化
+- **执行日志补全**（v1.18.2+）：在关键路径加 `[INFO]`/`[WARN]` 前缀日志，覆盖以下盲区：
+  - `main()` daily review 块入口：打印当前北京时间 + 今日 UTC 数据起点（定位凌晨触发 / 数据窗口偏移）
+  - `get_today_commits_by_repo()`：打印 since_iso、仓库池大小（追踪 + 新发现）、扫描完成汇总
+  - `_fetch_commits()`：gh api 非零返回 → `[WARN]` + stderr 前 120 字符；JSON 解析失败 → `[WARN]` + 异常内容（原先静默 `pass`）
+  - `_get_today_push_repos()`：打印 Events API 总条数、今日条数、新发现仓库数
+  - `generate_daily_ai_review()`：打印 sections 分类统计 + 字符数（LLM 输入），以及 LLM 响应字符数 + 摘要行数
+  - `backfill_missing_issues()`：打印入口"扫描 N 个活跃仓库"
 - **GraphQL Owner 兼容**（v1.16.0）：首个 GraphQL 查询改用 `repositoryOwner(login:)` + `... on User` / `... on Organization` inline fragments，同时支持个人账号和 Org 账号（原 `user(login:)` 在 Org owner 下静默返回 null）；解析路径对应改为 `data["data"]["repositoryOwner"]["projectV2"]`
 - **GraphQL 分页 cursor**（v1.16.0）：分页不再将 cursor 值字符串拼入 query 默认值，改为通过 `-f cursor=<value>` 参数传递；`$cursor: String`（nullable）变量无需传入时自然解析为 `null`，效果等同于 `after: null` = 从头分页；分页解析异常从静默 break 改为打印 `[warn]` 日志后 break
 

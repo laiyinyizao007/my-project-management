@@ -473,6 +473,13 @@
       "type": "personal",
       "added_date": "2026-09-15",
       "score_history": []
+    },
+    "Antigravity-Manager": {
+      "name": "Antigravity-Manager",
+      "icon": "📦",
+      "type": "personal",
+      "added_date": "2026-09-17",
+      "score_history": []
     }
   },
   "ignored_repos": []

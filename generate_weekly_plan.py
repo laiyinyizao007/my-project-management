@@ -415,6 +415,25 @@ def _make_client():
     return _make_client_with_env(api_key, base_url)
 
 
+def _log_primary_failure_hint(primary_exc):
+    """主 LLM 失败时打印排查建议（基于错误信息文本启发式匹配）。"""
+    msg = str(primary_exc)
+    hints = []
+    if "Relay service error" in msg or "No available" in msg:
+        hints.append(
+            "💡 主 LLM 中转无可用账号（{model}）。检查 ANTHROPIC_BASE_URL 中转账号余额，或"
+            " 切换到 LLM_PRIMARY_* 系列环境变量指向其他 LLM provider。".format(
+                model=os.environ.get("LLM_PRIMARY_MODEL") or "claude-haiku-4-5-20251001"
+            )
+        )
+    if "401" in msg or "Unauthorized" in msg or "Authentication" in msg:
+        hints.append("💡 主 LLM 鉴权失败：检查 ANTHROPIC_API_KEY / LLM_PRIMARY_API_KEY 是否过期")
+    if "429" in msg or "rate" in msg.lower():
+        hints.append("💡 主 LLM 限流：_claude_call 已自动重试 4 次仍失败，已降级到 fallback")
+    for h in hints:
+        print(h, file=sys.stderr)
+
+
 def _call_with_fallback(*, messages, max_tokens, system=None):
     """包装层：主 client（_claude_call 4 次重试）失败 → fallback client（同 4 次重试）。
 
@@ -429,10 +448,13 @@ def _call_with_fallback(*, messages, max_tokens, system=None):
     if system is not None:
         primary_kwargs["system"] = system
 
+    primary_exc = None  # 显式初始化：PEP 3134 except 块结束时会清除 `as var` 绑定
     try:
         return _claude_call(primary, **primary_kwargs)
-    except Exception as primary_exc:
-        print(f"⚠️  主 LLM 失败：{type(primary_exc).__name__}: {primary_exc}", file=sys.stderr)
+    except Exception as e:
+        primary_exc = e
+        print(f"⚠️  主 LLM 失败：{type(e).__name__}: {e}", file=sys.stderr)
+        _log_primary_failure_hint(e)
 
     fallback_key = os.environ.get("LLM_FALLBACK_API_KEY")
     if not fallback_key:
@@ -780,13 +802,16 @@ def _get_today_push_repos():
         return {}
     tracked = set(_load_tracked_repos().keys())
     extra = {}
+    today_events_count = 0
     for ev in events:
         if ev.get("ts", "") < since_str:
             continue
+        today_events_count += 1
         full_name = ev.get("repo", "")
         short = full_name.split("/")[-1] if "/" in full_name else full_name
         if short and short not in tracked and short not in extra:
             extra[short] = {"name": short, "icon": "📦", "type": "personal"}
+    print(f"[INFO] Events API：共 {len(events)} 条推送事件，其中今日 {today_events_count} 条，新发现未追踪仓库 {len(extra)} 个")
     return extra
 
 
@@ -816,27 +841,46 @@ def get_today_commits_by_repo():
     bn = _beijing_now()
     today_start_utc = bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)
     since_iso = today_start_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+    print(f"[INFO] 数据窗口：since_iso={since_iso}（北京时间 {bn.strftime('%H:%M')}，起点为今日 00:00）")
 
     extra = _get_today_push_repos()
     _persist_new_tracked_repos(extra)
 
     all_repos = dict(_load_tracked_repos())
     all_repos.update(extra)
+    print(f"[INFO] 仓库池：{len(all_repos) - len(extra)} 个追踪仓库 + {len(extra)} 个今日新发现 = 合计 {len(all_repos)} 个")
 
     def _fetch_commits(repo, info):
+        # 取 commit message 第一段（到第一个空行）+ 涉及的文件名
+        # 文件名提供给 LLM 以生成"具体到文件名"的摘要（A2 修复）
         r = subprocess.run(
             ["gh", "api",
              f"/repos/{GITHUB_USER}/{repo}/commits?since={since_iso}&per_page=100",
-             "--jq", '[.[].commit.message | split("\n")[0]]'],
+             "--jq",
+             '[.[] | {msg: (.commit.message | split("\n\n")[0]), '
+             'files: ([.files[]?.filename] | unique | .[0:10])}]'],
             capture_output=True, text=True,
         )
-        if r.returncode == 0:
-            try:
-                commits = [c for c in json.loads(r.stdout) if c.strip()]
-                if commits:
-                    return repo, {"info": info, "commits": commits}
-            except Exception:
-                pass
+        if r.returncode != 0:
+            if r.stderr.strip():
+                print(f"[WARN] {repo}: gh api 失败（rc={r.returncode}）：{r.stderr.strip()[:120]}", file=sys.stderr)
+            return repo, None
+        try:
+            rows = json.loads(r.stdout)
+            msgs = []
+            files = []
+            for row in rows:
+                m = (row.get("msg") or "").strip()
+                if m:
+                    # 单条 commit message 截断到 200 字符，避免 prompt 超长
+                    msgs.append(m[:200])
+                files.extend(row.get("files") or [])
+            # 保序去重，最多 30 个文件名
+            files = list(dict.fromkeys(files))[:30]
+            if msgs:
+                return repo, {"info": info, "commits": msgs, "files": files}
+        except Exception as exc:
+            print(f"[WARN] {repo}: JSON 解析失败：{exc}", file=sys.stderr)
         return repo, None
 
     results = {}
@@ -847,7 +891,9 @@ def get_today_commits_by_repo():
             repo, data = f.result()
             if data:
                 results[repo] = data
-    return results
+    print(f"[INFO] 扫描完成：{len(results)} / {len(all_repos)} 个仓库今日有活动")
+    # 返回 (今日活跃仓库 dict, 追踪+今日发现的仓库总数)
+    return results, len(all_repos)
 
 
 def _dedup_ordered(seq):
@@ -856,14 +902,22 @@ def _dedup_ordered(seq):
     return [x for x in seq if not (x in seen or seen.add(x))]
 
 
-def generate_daily_ai_review(today_commits_by_repo):
-    """用 Claude 生成当日各仓库完成摘要和阻塞"""
+def generate_daily_ai_review(today_commits_by_repo, total_tracked_count=None):
+    """用 Claude 生成当日各仓库完成摘要和阻塞
+
+    Args:
+        today_commits_by_repo: 今日活跃仓库的 {repo: {info, commits, files}} 映射
+        total_tracked_count: 追踪+今日发现的仓库总数（用于A4 在摘要中展示分母）
+    """
     client = _make_client()
     if not client:
         return None, None
 
     if not today_commits_by_repo:
-        return "- （今日无 commit 活动）", "无"
+        completed = "- （今日无 commit 活动）"
+        if total_tracked_count:
+            completed += f"\n- 今日活跃 0 / {total_tracked_count} 个仓库"
+        return completed, "无"
 
     from collections import Counter
 
@@ -882,65 +936,107 @@ def generate_daily_ai_review(today_commits_by_repo):
     msg_freq = Counter(m for msgs in deduped.values() for m in set(msgs))
     shared = {m for m, cnt in msg_freq.items() if cnt >= threshold}
 
-    # 按是否有独有工作分组
-    batch_only = []   # 只有共有 commits，无独有 → 归入批量同步组
-    with_unique = []  # 有独有 commits（可能也有共有）→ 单独列一行
+    # 三分类：
+    #   batch_only  —— 仅做共有工作（独有=0）→ 末尾聚合为一行
+    #   mixed       —— 既有共有也有独有 → 单独成块，独有完整列出
+    #   unique_only —— 只有独有（无共有）→ 单独成块，独有完整列出
+    # 设计：把"共有操作"在 sections 顶部独立抽出一行（每个仓库只贡献一次计数），
+    # 任何仓库的独有 commit 一条不漏（不再 unique[:8] 截断）。
+    batch_only = []
+    mixed = []
+    unique_only = []
 
     for repo, msgs in deduped.items():
-        msg_set = set(msgs)
-        has_unique = bool(msg_set - shared)
-        has_shared = bool(msg_set & shared)
-        if has_unique or not has_shared:
-            with_unique.append(repo)
+        repo_unique = [m for m in msgs if m not in shared]
+        repo_shared = [m for m in msgs if m in shared]
+        if repo_unique and repo_shared:
+            mixed.append((repo, repo_unique))
+        elif repo_unique:
+            unique_only.append((repo, repo_unique))
         else:
             batch_only.append(repo)
 
-    # 批量同步组少于 2 个时不成组
-    if len(batch_only) < 2:
-        with_unique.extend(batch_only)
-        batch_only = []
-
     sections = ""
 
-    if batch_only:
-        rep_msgs = [m for m in deduped[batch_only[0]] if m in shared]
-        # 仓库名太多时缩写，避免 prompt 超长
-        show_names = [today_commits_by_repo[r]["info"].get("name", r) for r in batch_only[:10]]
-        extra = len(batch_only) - 10
-        name_str = " / ".join(show_names) + (f"…等 {extra} 个仓库" if extra > 0 else "")
-        sections += f"\n【批量同步组：{name_str}（共 {len(batch_only)} 个仓库）】\n"
-        sections += "  共有操作：\n" + "\n".join(f"    {m}" for m in rep_msgs[:6]) + "\n"
+    # 1. 抽取共有操作（顶部一块，仓库只贡献一次计数）
+    if shared:
+        shared_sorted = sorted(shared, key=lambda m: (-msg_freq[m], m))
+        sections += f"\n【今日批量同步】共有 {len(shared)} 项操作（每个操作至少 {threshold} 个仓库执行）：\n"
+        for m in shared_sorted:
+            sections += f"  - {m}（{msg_freq[m]} 仓库）\n"
+        sections += "\n"
 
-    # 独立仓库最多显示 20 个，避免 prompt 过长
-    for repo in with_unique[:20]:
+    # 2. mixed：完整列出独有工作（不截断）
+    for repo, unique_msgs in mixed:
         data = today_commits_by_repo[repo]
         name = data["info"].get("name", repo)
-        msgs = deduped[repo]
-        unique = [m for m in msgs if m not in shared]
-        common = [m for m in msgs if m in shared]
-        total = len(data["commits"])
-        sections += f"\n【{name}】（{total} commits）\n"
-        if unique:
-            sections += "  独有工作：\n" + "\n".join(f"    {m}" for m in unique[:8]) + "\n"
-        if common:
-            sections += "  另同步：" + "、".join(common[:3]) + "\n"
-    if len(with_unique) > 20:
-        sections += f"\n（另有 {len(with_unique) - 20} 个仓库有独立工作，略）\n"
+        files = data.get("files") or []
+        sections += f"\n【{name}】独有工作（{len(unique_msgs)} 条，另有批量同步）：\n"
+        for m in unique_msgs:
+            sections += f"  - {m}\n"
+        if files:
+            sections += "  涉及文件（仅供你写摘要时参考，不要直接复制）：" + "、".join(files[:10]) + "\n"
 
-    prompt = f"""根据以下分组信息，写简洁的每日完成总结。
+    # 3. unique_only：完整列出所有
+    for repo, unique_msgs in unique_only:
+        data = today_commits_by_repo[repo]
+        name = data["info"].get("name", repo)
+        files = data.get("files") or []
+        sections += f"\n【{name}】独有工作（{len(unique_msgs)} 条）：\n"
+        for m in unique_msgs:
+            sections += f"  - {m}\n"
+        if files:
+            sections += "  涉及文件（仅供你写摘要时参考，不要直接复制）：" + "、".join(files[:10]) + "\n"
 
-{sections}
-输出规则（严格遵守，每行必须以 "- " 开头）：
-1. 批量同步组合并为一行：- **批量同步（仓库A/仓库B/…共N个）**：做了什么（具体列操作内容）
-2. 有独有工作的仓库各自一行：- **仓库名**：工作内容
-3. 描述具体，列文件名或功能点，不要笼统说"工作流文件"
+    # 4. 仅做共有工作的仓库：聚合到末尾（不再独立成行）
+    if batch_only:
+        names = [today_commits_by_repo[r]["info"].get("name", r) for r in batch_only]
+        if len(names) <= 15:
+            sections += f"\n另有 {len(batch_only)} 个仓库仅执行批量同步：{', '.join(names)}\n"
+        else:
+            head = ', '.join(names[:15])
+            sections += f"\n另有 {len(batch_only)} 个仓库仅执行批量同步（前 15 个）：{head}...\n"
 
-只返回 bullet 列表行（每行以 "- " 开头），不要任何其他文字。"""
+    # A3：拆分 system 约束 + user 内容（[系统约束]/[用户内容] 双段前缀）
+    # 设计原因：fallback LLM 不一定支持 Anthropic 的 system 参数，把约束拼到 user 头部
+    # 可同时兼容主备，且对 fallback 模型输出格式约束更强
+    system_rules = (
+        "[系统约束]\n"
+        "你是一名简洁的项目管理助理，专门汇总每日 commit 工作。\n"
+        "严格遵守输出格式：\n"
+        "  1. 每行以 \"- \" 开头，且仅一个仓库一行\n"
+        "  2. 格式：- **仓库名**：动作1（具体到文件名/功能点）；动作2\n"
+        "  3. 多个动作用全角分号「；」分隔\n"
+        "  4. 不要 markdown 标题、不要代码块、不要任何解释或开场白\n"
+        "  5. 若无工作内容则输出：- （今日无 commit 活动）\n"
+        "  6. 描述必须具体到文件名（如 docs/X.md、babel.config.js）或功能点；\n"
+        "     禁止笼统措辞（如\"补充文档\"、\"工作流文件\"、\"相关代码\"）\n"
+        "  7. 看到【今日批量同步】段：合并为一行 `- **批量同步（X 仓库）**：操作1；操作2…`\n"
+        "     （X 为该段仓库数；操作列表取自该段\"共有 N 项操作\"，按出现仓库数倒序）\n"
+        "  8. 看到【xxx 独有工作（N 条，另有批量同步）】段：只输出独有部分，\n"
+        "     格式 `- **xxx**：独有动作1；独有动作2`，**不要重复批量同步动作**\n"
+        "  9. 看到【xxx 独有工作（N 条）】段（无\"另有批量同步\"）：完整输出独有部分"
+    )
+    user_payload = (
+        f"[用户内容]\n"
+        f"按以下分组信息生成每日完成总结：\n\n{sections}\n\n"
+        f"直接输出 bullet 列表，不要任何解释。"
+    )
+    prompt = f"{system_rules}\n\n{user_payload}"
+    print(f"[INFO] LLM 输入：{n} 个仓库（shared={len(shared)}, mixed={len(mixed)}, unique_only={len(unique_only)}, batch_only={len(batch_only)}），sections {len(sections)} 字符")
 
     resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=1500)
     text = resp.content[0].text.strip()
     bullet_lines = [ln for ln in text.splitlines() if ln.strip().startswith("-")]
+    print(f"[INFO] LLM 响应：{len(text)} 字符，提取到 {len(bullet_lines)} 条摘要行")
     completed = "\n".join(bullet_lines) if bullet_lines else "- （详见 commits）"
+
+    # A4：在摘要末尾追加"今日活跃 X / N 个仓库"分母，让用户能立刻判断是否漏抓
+    # 去重：若 LLM 已在 prompt 提示下自行输出了该统计行，不再重复
+    if total_tracked_count:
+        stat_line = f"- 今日活跃 {n} / {total_tracked_count} 个仓库"
+        if stat_line not in completed:
+            completed += f"\n{stat_line}"
     return completed, "无"
 
 
@@ -1127,7 +1223,7 @@ Open issues（type: task）：
 
 def auto_close_resolved_issues():
     """每日运行：根据今日 commits 自动关闭或提醒已完成的 type:task Issue"""
-    today_by_repo = get_today_commits_by_repo()
+    today_by_repo, _total = get_today_commits_by_repo()
     if not today_by_repo:
         print("ℹ️  今日无 commit 活动，跳过自动关闭")
         return
@@ -1218,6 +1314,7 @@ def backfill_missing_issues(today_commits):
     """扫描今日 commits，为没有对应 Issue 的工作补建 Issue，并评估是否立即关闭"""
     if not today_commits:
         return
+    print(f"[INFO] backfill 扫描 {len(today_commits)} 个活跃仓库")
     client = _make_client()
     if not client:
         print("ℹ️  无 Claude client，跳过 Issue 补建")
@@ -1301,6 +1398,23 @@ def main():
     weekly_review = "--weekly-review" in sys.argv
     auto_close = "--auto-close" in sys.argv
 
+    # B1：schedule 延迟容差（仅对定时触发的 daily review 生效，手动触发不受限）
+    # 当定时任务延迟 > 4 小时（例如北京 21:30 → 次日 02:00），跳过避免污染次日凌晨的 Issue 区块
+    if daily_review and os.environ.get("GITHUB_EVENT_NAME") == "schedule":
+        now_utc = datetime.now(timezone.utc)
+        expected_utc_hour = 13  # 北京 21:30 = UTC 13:30
+        expected_min = expected_utc_hour * 60 + 30
+        now_min = now_utc.hour * 60 + now_utc.minute
+        delay_min = (now_min - expected_min) % (24 * 60)
+        if delay_min > 4 * 60:
+            delay_h = delay_min / 60
+            print(
+                f"⚠️  schedule 延迟约 {delay_h:.1f} 小时（当前 UTC {now_utc.hour:02d}:{now_utc.minute:02d}，"
+                f"预期 {expected_utc_hour:02d}:30），跳过本次 daily review 避免污染次日 Issue"
+            )
+            print("   提示：如需补跑昨日回顾，请用 workflow_dispatch 手动触发")
+            return
+
     week_info = get_week_info()
     print(f"📅 生成周计划：{week_info['week_id']}  ({week_info['monday']} ~ {week_info['sunday']})")
 
@@ -1310,14 +1424,16 @@ def main():
         day_idx = bn.weekday()  # 0=Monday … 6=Sunday
         day_label = WEEKDAY_ZH[day_idx]
         print(f"📝 --daily-review：生成 {day_label} 每日回顾（北京时间 {bn.strftime('%Y-%m-%d')}）")
+        _since_utc = bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)
+        print(f"[INFO] 北京时间：{bn.strftime('%Y-%m-%d %H:%M')}，今日数据起点（UTC）：{_since_utc.strftime('%Y-%m-%dT%H:%M:%SZ')}")
         issue_number = get_existing_issue_number(week_info["title"])
         if not issue_number:
             print("⚠️  本周计划 Issue 不存在，跳过", file=sys.stderr)
             return
-        today_commits = get_today_commits_by_repo()
+        today_commits, total_tracked = get_today_commits_by_repo()
         total_commits = sum(len(d["commits"]) for d in today_commits.values())
-        print(f"   今日 commits：{total_commits} 条（{len(today_commits)} 个仓库有活动）")
-        completed, blocked = generate_daily_ai_review(today_commits)
+        print(f"   今日 commits：{total_commits} 条（{len(today_commits)} / {total_tracked} 个仓库有活动）")
+        completed, blocked = generate_daily_ai_review(today_commits, total_tracked_count=total_tracked)
         if completed is None:
             completed = "- （无 AI 摘要）"
             blocked = "无"
