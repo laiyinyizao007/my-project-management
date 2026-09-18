@@ -480,6 +480,13 @@
       "type": "personal",
       "added_date": "2026-09-17",
       "score_history": []
+    },
+    "pixelclaw-pilot": {
+      "name": "pixelclaw-pilot",
+      "icon": "📦",
+      "type": "personal",
+      "added_date": "2026-09-19",
+      "score_history": []
     }
   },
   "ignored_repos": []
