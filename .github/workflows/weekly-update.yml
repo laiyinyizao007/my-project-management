@@ -1,7 +1,7 @@
 name: 每周 Profile 自动更新
 on:
   schedule:
-    - cron: '0 1 * * 0'   # 每周日 UTC 1:00（北京时间 9:00）
+    - cron: '0 14 * * 0'  # 每周日 UTC 14:00（北京时间 22:00）
   workflow_dispatch:
 jobs:
   update:
