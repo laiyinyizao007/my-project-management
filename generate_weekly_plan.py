@@ -1085,6 +1085,8 @@ def generate_weekly_ai_review(week_info):
 下周重点：[建议下周重点方向，一句话40字以内]"""
 
     resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=150)
+    if resp is None:
+        return None
     return resp.content[0].text.strip()
 
 
