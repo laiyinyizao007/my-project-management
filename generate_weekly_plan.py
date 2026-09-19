@@ -1044,39 +1044,16 @@ def generate_daily_ai_review(today_commits_by_repo, total_tracked_count=None):
 
 
 def generate_weekly_ai_review(week_info):
-    """用 Claude 生成周回顾（周六早上触发）"""
-    bn = _beijing_now()
-    monday_bn = bn - timedelta(days=bn.weekday())
-    since_iso = (monday_bn.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=8)).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-    def _fetch_repo_count(repo, info):
-        r = subprocess.run(
-            ["gh", "api",
-             f"/repos/{GITHUB_USER}/{repo}/commits?since={since_iso}&per_page=50",
-             "--jq", "length"],
-            capture_output=True, text=True,
-        )
-        if r.returncode == 0:
-            try:
-                count = int(r.stdout.strip())
-                if count > 0:
-                    return f"- {info.get('name', repo)}: {count} commits"
-            except Exception:
-                pass
+    """用 Claude 生成周回顾，优先读取 weekly-reports/ 文件，避免重复查询 API"""
+    report_path = BASE_DIR / "weekly-reports" / f"{week_info['week_id']}.md"
+    if report_path.exists():
+        week_summary = report_path.read_text(encoding="utf-8")
+        print(f"   📄 读取周报文件：{report_path.name}")
+    else:
+        print(f"   ⚠️  周报文件不存在（{report_path.name}），跳过周回顾", file=sys.stderr)
         return None
 
-    tracked = list(_load_tracked_repos().items())
-    summary_lines = []
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        futures = [pool.submit(_fetch_repo_count, repo, info) for repo, info in tracked]
-        for f in as_completed(futures):
-            line = f.result()
-            if line:
-                summary_lines.append(line)
-
-    week_summary = "\n".join(summary_lines) if summary_lines else "（本周无 commit 记录）"
-
-    prompt = f"""根据以下本周 commits 摘要，生成周回顾。严格按格式输出，不要其他文字：
+    prompt = f"""根据以下本周周报，生成周回顾。严格按格式输出，不要其他文字：
 
 {week_summary}
 
