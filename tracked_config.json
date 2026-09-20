@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": "2026-09-15",
+  "last_updated": "2026-09-20",
   "settings": {
     "auto_add_threshold": 40,
     "auto_remove_threshold": 25
@@ -19,6 +19,10 @@
         {
           "date": "2026-09-15",
           "score": 20
+        },
+        {
+          "date": "2026-09-20",
+          "score": 20
         }
       ]
     },
@@ -34,6 +38,10 @@
         },
         {
           "date": "2026-09-15",
+          "score": 30
+        },
+        {
+          "date": "2026-09-20",
           "score": 30
         }
       ]
@@ -63,6 +71,10 @@
         {
           "date": "2026-09-15",
           "score": 30
+        },
+        {
+          "date": "2026-09-20",
+          "score": 30
         }
       ]
     },
@@ -79,6 +91,10 @@
         {
           "date": "2026-09-15",
           "score": 30
+        },
+        {
+          "date": "2026-09-20",
+          "score": 30
         }
       ]
     },
@@ -91,6 +107,10 @@
         {
           "date": "2026-09-11",
           "score": 45
+        },
+        {
+          "date": "2026-09-20",
+          "score": 20
         }
       ]
     },
@@ -107,6 +127,10 @@
         {
           "date": "2026-09-15",
           "score": 20
+        },
+        {
+          "date": "2026-09-20",
+          "score": 20
         }
       ]
     },
@@ -115,378 +139,660 @@
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "atomic-craft-ui": {
       "name": "atomic-craft-ui",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 20
+        }
+      ]
     },
     "arksus-yunzeanquan": {
       "name": "arksus-yunzeanquan",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "AIslave": {
       "name": "AIslave",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "260131patent": {
       "name": "260131patent",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "20260405approval-ment-main": {
       "name": "20260405approval-ment-main",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "20260131sdcard": {
       "name": "20260131sdcard",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 20
+        }
+      ]
     },
     "vpn-device-manager": {
       "name": "vpn-device-manager",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 5
+        }
+      ]
     },
     "telegram": {
       "name": "telegram",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 15
+        }
+      ]
     },
     "wewe-rss-data": {
       "name": "wewe-rss-data",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 5
+        }
+      ]
     },
     "system-blueprint-studio": {
       "name": "system-blueprint-studio",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "wechat-bot": {
       "name": "wechat-bot",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "SolidGPT": {
       "name": "SolidGPT",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "rules_template": {
       "name": "rules_template",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "stagegate-flow-45": {
       "name": "stagegate-flow-45",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 20
+        }
+      ]
     },
     "prismtek-atomic-ui": {
       "name": "prismtek-atomic-ui",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "redroid-manager": {
       "name": "redroid-manager",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "wechat-ingest": {
       "name": "wechat-ingest",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 25
+        }
+      ]
     },
     "openclaw-backup-20260414": {
       "name": "openclaw-backup-20260414",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 5
+        }
+      ]
     },
     "openclaw-custom-api": {
       "name": "openclaw-custom-api",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "test-api": {
       "name": "test-api",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "obsidian-mcp-docker": {
       "name": "obsidian-mcp-docker",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 5
+        }
+      ]
     },
     "n8n-workflows": {
       "name": "n8n-workflows",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "minesweeper-multiplayer": {
       "name": "minesweeper-multiplayer",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 20
+        }
+      ]
     },
     "merge-workspace": {
       "name": "merge-workspace",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 5
+        }
+      ]
     },
     "lifeOS": {
       "name": "lifeOS",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "jobsearch": {
       "name": "jobsearch",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 5
+        }
+      ]
     },
     "laiyinyizao007": {
       "name": "laiyinyizao007",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "green-compass-net": {
       "name": "green-compass-net",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 20
+        }
+      ]
     },
     "Hardware": {
       "name": "Hardware",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 5
+        }
+      ]
     },
     "esp32-s3-sense-homeassistant-autodiary": {
       "name": "esp32-s3-sense-homeassistant-autodiary",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "openclawinlifeos": {
       "name": "openclawinlifeos",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 25
+        }
+      ]
     },
     "duplicati-range": {
       "name": "duplicati-range",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "dotfiles-private": {
       "name": "dotfiles-private",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 15
+        }
+      ]
     },
     "Claude-Code-Zen-mcp-Skill-Work": {
       "name": "Claude-Code-Zen-mcp-Skill-Work",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "civic-mind2": {
       "name": "civic-mind2",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "claude-code-skills": {
       "name": "claude-code-skills",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "awesome-claude-code-subagents": {
       "name": "awesome-claude-code-subagents",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "claude": {
       "name": "claude",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 15
+        }
+      ]
     },
     "awesome-claude-code": {
       "name": "awesome-claude-code",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "averypiopenclaw": {
       "name": "averypiopenclaw",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "MediaCrawler": {
       "name": "MediaCrawler",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "redroid-agent": {
       "name": "redroid-agent",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 5
+        }
+      ]
     },
     "resume-renew": {
       "name": "resume-renew",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "racknerdVPN": {
       "name": "racknerdVPN",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "pi-monitor": {
       "name": "pi-monitor",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 5
+        }
+      ]
     },
     "pixelclaw": {
       "name": "pixelclaw",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "clarity-briefing-hub": {
       "name": "clarity-briefing-hub",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "averypi-obsidian": {
       "name": "averypi-obsidian",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "homeassistant-manager": {
       "name": "homeassistant-manager",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "averivendell-others": {
       "name": "averivendell-others",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 15
+        }
+      ]
     },
     "tools": {
       "name": "tools",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-15",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 15
+        }
+      ]
     },
     "Antigravity-Manager": {
       "name": "Antigravity-Manager",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-17",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     },
     "pixelclaw-pilot": {
       "name": "pixelclaw-pilot",
       "icon": "📦",
       "type": "personal",
       "added_date": "2026-09-19",
-      "score_history": []
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 20
+        }
+      ]
+    },
+    "fork-pywxdump": {
+      "name": "Fork Pywxdump",
+      "icon": "🐍",
+      "type": "personal",
+      "added_date": "2026-09-20",
+      "score_history": [
+        {
+          "date": "2026-09-20",
+          "score": 30
+        }
+      ]
     }
   },
   "ignored_repos": []
