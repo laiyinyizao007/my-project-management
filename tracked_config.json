@@ -793,6 +793,13 @@
           "score": 30
         }
       ]
+    },
+    "blank-canvas": {
+      "name": "blank-canvas",
+      "icon": "📦",
+      "type": "personal",
+      "added_date": "2026-09-24",
+      "score_history": []
     }
   },
   "ignored_repos": []
