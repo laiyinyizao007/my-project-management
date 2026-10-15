@@ -42,7 +42,7 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
       - name: 安装依赖
-        run: pip install anthropic
+        run: pip install anthropic openai
       - name: 生成并创建周计划 Issue
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -17,7 +17,7 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
       - name: 安装依赖
-        run: pip install anthropic python-dotenv
+        run: pip install anthropic openai python-dotenv
       - name: 运行 repo_analyzer（增量分析 + 更新追踪配置）
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

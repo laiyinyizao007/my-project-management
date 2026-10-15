@@ -366,6 +366,28 @@ def get_open_issues_fallback():
 
 # ── 5. Claude API 调用（带限额重试 + fallback）────────────────────────────────
 
+def _openai_call(client, *, max_wait_seconds=300, **kwargs):
+    """调用 OpenAI 兼容 API（MiniMax 等），遇到限额时等待重试。"""
+    import time
+    for attempt in range(4):
+        try:
+            resp = client.chat.completions.create(**kwargs)
+            return resp
+        except Exception as e:
+            err_str = str(e).lower()
+            if "rate" in err_str or "429" in err_str or "rate limit" in err_str:
+                wait_time = 30 * (attempt + 1)
+                print(f"⏳ API 限额（第 {attempt+1} 次），{wait_time}s 后重试...", file=sys.stderr)
+                time.sleep(wait_time)
+            elif attempt < 3:
+                wait_time = 10 * (attempt + 1)
+                print(f"⏳ API 错误（第 {attempt+1} 次），{wait_time}s 后重试: {e}", file=sys.stderr)
+                time.sleep(wait_time)
+            else:
+                raise
+    raise RuntimeError("API 调用失败，重试次数耗尽")
+
+
 def _claude_call(client, *, max_wait_seconds=300, **kwargs):
     """调用 Claude API，遇到限额时按 retry-after 等待重试；超过 max_wait_seconds 则抛异常。"""
     import time
@@ -392,14 +414,24 @@ def _claude_call(client, *, max_wait_seconds=300, **kwargs):
 
 
 def _make_client_with_env(api_key, base_url):
-    """从给定 (api_key, base_url) 构造 anthropic.Anthropic 客户端。任一为 None 时返回 None。"""
+    """从给定 (api_key, base_url) 构造客户端。
+    MiniMax/OpenAI 兼容端点用 openai SDK，其他用 anthropic SDK。
+    返回 (client_type, client) 元组，client_type 为 "openai" 或 "anthropic"。
+    """
     if not api_key:
         return None
-    import anthropic
-    kwargs = {"api_key": api_key}
-    if base_url:
-        kwargs["base_url"] = base_url
-    return anthropic.Anthropic(**kwargs)
+    if base_url and ("minimax" in base_url.lower() or "openai" in base_url.lower()):
+        from openai import OpenAI
+        kwargs = {"api_key": api_key}
+        if base_url:
+            kwargs["base_url"] = base_url
+        return ("openai", OpenAI(**kwargs))
+    else:
+        import anthropic
+        kwargs = {"api_key": api_key}
+        if base_url:
+            kwargs["base_url"] = base_url
+        return ("anthropic", anthropic.Anthropic(**kwargs))
 
 
 def _make_client():
@@ -438,6 +470,7 @@ def _call_with_fallback(*, messages, max_tokens, system=None):
     """包装层：主 client（_claude_call 4 次重试）失败 → fallback client（同 4 次重试）。
 
     主 client 缺失或未配置 fallback 时，行为 = 现状（仅主 client，不报错）。
+    返回文本内容字符串，调用方不需要关心用的是哪个 SDK。
     """
     primary = _make_client()
     if not primary:
@@ -450,7 +483,12 @@ def _call_with_fallback(*, messages, max_tokens, system=None):
 
     primary_exc = None  # 显式初始化：PEP 3134 except 块结束时会清除 `as var` 绑定
     try:
-        return _claude_call(primary, **primary_kwargs)
+        if primary[0] == "openai":
+            resp = _openai_call(primary[1], **primary_kwargs)
+            return resp.choices[0].message.content.strip()
+        else:
+            resp = _claude_call(primary[1], **primary_kwargs)
+            return resp.content[0].text.strip()
     except Exception as e:
         primary_exc = e
         print(f"⚠️  主 LLM 失败：{type(e).__name__}: {e}", file=sys.stderr)
@@ -470,12 +508,23 @@ def _call_with_fallback(*, messages, max_tokens, system=None):
         raise RuntimeError("LLM_FALLBACK_API_KEY 已设但 client 创建失败") from primary_exc
 
     fallback_model = os.environ.get("LLM_FALLBACK_MODEL") or "MiniMax-M3"
-    fallback_kwargs = {"model": fallback_model, "max_tokens": max_tokens, "messages": messages}
-    if system is not None:
-        fallback_kwargs["system"] = system
 
-    print(f"🔄 切换到 fallback LLM（model={fallback_model}）", file=sys.stderr)
-    return _claude_call(fallback, **fallback_kwargs)
+    # OpenAI 兼容格式：system 作为首条 user 消息混入
+    if fallback[0] == "openai":
+        openai_messages = list(messages)
+        if system:
+            openai_messages.insert(0, {"role": "system", "content": system})
+        fallback_kwargs = {"model": fallback_model, "max_tokens": max_tokens, "messages": openai_messages}
+        print(f"🔄 切换到 fallback LLM（model={fallback_model}, openai）", file=sys.stderr)
+        resp = _openai_call(fallback[1], **fallback_kwargs)
+        return resp.choices[0].message.content.strip()
+    else:
+        fallback_kwargs = {"model": fallback_model, "max_tokens": max_tokens, "messages": messages}
+        if system is not None:
+            fallback_kwargs["system"] = system
+        print(f"🔄 切换到 fallback LLM（model={fallback_model}）", file=sys.stderr)
+        resp = _claude_call(fallback[1], **fallback_kwargs)
+        return resp.content[0].text.strip()
 
 
 # ── 6. Claude Haiku 生成计划 ───────────────────────────────────────────────
@@ -521,10 +570,9 @@ def generate_ai_plan(week_info, weekly_progress, sprint_issues):
 - 重点参考高优先级标签（P0/P1）和上周未完成方向
 """
 
-    resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=600)
-    if resp is None:
+    raw = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=600)
+    if raw is None:
         return None
-    raw = resp.content[0].text.strip()
     return _parse_ai_sections(raw)
 
 
