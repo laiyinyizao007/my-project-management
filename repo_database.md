@@ -1,6 +1,6 @@
 # GitHub 仓库数据库
 
-> 最后更新：2026-10-11 18:33 UTC  
+> 最后更新：2026-10-18 17:02 UTC  
 > 共 **121** 个仓库 ｜ 追踪 **61** 个 ｜ 本次重新分析 **0** 个（121 个命中缓存）
 
 ---
@@ -15,389 +15,11 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（1 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-10 |
-
-### 📦 racknerdVPN (`racknerdVPN`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | VLESS+Reality VPN configuration and deployment scripts for Xray on RackNerd VPS, with client configs for V2Ray, Clash, and Shadowrocket. |
-| 语言 | Shell |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
 | 活跃度 | 最近活跃（2 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-09 |
-
-### 📦 laiyinyizao007 (`laiyinyizao007`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Config files for my GitHub profile. |
-| 语言 | — |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（7 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-04 |
-
-### 📦 lifeOS (`lifeOS`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Personal life management system built in Python for tracking goals, habits, tasks, and daily routines in one unified interface. |
-| 语言 | Python |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 homeassistant-manager (`homeassistant-manager`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Tkinter GUI for managing Home Assistant Docker containers on Linux desktop. |
-| 语言 | Python |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 🐍 Fork Pywxdump (`fork-pywxdump`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | 获取微信账号信息(昵称/账号/手机/邮箱/数据库密钥/wxid)；PC微信数据库读取、解密脚本；聊天记录查看工具；聊天记录导出为html(包含语音图片)。支持多账户信息获取，支持所有微信版本。 |
-| 语言 | Python |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 esp32-s3-sense-homeassistant-autodiary (`esp32-s3-sense-homeassistant-autodiary`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | ESP32-S3 Sense-based automated diary system integrating with Home Assistant for sensor data logging and event recording. |
-| 语言 | C++ |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 duplicati-range (`duplicati-range`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Fault-tolerant Duplicati backup for Raspberry Pi: hourly incremental backups with auto-recovery. |
-| 语言 | Shell |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 Claude-Code-Zen-mcp-Skill-Work (`Claude-Code-Zen-mcp-Skill-Work`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Claude Code Zen MCP Skill Work |
-| 语言 | Python |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 claude-code-skills (`claude-code-skills`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Claude Code skills marketplace with 25+ reusable AI agent skills (MIT licensed). |
-| 语言 | Python |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 clarity-briefing-hub (`clarity-briefing-hub`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | TypeScript-based briefing hub application for organizing and presenting clear, structured information summaries. |
-| 语言 | TypeScript |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 civic-mind2 (`civic-mind2`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | TypeScript A2A platform where AI agents representing SecondMe users autonomously govern a virtual city through debates, voting, and emergent political simulation. |
-| 语言 | TypeScript |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 awesome-claude-code-subagents (`awesome-claude-code-subagents`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | A collection of 100+ specialized Claude Code subagents covering a wide range of development use cases |
-| 语言 | Shell |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 awesome-claude-code (`awesome-claude-code`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Curated list of tools, scripts, hooks, and resources for Claude Code power users. |
-| 语言 | Python |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 averypiopenclaw (`averypiopenclaw`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Personal AI assistant workspace managing multiple isolated projects via Git worktrees, with shared skills, memory, and agent configurations across trading, research, and infrastructure domains. |
-| 语言 | Python |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 averypi-obsidian (`averypi-obsidian`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Personal knowledge management vault combining PARA, Zettelkasten, and MOC methodologies, with Claude Code integration for AI-assisted note organization in Obsidian. |
-| 语言 | Shell |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 averivendell-projects (`averivendell-projects`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | VSCode extension and backup tools for managing n8n workflows hosted on HuggingFace Spaces, with automated GitHub backup and workflow monitoring. |
-| 语言 | JavaScript |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 🚀 Arksu (`arksusdemo`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | AI-powered occupational health management system demo, compliant with GBZ 188-2025. |
-| 语言 | TypeScript |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 arksus-yunzeanquan (`arksus-yunzeanquan`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Documentation hub for a smart safety management platform serving factory-in-factory environments, covering architecture specs, AI algorithms, API standards, and 1000+ functional requirements. |
-| 语言 | HTML |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 Antigravity-Manager (`Antigravity-Manager`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Professional Antigravity Account Manager & Switcher. One-click seamless account switching for Antigravity Tools. Built with Tauri v2 + React (Rust).专业的 Antigravity 账号管理与切换工具。为 Antigravity 提供一键无缝账号切换功能。 |
-| 语言 | Rust |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 AIslave (`AIslave`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Sleepless Agent - 24/7 AI助手守护进程，基于Claude Code CLI的智能任务管理系统 |
-| 语言 | Python |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 260131patent (`260131patent`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Chinese utility patent document templates and version control, compliant with CNIPA 2026 standards. |
-| 语言 | — |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 20260405approval-ment-main (`20260405approval-ment-main`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Vue 3 + TypeScript monorepo approval management system built with pnpm workspaces and Turbo, supporting green and sustainable enterprise workflow automation. |
-| 语言 | Vue |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 wechat-bot (`wechat-bot`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | a wechat bot using wechaty, which can archive web pages, analyze pictures, and automatically reply. |
-| 语言 | TypeScript |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
-
-### 📦 test-api (`test-api`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Python REST API test suite using pytest, targeting JSONPlaceholder and public test APIs. |
-| 语言 | Python |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
-
-### 📦 system-blueprint-studio (`system-blueprint-studio`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Visual studio for designing and documenting system architectures and blueprints, built with TypeScript. |
-| 语言 | TypeScript |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
-
-### 📦 SolidGPT (`SolidGPT`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Developer AI Persona Search Agent |
-| 语言 | Python |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
-
-### 📦 rules_template (`rules_template`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Agile-based AI coding assistant rules template for Cursor, CLINE, and RooCode with token-saving modes and shared rule definitions via symbolic links. |
-| 语言 | JavaScript |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-16 |
 
 ### 📦 resume-renew (`resume-renew`) *(缓存)*
 
@@ -407,11 +29,81 @@
 | 语言 | — |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 wechat-bot (`wechat-bot`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | a wechat bot using wechaty, which can archive web pages, analyze pictures, and automatically reply. |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 test-api (`test-api`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Python REST API test suite using pytest, targeting JSONPlaceholder and public test APIs. |
+| 语言 | Python |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 system-blueprint-studio (`system-blueprint-studio`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Visual studio for designing and documenting system architectures and blueprints, built with TypeScript. |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 SolidGPT (`SolidGPT`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Developer AI Persona Search Agent |
+| 语言 | Python |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 rules_template (`rules_template`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Agile-based AI coding assistant rules template for Cursor, CLINE, and RooCode with token-saving modes and shared rule definitions via symbolic links. |
+| 语言 | JavaScript |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 redroid-manager (`redroid-manager`) *(缓存)*
 
@@ -421,11 +113,25 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 racknerdVPN (`racknerdVPN`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | VLESS+Reality VPN configuration and deployment scripts for Xray on RackNerd VPS, with client configs for V2Ray, Clash, and Shadowrocket. |
+| 语言 | Shell |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 prismtek-atomic-ui (`prismtek-atomic-ui`) *(缓存)*
 
@@ -435,11 +141,11 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 openclaw-custom-api (`openclaw-custom-api`) *(缓存)*
 
@@ -449,11 +155,11 @@
 | 语言 | Shell |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 📓 Obsidian Second Brain (`obs-averivendell`) *(缓存)*
 
@@ -463,11 +169,11 @@
 | 语言 | JavaScript |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 n8n-workflows (`n8n-workflows`) *(缓存)*
 
@@ -477,11 +183,11 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 MediaCrawler (`MediaCrawler`) *(缓存)*
 
@@ -491,11 +197,11 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 🧠 LifeOS (`lovable-life-hub`) *(缓存)*
 
@@ -505,11 +211,305 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 lifeOS (`lifeOS`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Personal life management system built in Python for tracking goals, habits, tasks, and daily routines in one unified interface. |
+| 语言 | Python |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 laiyinyizao007 (`laiyinyizao007`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Config files for my GitHub profile. |
+| 语言 | — |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 homeassistant-manager (`homeassistant-manager`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Tkinter GUI for managing Home Assistant Docker containers on Linux desktop. |
+| 语言 | Python |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 🐍 Fork Pywxdump (`fork-pywxdump`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | 获取微信账号信息(昵称/账号/手机/邮箱/数据库密钥/wxid)；PC微信数据库读取、解密脚本；聊天记录查看工具；聊天记录导出为html(包含语音图片)。支持多账户信息获取，支持所有微信版本。 |
+| 语言 | Python |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 esp32-s3-sense-homeassistant-autodiary (`esp32-s3-sense-homeassistant-autodiary`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | ESP32-S3 Sense-based automated diary system integrating with Home Assistant for sensor data logging and event recording. |
+| 语言 | C++ |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 duplicati-range (`duplicati-range`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Fault-tolerant Duplicati backup for Raspberry Pi: hourly incremental backups with auto-recovery. |
+| 语言 | Shell |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 Claude-Code-Zen-mcp-Skill-Work (`Claude-Code-Zen-mcp-Skill-Work`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Claude Code Zen MCP Skill Work |
+| 语言 | Python |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 claude-code-skills (`claude-code-skills`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Claude Code skills marketplace with 25+ reusable AI agent skills (MIT licensed). |
+| 语言 | Python |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 clarity-briefing-hub (`clarity-briefing-hub`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | TypeScript-based briefing hub application for organizing and presenting clear, structured information summaries. |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 civic-mind2 (`civic-mind2`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | TypeScript A2A platform where AI agents representing SecondMe users autonomously govern a virtual city through debates, voting, and emergent political simulation. |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 awesome-claude-code-subagents (`awesome-claude-code-subagents`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | A collection of 100+ specialized Claude Code subagents covering a wide range of development use cases |
+| 语言 | Shell |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 awesome-claude-code (`awesome-claude-code`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Curated list of tools, scripts, hooks, and resources for Claude Code power users. |
+| 语言 | Python |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 averypiopenclaw (`averypiopenclaw`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Personal AI assistant workspace managing multiple isolated projects via Git worktrees, with shared skills, memory, and agent configurations across trading, research, and infrastructure domains. |
+| 语言 | Python |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 averypi-obsidian (`averypi-obsidian`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Personal knowledge management vault combining PARA, Zettelkasten, and MOC methodologies, with Claude Code integration for AI-assisted note organization in Obsidian. |
+| 语言 | Shell |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 averivendell-projects (`averivendell-projects`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | VSCode extension and backup tools for managing n8n workflows hosted on HuggingFace Spaces, with automated GitHub backup and workflow monitoring. |
+| 语言 | JavaScript |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 🚀 Arksu (`arksusdemo`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | AI-powered occupational health management system demo, compliant with GBZ 188-2025. |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 arksus-yunzeanquan (`arksus-yunzeanquan`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Documentation hub for a smart safety management platform serving factory-in-factory environments, covering architecture specs, AI algorithms, API standards, and 1000+ functional requirements. |
+| 语言 | HTML |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 Antigravity-Manager (`Antigravity-Manager`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Professional Antigravity Account Manager & Switcher. One-click seamless account switching for Antigravity Tools. Built with Tauri v2 + React (Rust).专业的 Antigravity 账号管理与切换工具。为 Antigravity 提供一键无缝账号切换功能。 |
+| 语言 | Rust |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 AIslave (`AIslave`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Sleepless Agent - 24/7 AI助手守护进程，基于Claude Code CLI的智能任务管理系统 |
+| 语言 | Python |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 260131patent (`260131patent`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Chinese utility patent document templates and version control, compliant with CNIPA 2026 standards. |
+| 语言 | — |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 20260405approval-ment-main (`20260405approval-ment-main`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Vue 3 + TypeScript monorepo approval management system built with pnpm workspaces and Turbo, supporting green and sustainable enterprise workflow automation. |
+| 语言 | Vue |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 wechat-ingest (`wechat-ingest`) *(缓存)*
 
@@ -519,11 +519,11 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 25 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 openclawinlifeos (`openclawinlifeos`) *(缓存)*
 
@@ -533,11 +533,81 @@
 | 语言 | Shell |
 | Stars | 1 |
 | 质量评分 | 25 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 stagegate-flow-45 (`stagegate-flow-45`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | — |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 20 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 pixelclaw-pilot (`pixelclaw-pilot`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | — |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 20 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 🌐 Digital Twin (`my-digital-twin-8cc5688b`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | — |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 20 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 minesweeper-multiplayer (`minesweeper-multiplayer`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | — |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 20 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 green-compass-net (`green-compass-net`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | — |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 20 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 atomic-craft-ui (`atomic-craft-ui`) *(缓存)*
 
@@ -551,49 +621,7 @@
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-08 |
-
-### 🗂️ Project Management (`my-project-management`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | — |
-| 语言 | Python |
-| Stars | 1 |
-| 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（7 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-04 |
-
-### 📦 minesweeper-multiplayer (`minesweeper-multiplayer`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | — |
-| 语言 | TypeScript |
-| Stars | 1 |
-| 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（17 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-24 |
-
-### 📦 green-compass-net (`green-compass-net`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | — |
-| 语言 | TypeScript |
-| Stars | 1 |
-| 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 20260131sdcard (`20260131sdcard`) *(缓存)*
 
@@ -603,53 +631,25 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
+| 最近推送 | 2026-10-15 |
 
-### 📦 stagegate-flow-45 (`stagegate-flow-45`) *(缓存)*
+### 🗂️ Project Management (`my-project-management`) *(缓存)*
 
 | 项目 | 值 |
 |------|-----|
 | 描述 | — |
-| 语言 | TypeScript |
+| 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（20 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-21 |
-
-### 📦 pixelclaw-pilot (`pixelclaw-pilot`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | — |
-| 语言 | TypeScript |
-| Stars | 1 |
-| 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
-
-### 🌐 Digital Twin (`my-digital-twin-8cc5688b`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | — |
-| 语言 | TypeScript |
-| Stars | 1 |
-| 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 🌿 Green Compass (`green-compass-net-f3505092`) *(缓存)*
 
@@ -659,53 +659,11 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（44 天前）|
+| 活跃度 | 最近活跃（51 天前）|
 | README | — |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
 | 最近推送 | 2026-08-28 |
-
-### 📦 dotfiles-private (`dotfiles-private`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Claude Code dotfiles & dev workflow automation |
-| 语言 | Python |
-| Stars | 1 |
-| 质量评分 | 15 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ❌ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 claude (`claude`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Shell scripts and configuration for interacting with Claude AI models via command line. |
-| 语言 | Shell |
-| Stars | 1 |
-| 质量评分 | 15 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ❌ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
-
-### 📦 averivendell-others (`averivendell-others`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Projects目录共享文件：工具集(utils)、文档(docs/tasks)、配置(.clinerules/.cursor)等 |
-| 语言 | JavaScript |
-| Stars | 1 |
-| 质量评分 | 15 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
-| README | ❌ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
 
 ### 📦 tools (`tools`) *(缓存)*
 
@@ -715,11 +673,11 @@
 | 语言 | Shell |
 | Stars | 1 |
 | 质量评分 | 15 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 telegram (`telegram`) *(缓存)*
 
@@ -729,39 +687,53 @@
 | 语言 | JavaScript |
 | Stars | 1 |
 | 质量评分 | 15 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
-### 📦 jobsearch (`jobsearch`) *(缓存)*
+### 📦 dotfiles-private (`dotfiles-private`) *(缓存)*
 
 | 项目 | 值 |
 |------|-----|
-| 描述 | — |
+| 描述 | Claude Code dotfiles & dev workflow automation |
 | 语言 | Python |
 | Stars | 1 |
-| 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
+| 质量评分 | 15 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
+| 最近推送 | 2026-10-15 |
 
-### 📦 Hardware (`Hardware`) *(缓存)*
+### 📦 claude (`claude`) *(缓存)*
 
 | 项目 | 值 |
 |------|-----|
-| 描述 | — |
-| 语言 | C |
+| 描述 | Shell scripts and configuration for interacting with Claude AI models via command line. |
+| 语言 | Shell |
 | Stars | 1 |
-| 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（18 天前）|
+| 质量评分 | 15 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-23 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 averivendell-others (`averivendell-others`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Projects目录共享文件：工具集(utils)、文档(docs/tasks)、配置(.clinerules/.cursor)等 |
+| 语言 | JavaScript |
+| Stars | 1 |
+| 质量评分 | 15 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ❌ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 wewe-rss-data (`wewe-rss-data`) *(缓存)*
 
@@ -771,11 +743,11 @@
 | 语言 | — |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 vpn-device-manager (`vpn-device-manager`) *(缓存)*
 
@@ -785,11 +757,11 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 redroid-agent (`redroid-agent`) *(缓存)*
 
@@ -799,11 +771,11 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 pi-monitor (`pi-monitor`) *(缓存)*
 
@@ -813,11 +785,11 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 openclaw-backup-20260414 (`openclaw-backup-20260414`) *(缓存)*
 
@@ -827,11 +799,11 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 obsidian-mcp-docker (`obsidian-mcp-docker`) *(缓存)*
 
@@ -841,11 +813,11 @@
 | 语言 | — |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
 
 ### 📦 merge-workspace (`merge-workspace`) *(缓存)*
 
@@ -855,11 +827,39 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（22 天前）|
+| 活跃度 | 最近活跃（3 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-09-19 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 jobsearch (`jobsearch`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | — |
+| 语言 | Python |
+| Stars | 1 |
+| 质量评分 | 5 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ❌ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
+
+### 📦 Hardware (`Hardware`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | — |
+| 语言 | C |
+| Stars | 1 |
+| 质量评分 | 5 / 60 |
+| 活跃度 | 最近活跃（3 天前）|
+| README | ❌ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-15 |
 
 ---
 
@@ -867,58 +867,58 @@
 
 | 仓库名 | 语言 | 质量分 | 活跃度 | Stars | README | Profile | 追踪 | 处置 | 最近推送 |
 |--------|------|--------|--------|-------|--------|---------|------|------|----------|
-| `pixelclaw` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-10 |
-| `racknerdVPN` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-09 |
-| `laiyinyizao007` | — | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-04 |
-| `lifeOS` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `homeassistant-manager` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `fork-pywxdump` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `esp32-s3-sense-homeassistant-autodiary` | C++ | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `duplicati-range` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `Claude-Code-Zen-mcp-Skill-Work` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `claude-code-skills` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `clarity-briefing-hub` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `civic-mind2` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `awesome-claude-code-subagents` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `awesome-claude-code` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `averypiopenclaw` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `averypi-obsidian` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `averivendell-projects` | JavaScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `arksusdemo` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `arksus-yunzeanquan` | HTML | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `Antigravity-Manager` | Rust | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `AIslave` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `260131patent` | — | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `20260405approval-ment-main` | Vue | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `wechat-bot` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `test-api` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `system-blueprint-studio` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `SolidGPT` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `rules_template` | JavaScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `resume-renew` | — | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `redroid-manager` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `prismtek-atomic-ui` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `openclaw-custom-api` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `obs-averivendell` | JavaScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `n8n-workflows` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `MediaCrawler` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `lovable-life-hub` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `wechat-ingest` | Python | 25/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `openclawinlifeos` | Shell | 25/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `atomic-craft-ui` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-08 |
-| `my-project-management` | Python | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-04 |
-| `minesweeper-multiplayer` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-24 |
-| `green-compass-net` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `20260131sdcard` | Python | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `stagegate-flow-45` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-21 |
-| `pixelclaw-pilot` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `my-digital-twin-8cc5688b` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-09-19 |
+| `pixelclaw` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-16 |
+| `resume-renew` | — | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `wechat-bot` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `test-api` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `system-blueprint-studio` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `SolidGPT` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `rules_template` | JavaScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `redroid-manager` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `racknerdVPN` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `prismtek-atomic-ui` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `openclaw-custom-api` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `obs-averivendell` | JavaScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `n8n-workflows` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `MediaCrawler` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `lovable-life-hub` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `lifeOS` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `laiyinyizao007` | — | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `homeassistant-manager` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `fork-pywxdump` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `esp32-s3-sense-homeassistant-autodiary` | C++ | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `duplicati-range` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `Claude-Code-Zen-mcp-Skill-Work` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `claude-code-skills` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `clarity-briefing-hub` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `civic-mind2` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `awesome-claude-code-subagents` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `awesome-claude-code` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `averypiopenclaw` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `averypi-obsidian` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `averivendell-projects` | JavaScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `arksusdemo` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `arksus-yunzeanquan` | HTML | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `Antigravity-Manager` | Rust | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `AIslave` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `260131patent` | — | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `20260405approval-ment-main` | Vue | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `wechat-ingest` | Python | 25/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `openclawinlifeos` | Shell | 25/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `stagegate-flow-45` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `pixelclaw-pilot` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `my-digital-twin-8cc5688b` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `minesweeper-multiplayer` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `green-compass-net` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `atomic-craft-ui` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `20260131sdcard` | Python | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `my-project-management` | Python | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `green-compass-net-f3505092` [归档] | TypeScript | 20/60 | 最近活跃 | 1 | — | — | ⭐ | 建议保留 | 2026-08-28 |
-| `dotfiles-private` | Python | 15/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `claude` | Shell | 15/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `averivendell-others` | JavaScript | 15/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `tools` | Shell | 15/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `telegram` | JavaScript | 15/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-19 |
+| `tools` | Shell | 15/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `telegram` | JavaScript | 15/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `dotfiles-private` | Python | 15/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `claude` | Shell | 15/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `averivendell-others` | JavaScript | 15/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `my-digital-twin` [归档] | TypeScript | 15/60 | 最近活跃 | 0 | — | — | — | 建议保留 | 2026-09-11 |
 | `github-weekly-progress` [归档] | Python | 15/60 | 最近活跃 | 0 | — | — | — | 建议保留 | 2026-09-11 |
 | `issuefighter` [归档] | — | 15/60 | 最近活跃 | 0 | — | — | — | 建议保留 | 2026-09-10 |
@@ -970,15 +970,15 @@
 | `averivendell-cline-context-optimizer` [归档] | JavaScript | 10/60 | 一般活跃 | 0 | — | — | — | 建议保留 | 2025-11-09 |
 | `averivendell-backup-manager` [归档] | JavaScript | 10/60 | 一般活跃 | 0 | — | — | — | 建议保留 | 2025-11-09 |
 | `averivendell-wsl-vscode-diagnostics` [归档] | Shell | 10/60 | 一般活跃 | 0 | — | — | — | 建议保留 | 2025-11-09 |
-| `jobsearch` | Python | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `Hardware` | C | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-23 |
-| `wewe-rss-data` | — | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `vpn-device-manager` | TypeScript | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `redroid-agent` | Python | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `pi-monitor` | Python | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `openclaw-backup-20260414` | TypeScript | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `obsidian-mcp-docker` | — | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-19 |
-| `merge-workspace` | TypeScript | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-09-19 |
+| `wewe-rss-data` | — | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `vpn-device-manager` | TypeScript | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `redroid-agent` | Python | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `pi-monitor` | Python | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `openclaw-backup-20260414` | TypeScript | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `obsidian-mcp-docker` | — | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `merge-workspace` | TypeScript | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `jobsearch` | Python | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
+| `Hardware` | C | 5/60 | 最近活跃 | 1 | ❌ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `arksusdemo1` [归档] | TypeScript | 5/60 | 最近活跃 | 0 | — | — | — | 建议保留 | 2026-09-11 |
 | `telegram-group-manager` [归档] | Python | 5/60 | 一般活跃 | 0 | — | — | — | 建议保留 | 2025-11-22 |
 | `rivenDell-Memory` [归档] | PowerShell | 5/60 | 一般活跃 | 0 | — | — | — | 建议保留 | 2025-11-06 |
