@@ -1,25 +1,109 @@
 # GitHub 仓库数据库
 
-> 最后更新：2026-10-25 17:20 UTC  
-> 共 **122** 个仓库 ｜ 追踪 **63** 个 ｜ 本次重新分析 **0** 个（122 个命中缓存）
+> 最后更新：2026-11-01 18:42 UTC  
+> 共 **125** 个仓库 ｜ 追踪 **66** 个 ｜ 本次重新分析 **0** 个（125 个命中缓存）
 
 ---
 
-## ⭐ 追踪中的项目（63 个）
+## ⭐ 追踪中的项目（66 个）
 
-### 📦 pixelclaw (`pixelclaw`) *(缓存)*
+### ⚡ Dsh Desktop (`dsh-desktop`) *(缓存)*
 
 | 项目 | 值 |
 |------|-----|
-| 描述 | Vision-based Android automation system for Raspberry Pi 5 — multi-level VLM fallback (Step-1V / MiniCPM-V / OCR) controlling Pixel 8a via ADB |
-| 语言 | Python |
+| 描述 | DSHDesktop：DeepSeek Harness Desktop / DeepSeek Harness 桌面版 |
+| 语言 | JavaScript |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（4 天前）|
+| 活跃度 | 最近活跃（0 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-21 |
+| 最近推送 | 2026-11-01 |
+
+### 🧠 LifeOS (`lovable-life-hub`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Event-driven personal management system that aggregates scattered messages into structured tasks, schedules, and knowledge entries via LLM-orchestrated workflows. |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（1 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-31 |
+
+### 📦 Mnemon Memory (`mnemon-memory`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Private Git sync target for dsh-mnemon memory (plaintext; do not store secrets) |
+| 语言 | — |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（2 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-30 |
+
+### 🐍 Claude Config (`claude-config`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | 跨系统共享的 Claude Code 全局配置 |
+| 语言 | Python |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（2 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-30 |
+
+### 📓 Obsidian Second Brain (`obs-averivendell`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Pre-configured Obsidian vault starter kit integrating Claude Code as an AI thinking partner, with PARA method organization, Git version control, and mobile access support. |
+| 语言 | JavaScript |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（2 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-30 |
+
+### 📦 racknerdVPN (`racknerdVPN`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | VLESS+Reality VPN configuration and deployment scripts for Xray on RackNerd VPS, with client configs for V2Ray, Clash, and Shadowrocket. |
+| 语言 | Shell |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（5 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-27 |
+
+### 📦 resume-renew (`resume-renew`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | Resume renewal project - managing resume versions and job applications |
+| 语言 | — |
+| Stars | 1 |
+| 质量评分 | 30 / 60 |
+| 活跃度 | 最近活跃（5 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-27 |
 
 ### 📦 laiyinyizao007 (`laiyinyizao007`) *(缓存)*
 
@@ -33,21 +117,21 @@
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-18 |
+| 最近推送 | 2026-10-25 |
 
-### 📦 resume-renew (`resume-renew`) *(缓存)*
+### 📦 pixelclaw (`pixelclaw`) *(缓存)*
 
 | 项目 | 值 |
 |------|-----|
-| 描述 | Resume renewal project - managing resume versions and job applications |
-| 语言 | — |
+| 描述 | Vision-based Android automation system for Raspberry Pi 5 — multi-level VLM fallback (Step-1V / MiniCPM-V / OCR) controlling Pixel 8a via ADB |
+| 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（11 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-15 |
+| 最近推送 | 2026-10-21 |
 
 ### 📦 wechat-bot (`wechat-bot`) *(缓存)*
 
@@ -57,7 +141,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -71,7 +155,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -85,7 +169,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -99,7 +183,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -113,7 +197,7 @@
 | 语言 | JavaScript |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -127,21 +211,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-15 |
-
-### 📦 racknerdVPN (`racknerdVPN`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | VLESS+Reality VPN configuration and deployment scripts for Xray on RackNerd VPS, with client configs for V2Ray, Clash, and Shadowrocket. |
-| 语言 | Shell |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -155,7 +225,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -169,21 +239,7 @@
 | 语言 | Shell |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-15 |
-
-### 📓 Obsidian Second Brain (`obs-averivendell`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Pre-configured Obsidian vault starter kit integrating Claude Code as an AI thinking partner, with PARA method organization, Git version control, and mobile access support. |
-| 语言 | JavaScript |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -197,7 +253,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -211,21 +267,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-15 |
-
-### 🧠 LifeOS (`lovable-life-hub`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | Event-driven personal management system that aggregates scattered messages into structured tasks, schedules, and knowledge entries via LLM-orchestrated workflows. |
-| 语言 | TypeScript |
-| Stars | 1 |
-| 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -239,7 +281,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -253,7 +295,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -267,7 +309,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -281,7 +323,7 @@
 | 语言 | C++ |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -295,7 +337,7 @@
 | 语言 | Shell |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -309,7 +351,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -323,7 +365,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -337,7 +379,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -351,7 +393,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -365,7 +407,7 @@
 | 语言 | Shell |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -379,7 +421,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -393,7 +435,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -407,7 +449,7 @@
 | 语言 | Shell |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -421,7 +463,7 @@
 | 语言 | JavaScript |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -435,7 +477,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -449,7 +491,7 @@
 | 语言 | HTML |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -463,7 +505,7 @@
 | 语言 | Rust |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -477,7 +519,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -491,7 +533,7 @@
 | 语言 | — |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -505,7 +547,7 @@
 | 语言 | Vue |
 | Stars | 1 |
 | 质量评分 | 30 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -519,7 +561,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 25 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -533,7 +575,7 @@
 | 语言 | Shell |
 | Stars | 1 |
 | 质量评分 | 25 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -551,35 +593,7 @@
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-23 |
-
-### 📦 atomic-craft-ui (`atomic-craft-ui`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | — |
-| 语言 | TypeScript |
-| Stars | 1 |
-| 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（3 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-22 |
-
-### 📘 Arksusdemo1 (`arksusdemo1`) *(缓存)*
-
-| 项目 | 值 |
-|------|-----|
-| 描述 | — |
-| 语言 | TypeScript |
-| Stars | 1 |
-| 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（4 天前）|
-| README | ✅ |
-| 已在 profile.md | — |
-| 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-21 |
+| 最近推送 | 2026-10-30 |
 
 ### 🗂️ Project Management (`my-project-management`) *(缓存)*
 
@@ -593,7 +607,35 @@
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
-| 最近推送 | 2026-10-18 |
+| 最近推送 | 2026-10-25 |
+
+### 📦 atomic-craft-ui (`atomic-craft-ui`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | — |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 20 / 60 |
+| 活跃度 | 最近活跃（10 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-22 |
+
+### 📘 Arksusdemo1 (`arksusdemo1`) *(缓存)*
+
+| 项目 | 值 |
+|------|-----|
+| 描述 | — |
+| 语言 | TypeScript |
+| Stars | 1 |
+| 质量评分 | 20 / 60 |
+| 活跃度 | 最近活跃（11 天前）|
+| README | ✅ |
+| 已在 profile.md | — |
+| 处置建议 | 建议保留 |
+| 最近推送 | 2026-10-21 |
 
 ### 📦 stagegate-flow-45 (`stagegate-flow-45`) *(缓存)*
 
@@ -603,7 +645,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -617,7 +659,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -631,7 +673,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -645,7 +687,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -659,7 +701,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -673,7 +715,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ✅ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -687,7 +729,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 20 / 60 |
-| 活跃度 | 最近活跃（58 天前）|
+| 活跃度 | 最近活跃（65 天前）|
 | README | — |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -701,7 +743,7 @@
 | 语言 | Shell |
 | Stars | 1 |
 | 质量评分 | 15 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -715,7 +757,7 @@
 | 语言 | JavaScript |
 | Stars | 1 |
 | 质量评分 | 15 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -729,7 +771,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 15 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -743,7 +785,7 @@
 | 语言 | Shell |
 | Stars | 1 |
 | 质量评分 | 15 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -757,7 +799,7 @@
 | 语言 | JavaScript |
 | Stars | 1 |
 | 质量评分 | 15 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -771,7 +813,7 @@
 | 语言 | — |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -785,7 +827,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -799,7 +841,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -813,7 +855,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -827,7 +869,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -841,7 +883,7 @@
 | 语言 | — |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -855,7 +897,7 @@
 | 语言 | TypeScript |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -869,7 +911,7 @@
 | 语言 | Python |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -883,7 +925,7 @@
 | 语言 | C |
 | Stars | 1 |
 | 质量评分 | 5 / 60 |
-| 活跃度 | 最近活跃（10 天前）|
+| 活跃度 | 最近活跃（17 天前）|
 | README | ❌ |
 | 已在 profile.md | — |
 | 处置建议 | 建议保留 |
@@ -891,26 +933,29 @@
 
 ---
 
-## 📋 所有仓库（122 个，按质量分排序）
+## 📋 所有仓库（125 个，按质量分排序）
 
 | 仓库名 | 语言 | 质量分 | 活跃度 | Stars | README | Profile | 追踪 | 处置 | 最近推送 |
 |--------|------|--------|--------|-------|--------|---------|------|------|----------|
+| `dsh-desktop` | JavaScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-11-01 |
+| `lovable-life-hub` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-31 |
+| `mnemon-memory` | — | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-30 |
+| `claude-config` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-30 |
+| `obs-averivendell` | JavaScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-30 |
+| `racknerdVPN` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-27 |
+| `resume-renew` | — | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-27 |
+| `laiyinyizao007` | — | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-25 |
 | `pixelclaw` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-21 |
-| `laiyinyizao007` | — | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-18 |
-| `resume-renew` | — | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `wechat-bot` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `test-api` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `system-blueprint-studio` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `SolidGPT` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `rules_template` | JavaScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `redroid-manager` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
-| `racknerdVPN` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `prismtek-atomic-ui` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `openclaw-custom-api` | Shell | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
-| `obs-averivendell` | JavaScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `n8n-workflows` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `MediaCrawler` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
-| `lovable-life-hub` | TypeScript | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `lifeOS` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `homeassistant-manager` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `fork-pywxdump` | Python | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
@@ -933,10 +978,10 @@
 | `20260405approval-ment-main` | Vue | 30/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `wechat-ingest` | Python | 25/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `openclawinlifeos` | Shell | 25/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
-| `atomic-craft-ui-5bcebc69` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-23 |
+| `atomic-craft-ui-5bcebc69` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-30 |
+| `my-project-management` | Python | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-25 |
 | `atomic-craft-ui` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-22 |
 | `arksusdemo1` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-21 |
-| `my-project-management` | Python | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-18 |
 | `stagegate-flow-45` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `pixelclaw-pilot` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
 | `my-digital-twin-8cc5688b` | TypeScript | 20/60 | 最近活跃 | 1 | ✅ | — | ⭐ | 建议保留 | 2026-10-15 |
