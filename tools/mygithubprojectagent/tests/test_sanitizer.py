@@ -31,7 +31,7 @@ class TestPatternDetection:
 
     def test_github_token_detection(self):
         """Test GitHub token detection."""
-        content = "token = 'ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'"
+        content = "token = '<REDACTED_API_KEY>'"
         detections = pattern_registry.detect(content, ["token"])
         assert len(detections) > 0
 
