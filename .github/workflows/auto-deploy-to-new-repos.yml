@@ -61,10 +61,18 @@ jobs:
 
           deploy_file() {
             local repo="$1" path="$2" content="$3"
-            local existing_sha
+            local existing_sha existing_content
             existing_sha=$(gh api "repos/${repo}/contents/${path}" --jq '.sha' 2>/dev/null) || existing_sha=""
 
             if [[ -n "$existing_sha" && "$existing_sha" != "null" ]]; then
+              # **内容一致就跳过** —— 否则每次分发都会给每个仓产生 3~7 个
+              # 内容完全相同的提交，污染 git 历史、把活跃度信号刷成"今天"，
+              # 还让所有本地克隆永久落后 N 个提交（"本地↔远端已对齐"永远不成立）。
+              existing_content=$(gh api "repos/${repo}/contents/${path}" --jq '.content' 2>/dev/null | tr -d '\n')
+              if [[ -n "$existing_content" && "$existing_content" == "$content" ]]; then
+                echo "  ⏭️  $(basename $path): 内容一致，跳过"
+                return
+              fi
               if [[ "$FORCE_UPDATE" == "true" ]]; then
                 jq -n --arg c "$content" --arg s "$existing_sha" \
                   "{\"message\":\"chore: update $(basename $path)\",\"content\":\$c,\"sha\":\$s}" \
