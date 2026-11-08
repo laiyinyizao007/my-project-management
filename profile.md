@@ -49,17 +49,118 @@ Architecture taught constraint satisfaction. PM work taught product judgment. Th
 ## 🚀 This week
 
 <!-- WEEKLY_PROGRESS_START -->
-*Week 2026-W44 (2026-10-26 → 2026-11-01) · 7 projects updated*
+*Week 2026-W45 (2026-11-02 → 2026-11-08) · 108 projects updated*
 
-**📓 Obsidian Second Brain** — vault backup: 2026-10-30 08:39:08 *(42 commits)*
-**📦 resume-renew** — docs(resume): 同步基线版本清单至 v4，修正陈旧指针 *(3 commits)*
-**📦 racknerdVPN** — docs: 回填 ADR-009 关联提交 SHA *(13 commits)*
-**📘 Atomic Craft Ui 5bcebc69** — 对齐复购联动图样式 *(12 commits)*
-**⚡ Dsh Desktop** — chore: init .github *(22 commits)*
-**📦 Mnemon Memory** — chore: init .github *(11 commits)*
-**🐍 Claude Config** — fix(skills): 合并后修正脚本与参考文档内的相对路径 *(20 commits)*
+**🧠 LifeOS** — chore: update generate_tasklist.py *(31 commits)*
+**🤖 GitHub RAG Agent** — chore: update generate_tasklist.py *(29 commits)*
+**📓 Obsidian Second Brain** — chore: update generate_tasklist.py *(22 commits)*
+**🚀 Arksu** — chore: update generate_tasklist.py *(29 commits)*
+**🗂️ Project Management** — fix: 自动分发改为幂等 —— 内容一致就不提交 *(11 commits)*
+**🌐 Digital Twin** — chore: update generate_tasklist.py *(18 commits)*
+**📦 averivendell-projects** — chore: update generate_tasklist.py *(20 commits)*
+**📦 atomic-craft-ui** — chore: update generate_tasklist.py *(18 commits)*
+**📦 arksus-yunzeanquan** — chore: update generate_tasklist.py *(18 commits)*
+**📦 AIslave** — chore: update generate_tasklist.py *(18 commits)*
+**📦 260131patent** — chore: update generate_tasklist.py *(18 commits)*
+**📦 20260405approval-ment-main** — chore: update generate_tasklist.py *(18 commits)*
+**📦 20260131sdcard** — chore: update generate_tasklist.py *(19 commits)*
+**📦 vpn-device-manager** — chore: update generate_tasklist.py *(18 commits)*
+**📦 telegram** — chore: update generate_tasklist.py *(18 commits)*
+**📦 wewe-rss-data** — chore: update generate_tasklist.py *(20 commits)*
+**📦 system-blueprint-studio** — chore: update generate_tasklist.py *(18 commits)*
+**📦 wechat-bot** — chore: update generate_tasklist.py *(18 commits)*
+**📦 SolidGPT** — chore: update generate_tasklist.py *(18 commits)*
+**📦 rules_template** — chore: update generate_tasklist.py *(18 commits)*
+**📦 stagegate-flow-45** — chore: update generate_tasklist.py *(20 commits)*
+**📦 prismtek-atomic-ui** — chore: update generate_tasklist.py *(18 commits)*
+**📦 redroid-manager** — chore: update generate_tasklist.py *(20 commits)*
+**📦 wechat-ingest** — chore: update generate_tasklist.py *(18 commits)*
+**📦 openclaw-backup-20260414** — chore: update generate_tasklist.py *(20 commits)*
+**📦 openclaw-custom-api** — chore: update generate_tasklist.py *(18 commits)*
+**📦 test-api** — chore: update generate_tasklist.py *(18 commits)*
+**📦 obsidian-mcp-docker** — chore: update generate_tasklist.py *(18 commits)*
+**📦 n8n-workflows** — chore: update generate_tasklist.py *(19 commits)*
+**📦 minesweeper-multiplayer** — chore: update generate_tasklist.py *(20 commits)*
+**📦 merge-workspace** — chore: update generate_tasklist.py *(19 commits)*
+**📦 lifeOS** — chore: update generate_tasklist.py *(18 commits)*
+**📦 jobsearch** — chore: update generate_tasklist.py *(26 commits)*
+**📦 laiyinyizao007** — chore: update generate_tasklist.py *(21 commits)*
+**📦 green-compass-net** — chore: update generate_tasklist.py *(21 commits)*
+**📦 Hardware** — chore: update generate_tasklist.py *(18 commits)*
+**📦 esp32-s3-sense-homeassistant-autodiary** — chore: update generate_tasklist.py *(24 commits)*
+**📦 openclawinlifeos** — chore: update generate_tasklist.py *(27 commits)*
+**📦 duplicati-range** — chore: update generate_tasklist.py *(18 commits)*
+**📦 dotfiles-private** — chore: update generate_tasklist.py *(18 commits)*
+**📦 Claude-Code-Zen-mcp-Skill-Work** — chore: update generate_tasklist.py *(21 commits)*
+**📦 civic-mind2** — chore: update generate_tasklist.py *(25 commits)*
+**📦 claude-code-skills** — chore: update generate_tasklist.py *(19 commits)*
+**📦 awesome-claude-code-subagents** — chore: update generate_tasklist.py *(18 commits)*
+**📦 claude** — chore: update generate_tasklist.py *(18 commits)*
+**📦 awesome-claude-code** — chore: update generate_tasklist.py *(18 commits)*
+**📦 averypiopenclaw** — chore: update generate_tasklist.py *(20 commits)*
+**📦 MediaCrawler** — chore: update generate_tasklist.py *(28 commits)*
+**📦 redroid-agent** — chore: update generate_tasklist.py *(18 commits)*
+**📦 resume-renew** — chore: update generate_tasklist.py *(21 commits)*
+**📦 racknerdVPN** — chore: update generate_tasklist.py *(23 commits)*
+**📦 pi-monitor** — chore: update generate_tasklist.py *(20 commits)*
+**📦 pixelclaw** — chore: update generate_tasklist.py *(24 commits)*
+**📦 clarity-briefing-hub** — chore: update generate_tasklist.py *(18 commits)*
+**📦 averypi-obsidian** — chore: update generate_tasklist.py *(18 commits)*
+**📦 homeassistant-manager** — chore: update generate_tasklist.py *(18 commits)*
+**📦 averivendell-others** — chore: update generate_tasklist.py *(19 commits)*
+**📦 tools** — chore: update generate_tasklist.py *(18 commits)*
+**📦 Antigravity-Manager** — chore: update generate_tasklist.py *(18 commits)*
+**📦 pixelclaw-pilot** — chore: update generate_tasklist.py *(18 commits)*
+**🐍 Fork Pywxdump** — chore: update generate_tasklist.py *(18 commits)*
+**📘 Atomic Craft Ui 5bcebc69** — chore: update generate_tasklist.py *(34 commits)*
+**📘 Arksusdemo1** — chore: update generate_tasklist.py *(18 commits)*
+**⚡ Dsh Desktop** — chore: update generate_tasklist.py *(20 commits)*
+**📦 Mnemon Memory** — chore: update generate_tasklist.py *(18 commits)*
+**🐍 Claude Config** — chore: update generate_tasklist.py *(19 commits)*
+**⚡ Dsh Desktop Responsive** — chore: update generate_tasklist.py *(43 commits)*
+**📦 Autodiary** — chore: update generate_tasklist.py *(28 commits)*
+**⚡ Dsh Messenger Gateway** — chore: update generate_tasklist.py *(43 commits)*
+**⚡ Dsh Audio Keepalive** — chore: update generate_tasklist.py *(31 commits)*
+**🐹 Xiaohongshu Mcp** — chore: update generate_tasklist.py *(46 commits)*
+**📦 Xiao Speech2chatgpt Local** — chore: update generate_tasklist.py *(30 commits)*
+**⚙️ Xiao Esp32s3 Sense** — chore: update generate_tasklist.py *(29 commits)*
+**📦 Wsl Env** — chore: update generate_tasklist.py *(31 commits)*
+**🐍 Video Remix** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Test Codex** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Sleepless Agent Local** — chore: update generate_tasklist.py *(29 commits)*
+**🐚 Research Archives** — chore: update generate_tasklist.py *(29 commits)*
+**📘 Remix Of Carbon Compass** — chore: update generate_tasklist.py *(19 commits)*
+**🐍 Portfolio** — chore: update generate_tasklist.py *(42 commits)*
+**📦 Notion Integration** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Notion Analysis** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Mp4resolve** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Minutes Local** — chore: update generate_tasklist.py *(29 commits)*
+**📘 Mimo2codex Local** — chore: update generate_tasklist.py *(29 commits)*
+**🐚 Migration Scripts** — chore: update generate_tasklist.py *(29 commits)*
+**📦 Memory Tests** — chore: update generate_tasklist.py *(29 commits)*
+**📦 Lisahost** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Light Ai** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Klugai Codex Proxy** — chore: update generate_tasklist.py *(29 commits)*
+**⚡ Game Tank Local** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Feishu Sync** — chore: update generate_tasklist.py *(31 commits)*
+**🐍 Employee Assessment Table** — chore: update generate_tasklist.py *(29 commits)*
+**⚙️ Diary1.0** — chore: update generate_tasklist.py *(29 commits)*
+**📦 Codex Cc Arksus** — chore: update generate_tasklist.py *(29 commits)*
+**📘 Carbon Compass** — chore: update generate_tasklist.py *(31 commits)*
+**📦 Bailian Speech Demo Local** — chore: update generate_tasklist.py *(37 commits)*
+**🎨 Avery Pixel Cv** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Autodiary Main** — chore: update generate_tasklist.py *(29 commits)*
+**⚙️ Autodiary Autodiary** — chore: update generate_tasklist.py *(29 commits)*
+**📦 Autodiary Archive** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Api Tester** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Ai Workspace** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Github Profile Manager** — chore: update generate_tasklist.py *(30 commits)*
+**🐍 Ffuf Claude Skill** — chore: update generate_tasklist.py *(30 commits)*
+**⚡ Dell Control** — chore: update generate_tasklist.py *(34 commits)*
+**🐚 Cc On Lifeos** — chore: update generate_tasklist.py *(29 commits)*
+**🐍 Github Weekly Progress** — chore: update generate_tasklist.py *(21 commits)*
 
-📄 [Full report →](https://github.com/laiyinyizao007/my-project-management/blob/main/weekly-reports/2026-W44.md)
+📄 [Full report →](https://github.com/laiyinyizao007/my-project-management/blob/main/weekly-reports/2026-W45.md)
 <!-- WEEKLY_PROGRESS_END -->
 
 ---
