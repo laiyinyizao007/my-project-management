@@ -24,7 +24,7 @@ import re
 import sys
 import time
 import argparse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -93,6 +93,65 @@ def run_gh(args):
     return r.stdout.strip() if r.returncode == 0 else None
 
 
+# ── 自动提交模式 ────────────────────────────────────────────────
+# 这些提交由机器按计划产生，不代表「你正在做这件事」：
+#   auto-deploy-to-new-repos 每 6 小时往每个仓推 workflow 文件（chore: update/deploy）
+#   触发 workflow 注册的空提交（chore: init .github）
+#   周报生成 / profile 同步
+AUTO_COMMIT = re.compile(
+    r"^chore:\s*(update|deploy)\s+\S+"      # auto-deploy 分发（占绝大多数）
+    r"|^chore:\s*init \.github"              # 触发 workflow 注册
+    r"|^chore:\s*auto-deploy"                # auto-deploy 另一套消息
+    r"|^chore:\s*sync profile"               # profile 同步
+    r"|^chore:\s*更新项目展示"                 # profile.md 更新
+    r"|^chore:\s*(自动)?周报"                  # 周报生成
+    r"|^chore:\s*自动追踪"                     # 今日活跃仓库追踪
+    r"|^vault backup:"                        # 自动备份
+    r"|^update(\s+|:)\s*"                   # 仓库描述/README 自动更新
+    r"|^readme updated$"
+    r"|^docs:\s*update\s+\S+\s*\[skip ci\]"   # 自动文档更新
+    r"|^docs:\s*生成文档索引"                    # 文档索引自动生成
+)
+
+
+def fetch_real_commits(names, per_page=100, max_pages=3):
+    """批量取每个仓的**最后一个非自动提交**。
+
+    难点：auto-deploy 每 6 小时往每个仓推 3~7 个 workflow 文件，几十天就能堆出
+    上千条自动提交，把真实提交埋到很深 —— 用 pushedAt 判活跃度会让所有仓永远
+    显示「最近活跃」，处置建议永远「建议保留」。
+
+    用 REST 的 commits 列表（按时间倒序）逐页往前找第一个非自动提交。
+    实测 REST 的窗口与 GraphQL 的 history 不同，REST 才找得到被埋掉的真实提交。
+    """
+    out = {}
+    for name in names:
+        found = None
+        for page in range(1, max_pages + 1):
+            raw = run_gh(["api",
+                          f"/repos/{GITHUB_USER}/{name}/commits"
+                          f"?per_page={per_page}&page={page}"])
+            if not raw:
+                break
+            try:
+                cs = json.loads(raw)
+            except json.JSONDecodeError:
+                break
+            if not isinstance(cs, list) or not cs:
+                break
+            for c in cs:
+                msg = (c["commit"]["message"] or "").splitlines()[0]
+                if AUTO_COMMIT.match(msg):
+                    continue
+                found = (c["commit"]["committer"]["date"][:10], msg[:60])
+                break
+            if found or len(cs) < per_page:
+                break
+        out[name] = found or ("", "")
+        time.sleep(0.15)
+    return out
+
+
 def fetch_all_repos():
     """获取所有仓库元数据（最多200个），按推送时间降序排列"""
     out = run_gh([
@@ -111,6 +170,8 @@ def fetch_all_repos():
         return []
 
     now = datetime.now(timezone.utc)
+    # 取每个仓最后一个**非自动**提交 —— 自动分发会把所有仓的 pushedAt 刷成今天
+    real = fetch_real_commits([r["name"] for r in raw_repos])
     repos = []
     for r in raw_repos:
         # primaryLanguage 可能是 {"name": "Python"} 或 null
@@ -119,11 +180,28 @@ def fetch_all_repos():
 
         # 计算距今天数
         pushed_at = r.get("pushedAt", "")
-        days_since_push = -1
+        days_since_pushed = -1
         if pushed_at:
             try:
                 pushed_dt = datetime.fromisoformat(pushed_at.replace("Z", "+00:00"))
-                days_since_push = (now - pushed_dt).days
+                days_since_pushed = (now - pushed_dt).days
+            except (ValueError, TypeError):
+                pass
+
+        # 活跃度按**最后实质提交**算；没有实质提交时退回 pushedAt
+        real_at, real_msg = real.get(r["name"], ("", ""))
+        days_since_push = days_since_pushed
+        if real_at:
+            try:
+                # real_at 是**日期**（无时区），now 是有时区的 ——
+                # 直接相减会 TypeError（naive vs aware），必须补上时区
+                iso = real_at.replace("Z", "+00:00")
+                if len(iso) == 10:                     # YYYY-MM-DD
+                    iso += "T00:00:00+00:00"
+                real_dt = datetime.fromisoformat(iso)
+                if real_dt.tzinfo is None:
+                    real_dt = real_dt.replace(tzinfo=timezone.utc)
+                days_since_push = (now - real_dt).days
             except (ValueError, TypeError):
                 pass
 
@@ -134,12 +212,15 @@ def fetch_all_repos():
             "primaryLanguage": language,
             "stargazerCount":  r.get("stargazerCount", 0),
             "pushedAt":        pushed_at,
+            "realLastCommitAt": real_at,
+            "realLastCommitMsg": real_msg,
             "isArchived":      r.get("isArchived", False),
             "isFork":          r.get("isFork", False),
             "isPrivate":       r.get("isPrivate", False),
             "url":             r.get("url", ""),
             # 计算字段
-            "days_since_push": days_since_push,
+            "days_since_push": days_since_push,      # 按最后实质提交
+            "days_since_pushed": days_since_pushed,  # 按 pushedAt（含自动分发）
             "has_readme":      None,
             "in_tracked":      False,
             "in_profile":      False,
@@ -172,7 +253,9 @@ def batch_detect_readmes(repos, cache, skip_archived=True):
             r["has_readme"] = cache.get(r["name"], {}).get("has_readme")
             continue
         cached = cache.get(r["name"], {})
-        if cached.get("last_pushed_at") == r["pushedAt"]:
+        # 用「最后实质提交」做键：自动分发产生的提交不该让缓存失效，
+        # 否则每周都要重扫全部仓库的 README
+        if cached.get("last_real_at") == r["realLastCommitAt"] and r["realLastCommitAt"]:
             # 仓库未变更：复用缓存的 README 状态
             r["has_readme"] = cached.get("has_readme")
         else:
@@ -192,6 +275,7 @@ def batch_detect_readmes(repos, cache, skip_archived=True):
         # 写入缓存
         cache[repo["name"]] = {
             "last_pushed_at": repo["pushedAt"],
+            "last_real_at":   repo["realLastCommitAt"],
             "has_readme":     repo["has_readme"],
         }
         updated_names.add(repo["name"])
@@ -771,6 +855,8 @@ def build_repo_database(repos, tracked_cfg, updated_names, now_str):
             profile_m = "✅" if r["in_profile"] else "—"
             tag      = " *(本次更新)*" if r["name"] in updated_names else " *(缓存)*"
             pushed   = r["pushedAt"][:10] if r["pushedAt"] else "—"
+            real_at  = (r.get("realLastCommitAt") or "—")
+            real_msg = (r.get("realLastCommitMsg") or "")[:40]
             days_str = f"{r['days_since_push']} 天前" if r["days_since_push"] >= 0 else "未知"
             lines += [
                 f"### {icon} {display} (`{r['name']}`){tag}",
@@ -786,6 +872,7 @@ def build_repo_database(repos, tracked_cfg, updated_names, now_str):
                 f"| 已在 profile.md | {profile_m} |",
                 f"| 处置建议 | {r['disposition']} |",
                 f"| 最近推送 | {pushed} |",
+                f"| 最后实质提交 | {real_at} {real_msg} |",
                 "",
             ]
         lines += ["---", ""]
@@ -794,14 +881,15 @@ def build_repo_database(repos, tracked_cfg, updated_names, now_str):
     lines += [
         f"## 📋 所有仓库（{len(repos)} 个，按质量分排序）",
         "",
-        "| 仓库名 | 语言 | 质量分 | 活跃度 | Stars | README | Profile | 追踪 | 处置 | 最近推送 |",
-        "|--------|------|--------|--------|-------|--------|---------|------|------|----------|",
+        "| 仓库名 | 语言 | 质量分 | 活跃度 | Stars | README | Profile | 追踪 | 处置 | 最近推送 | 最后实质提交 |",
+        "|--------|------|--------|--------|-------|--------|---------|------|------|----------|----------------|",
     ]
     for r in all_sorted:
         readme_m  = "✅" if r["has_readme"] is True else ("❌" if r["has_readme"] is False else "—")
         profile_m = "✅" if r["in_profile"] else "—"
         tracked_m = "⭐" if r["name"] in tracked_names else "—"
         pushed    = r["pushedAt"][:10] if r["pushedAt"] else "—"
+        real_at   = (r.get("realLastCommitAt") or "—")
         arch_tag  = " [归档]" if r["isArchived"] else ""
         lines.append(
             f"| `{r['name']}`{arch_tag} | {r['primaryLanguage'] or '—'} | {r['score']}/60 |"
