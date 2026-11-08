@@ -1,6 +1,6 @@
-name: Sync Portfolio Project
+name: Sync Project Rows
 
-# 把项目组合（PROJECT_SERIES）同步到 GitHub Project「项目组合」
+# 把项目层字段同步到 Project #1「任务看板」里的 13 个项目条目。
 # 每周日 23:00（北京时间）跑一次，在「每周 Profile 自动更新」之后一小时，
 # 读到的 tracked_config.json 已经是当周刷新过的。
 on:
@@ -8,8 +8,8 @@ on:
     - cron: '0 15 * * 0'  # 每周日 UTC 15:00（北京时间 23:00）
   workflow_dispatch:
     inputs:
-      prune:
-        description: '顺带删除本脚本创建的陈旧条目'
+      dry_run:
+        description: '只预览要做什么，不写入'
         type: boolean
         default: false
 
@@ -31,35 +31,32 @@ jobs:
       - name: 安装依赖
         run: pip install anthropic python-dotenv
 
-      - name: 确认 gh CLI 可用
-        run: gh --version
-
-      - name: 同步项目组合到 Project
+      - name: 同步项目条目
         env:
           # 用 PROJECT_TOKEN 而非 GITHUB_TOKEN：后者默认没有 projects: write 权限
           GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
           PORTFOLIO_OWNER: ${{ github.repository_owner }}
           # 仓库变量不会自动进环境变量，必须显式映射
-          PORTFOLIO_PROJECT_NUMBER: ${{ vars.PORTFOLIO_PROJECT_NUMBER }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
         run: |
-          if [ -z "$PORTFOLIO_PROJECT_NUMBER" ]; then
-            echo "::error::未找到仓库变量 PORTFOLIO_PROJECT_NUMBER"
-            echo "::error::先在本地跑 python3 sync_portfolio.py --create-project 创建 Project 并设置该变量"
+          if [ -z "$PROJECT_NUMBER" ]; then
+            echo "::error::未找到仓库变量 PROJECT_NUMBER"
             exit 1
           fi
-          echo "Project #$PORTFOLIO_PROJECT_NUMBER (owner=$PORTFOLIO_OWNER)"
+          echo "Project #$PROJECT_NUMBER (owner=$PORTFOLIO_OWNER)"
           python3 sync_portfolio.py \
-            --project-number "$PORTFOLIO_PROJECT_NUMBER" \
+            --project-number "$PROJECT_NUMBER" \
             --owner "$PORTFOLIO_OWNER" \
-            ${{ inputs.prune && '--prune' || '' }}
+            ${{ inputs.dry_run && '--dry-run' || '' }}
 
       - name: 同步摘要
         if: always()
         run: |
           {
-            echo "## 项目组合同步"
+            echo "## 项目条目同步"
             echo ""
-            echo "- Project: #${{ env.PORTFOLIO_PROJECT_NUMBER }}"
+            echo "- Project: #${{ env.PROJECT_NUMBER }}"
             echo "- 时间: $(date -u '+%Y-%m-%d %H:%M UTC')"
-            echo "- 人工字段（进度/DDL/状态/负责人）未被覆盖"
+            echo "- 机器字段（模块/评分/最近推送/仓库/栈）已刷新"
+            echo "- 人工字段（推进状态/进度/DDL/负责人）未被覆盖"
           } >> "$GITHUB_STEP_SUMMARY"

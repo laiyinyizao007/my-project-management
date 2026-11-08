@@ -1,33 +1,26 @@
 #!/usr/bin/env python3
-"""项目组合 ↔ GitHub Project「项目组合」双向工具。
+"""把项目层字段同步到 GitHub Project #1「任务看板」的项目条目上。
 
-两个模式：
+**只有一个板子了。** Project #1 里并存两类行：
+  - 13 个**项目条目**（顶层 Issue，标签 `type: project` + `proj:<仓 slug>`）
+    → 用项目层字段：模块 / 推进状态 / 评分 / 最近推送 / 仓库 / 栈 / 进度 / DDL / 负责人
+  - 65 个**任务**（各仓的 issue，挂在项目条目下作 sub-issue）
+    → 用任务层字段：Priority / Category / Size / Status / Sprint
+GitHub 内置的 **Parent issue** 和 **Sub-issues progress** 自动表达层级与完成度。
 
-  建板子（一次性）
-    python3 sync_portfolio.py --create-project
-      → 创建 Project「项目组合」+ 9 个字段 + Table/看板 两个视图
-      → 把 Project 编号写进仓库变量 PORTFOLIO_PROJECT_NUMBER
+项目定义来自 project_registry.py（= update_profile.py 的 PROJECT_SERIES + 工具仓列表），
+评分来自 tracked_config.json，仓库事实来自 GitHub API —— 全部在本仓内，不依赖本机工作区。
 
-  灌数据（每周 / 手动）
-    python3 sync_portfolio.py --project-number 3
-      → 把 PROJECT_SERIES 的 9 个系列同步成 9 条 draft item，并写机器字段
+写入策略（改之前先读）：
+  机器字段  模块 / 评分 / 最近推送 / 仓库 / 栈   每次同步**覆盖** —— 它们是代码算出的事实
+  人工字段  推进状态 / 进度 / DDL / 负责人          **同步脚本永不写** —— 连写同样的值都算写：
+             一旦某次读不到现值，写默认值就等于抹掉你填的「休眠」。
+             默认值由 setup_project_issues.py 在建条目时给。
+  派生      GitHub 内置 Status 由「推进状态」映射（看板默认分组轴靠它）
 
-数据源全部在本仓内，不依赖本机工作区 —— 所以 GitHub Actions 里跑得起来：
-
-  update_profile.py    → PROJECT_SERIES / WORK|PERSONAL_SERIES_KEYS（项目定义的**唯一来源**，
-                         不在这里重复维护一遍，避免和 profile.md 的项目展示漂移）
-  tracked_config.json  → 质量评分（0-60）
-  GitHub API           → 最近推送、stars、语言、描述
-
-写入策略（重要，改之前先读）：
-
-  机器字段  模块 / 评分 / 最近推送 / 仓库 / 栈   每次同步**覆盖** —— 它们由代码算出，是事实
-  人工字段  进度 / DDL / 状态 / 负责人             只在**首次创建**时写默认值，之后**永不覆盖**
-             否则每周同步会把你手填的进度和 DDL 抹掉 —— 这是这类同步最容易犯的错。
-
-前置：令牌需含 project scope（读+写 user projects）。
-  本机：gh auth 的令牌，或 GH_TOKEN 环境变量
-  Actions：secrets.PROJECT_TOKEN
+用法：
+  python3 sync_portfolio.py --dry-run     # 只看要做什么
+  python3 sync_portfolio.py               # 真同步
 """
 
 import argparse
@@ -41,34 +34,21 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
-# 项目定义直接复用 update_profile.py —— 单一来源
-from update_profile import (  # noqa: E402
-    PERSONAL_SERIES_KEYS,
-    PROJECT_SERIES,
-    WORK_SERIES_KEYS,
-    find_latest_in_series,
-)
+from project_registry import build_registry  # noqa: E402
 
 TRACKED_CONFIG = BASE_DIR / "tracked_config.json"
+HOME_REPO = "my-project-management"
 DEFAULT_OWNER = "laiyinyizao007"
-DEFAULT_TITLE = "项目组合"
-DEFAULT_VARIABLE = "PORTFOLIO_PROJECT_NUMBER"
 
 # ── 字段定义 ────────────────────────────────────────────────────
-# kind: single / number / date / text
 # machine=True → 每次同步覆盖；machine=False → 仅创建时写默认值
 FIELDS = {
-    "模块":     {"kind": "single", "machine": True,
-                 "options": [("工作", "BLUE", "交付给客户/公司的项目"),
-                             ("个人", "GREEN", "自研/个人项目")]},
+    "模块":     {"kind": "single", "machine": True},
     "评分":     {"kind": "number", "machine": True},
     "最近推送": {"kind": "date",   "machine": True},
     "仓库":     {"kind": "text",   "machine": True},
     "栈":       {"kind": "text",   "machine": True},
-    "推进状态": {"kind": "single", "machine": False,
-                 "options": [("进行中", "GREEN", "当前在推进"),
-                             ("休眠", "GRAY", "暂时没动但没放弃"),
-                             ("归档候选", "ORANGE", "长期未动，考虑归档")]},
+    "推进状态": {"kind": "single", "machine": False},
     "进度":     {"kind": "number", "machine": False},
     "DDL":      {"kind": "date",   "machine": False},
     "负责人":   {"kind": "text",   "machine": False},
@@ -80,10 +60,8 @@ HUMAN_DEFAULTS = {
     "负责人": "我",
 }
 
-# 派生写入 GitHub **内置**的 Status 字段（Todo / In Progress / Done）。
-# 为什么要有：看板视图的默认分组轴是内置 Status，不写它的话 9 条全挤在
-# "Todo" 一列里，看着像坏了。自定义「推进状态」有更贴切的三档
-# （进行中/休眠/归档候选），但分组轴只能在网页拖，所以两边都写。
+# 派生写入 GitHub **内置**的 Status 字段（看板默认分组轴）。
+# 自定义「推进状态」的三档更贴切，但分组轴只能在网页拖，所以两边都写。
 DERIVED_STATUS = {
     "进行中":   "In Progress",
     "休眠":     "Todo",
@@ -93,7 +71,6 @@ DERIVED_STATUS = {
 
 # ── GraphQL ─────────────────────────────────────────────────────
 def gql(query, variables=None):
-    """调 GitHub GraphQL。令牌走 GH_TOKEN 环境变量（不经过命令行）。"""
     payload = json.dumps({"query": query, "variables": variables or {}})
     env = dict(os.environ)
     r = subprocess.run(
@@ -119,24 +96,6 @@ def gh_cli(*args):
     return r.stdout.strip()
 
 
-OWNER_QUERY = """
-query($login: String!) {
-  repositoryOwner(login: $login) {
-    __typename
-    ... on User { id login }
-    ... on Organization { id login }
-  }
-}
-"""
-
-CREATE_PROJECT = """
-mutation($ownerId: ID!, $title: String!) {
-  createProjectV2(input: { ownerId: $ownerId, title: $title }) {
-    projectV2 { id number title }
-  }
-}
-"""
-
 PROJECT_QUERY = """
 query($login: String!, $num: Int!) {
   repositoryOwner(login: $login) {
@@ -147,7 +106,7 @@ query($login: String!, $num: Int!) {
 fragment proj on ProjectV2 {
   id
   title
-  fields(first: 40) {
+  fields(first: 50) {
     nodes {
       __typename
       ... on ProjectV2Field { id name }
@@ -159,7 +118,11 @@ fragment proj on ProjectV2 {
   items(first: 100) {
     nodes {
       id
-      content { ... on DraftIssue { id title body } }
+      content {
+        __typename
+        ... on Issue { id title number }
+        ... on DraftIssue { id title }
+      }
       fieldValues(first: 20) {
         nodes {
           ... on ProjectV2ItemFieldSingleSelectValue {
@@ -173,44 +136,24 @@ fragment proj on ProjectV2 {
 }
 """
 
-LIST_PROJECTS = """
-query($login: String!) {
-  repositoryOwner(login: $login) {
-    ... on User { projectsV2(first: 50) { nodes { number title } } }
-    ... on Organization { projectsV2(first: 50) { nodes { number title } } }
+PROJECT_ISSUES_QUERY = """
+query($owner: String!, $repo: String!) {
+  repository(owner: $owner, name: $repo) {
+    issues(first: 100, states: [OPEN, CLOSED]) {
+      nodes {
+        id
+        number
+        title
+        labels(first: 10) { nodes { name } }
+      }
+    }
   }
 }
 """
 
-CREATE_FIELD = """
-mutation($pid: ID!, $name: String!, $dt: ProjectV2CustomFieldType!) {
-  createProjectV2Field(input: { projectId: $pid dataType: $dt name: $name }) {
-    projectV2Field { ... on ProjectV2Field { id name } }
-  }
-}
-"""
-
-CREATE_SELECT_FIELD = """
-mutation($pid: ID!, $name: String!, $opts: [ProjectV2SingleSelectFieldOptionInput!]!) {
-  createProjectV2Field(input: { projectId: $pid dataType: SINGLE_SELECT name: $name singleSelectOptions: $opts }) {
-    projectV2Field { ... on ProjectV2SingleSelectField { id name options { id name } } }
-  }
-}
-"""
-
-CREATE_VIEW = """
-mutation($pid: ID!, $name: String!, $layout: ProjectV2ViewLayout!) {
-  createProjectV2View(input: { projectId: $pid name: $name layout: $layout }) {
-    projectV2View { id name }
-  }
-}
-"""
-
-ADD_DRAFT = """
-mutation($pid: ID!, $title: String!, $body: String) {
-  addProjectV2DraftIssue(input: { projectId: $pid, title: $title, body: $body }) {
-    projectItem { id }
-  }
+ADD_TO_PROJECT = """
+mutation($p: ID!, $c: ID!) {
+  addProjectV2ItemById(input: {projectId: $p, contentId: $c}) { projectV2Item { id } }
 }
 """
 
@@ -222,31 +165,24 @@ mutation($pid: ID!, $iid: ID!, $fid: ID!, $val: ProjectV2FieldValue!) {
 }
 """
 
-DELETE_ITEM = """
-mutation($pid: ID!, $iid: ID!) {
-  deleteProjectV2Item(input: {projectId: $pid, itemId: $iid}) { deletedItemId }
-}
-"""
-
 
 # ── 数据采集 ────────────────────────────────────────────────────
 def fetch_repos():
-    """拉全部仓库元数据，按推送时间降序（find_latest_in_series 依赖这个顺序）。"""
     raw = json.loads(gh_cli(
         "repo", "list", "--limit", "200", "--json",
         "name,description,primaryLanguage,stargazerCount,pushedAt,isArchived,isFork,isPrivate,url",
     ))
     repos = []
     for x in raw:
-        lang = (x.get("primaryLanguage") or {}).get("name", "")
         repos.append({
             "name": x.get("name", ""),
             "description": x.get("description") or "",
-            "primaryLanguage": lang,
+            "primaryLanguage": (x.get("primaryLanguage") or {}).get("name", ""),
             "stargazerCount": x.get("stargazerCount", 0),
             "pushedAt": x.get("pushedAt", ""),
             "isArchived": x.get("isArchived", False),
             "isFork": x.get("isFork", False),
+            "isPrivate": x.get("isPrivate", False),
             "url": x.get("url", ""),
         })
     repos.sort(key=lambda x: x["pushedAt"] or "", reverse=True)
@@ -254,7 +190,6 @@ def fetch_repos():
 
 
 def load_scores():
-    """tracked_config.json → {仓库名: 最近一次质量评分}"""
     if not TRACKED_CONFIG.exists():
         return {}
     cfg = json.loads(TRACKED_CONFIG.read_text(encoding="utf-8"))
@@ -266,118 +201,24 @@ def load_scores():
     return out
 
 
-def build_items():
-    """按 PROJECT_SERIES 组装待同步条目。"""
-    repos = fetch_repos()
-    scores = load_scores()
-    items = []
-    for keyword in WORK_SERIES_KEYS + PERSONAL_SERIES_KEYS:
-        meta = PROJECT_SERIES.get(keyword)
-        if not meta:
+def project_issues(owner):
+    """my-project-management 里带 type: project 标签的 issue → {proj_key: issue}"""
+    nodes = gql(PROJECT_ISSUES_QUERY, {"owner": owner, "repo": HOME_REPO})["repository"]["issues"]["nodes"]
+    out = {}
+    for n in nodes:
+        labels = [l["name"] for l in n["labels"]["nodes"]]
+        if "type: project" not in labels:
             continue
-        module = "工作" if keyword in WORK_SERIES_KEYS else "个人"
-        repo = find_latest_in_series(repos, keyword)
-        repo_name = repo["name"] if repo else ""
-        tags = list(meta["tags"])
-        if repo and repo.get("primaryLanguage") and repo["primaryLanguage"] not in tags:
-            tags = [repo["primaryLanguage"]] + tags
-        items.append({
-            "keyword": keyword,
-            "title": f"{meta['icon']} {meta['name']}",
-            "module": module,
-            "score": scores.get(repo_name),
-            "pushed": (repo["pushedAt"] or "")[:10] if repo else "",
-            "repo": repo_name,
-            "repo_url": repo["url"] if repo else "",
-            "stack": " · ".join(tags[:4]),
-            "summary": meta.get("desc", ""),
-        })
-    return items
+        key = next((l[5:] for l in labels if l.startswith("proj:")), None)
+        if key:
+            out[key] = n
+    return out
 
 
-# ── 模式一：建 Project ─────────────────────────────────────────
-def create_project(owner, title, variable_name):
-    print(f"🧭 创建 Project「{title}」（owner={owner}）")
-
-    owner_data = gql(OWNER_QUERY, {"login": owner})
-    owner_node = owner_data.get("repositoryOwner") or {}
-    if not owner_node.get("id"):
-        raise RuntimeError(f"找不到 owner {owner}")
-    owner_id = owner_node["id"]
-    print(f"   owner node id: {owner_id}")
-
-    # 幂等：同名 Project 已存在就接着补字段，不重复建
-    listed = gql(LIST_PROJECTS, {"login": owner})
-    nodes = (listed.get("repositoryOwner") or {}).get("projectsV2", {}).get("nodes", [])
-    hit = next((p for p in nodes if p.get("title") == title), None)
-    if hit:
-        number = hit["number"]
-        print(f"   ⏭️  同名 Project 已存在（#{number}），接着补字段，不重复创建")
-        pid = gql(PROJECT_QUERY, {"login": owner, "num": number})["repositoryOwner"]["projectV2"]["id"]
-    else:
-        r = gql(CREATE_PROJECT, {"ownerId": owner_id, "title": title})
-        project = r["createProjectV2"]["projectV2"]
-        pid, number = project["id"], project["number"]
-        print(f"   ✅ Project 已创建：#{number}  ({pid})")
-
-    # 字段
-    data = gql(PROJECT_QUERY, {"login": owner, "num": number})
-    existing = {f["name"] for f in data["repositoryOwner"]["projectV2"]["fields"]["nodes"] if f.get("name")}
-    for fname, spec in FIELDS.items():
-        if fname in existing:
-            print(f"   ⏭️  字段 {fname} 已存在，跳过")
-            continue
-        if spec["kind"] == "single":
-            opts = [{"name": n, "color": c, "description": d} for n, c, d in spec["options"]]
-            gql(CREATE_SELECT_FIELD, {"pid": pid, "name": fname, "opts": opts})
-        else:
-            dt = {"number": "NUMBER", "date": "DATE", "text": "TEXT"}[spec["kind"]]
-            gql(CREATE_FIELD, {"pid": pid, "name": fname, "dt": dt})
-        print(f"   ✅ 字段 {fname} ({spec['kind']}) 已创建")
-
-    # 视图
-    data = gql(PROJECT_QUERY, {"login": owner, "num": number})
-    view_names = set()
-    for node in data["repositoryOwner"]["projectV2"]["fields"]["nodes"]:
-        pass
-    # 视图列表在 projectV2.views（部分 schema 版本才有），取不到就当作不存在，直接尝试创建
-    views_raw = data["repositoryOwner"]["projectV2"].get("views")
-    if isinstance(views_raw, dict):
-        view_names = {v["name"] for v in views_raw.get("nodes", []) if v.get("name")}
-    for vname, layout in (("Table", "TABLE_LAYOUT"), ("看板", "BOARD_LAYOUT")):
-        if vname in view_names:
-            print(f"   ⏭️  视图 {vname} 已存在，跳过")
-            continue
-        try:
-            gql(CREATE_VIEW, {"pid": pid, "name": vname, "layout": layout})
-            print(f"   ✅ 视图 {vname} 已创建")
-        except RuntimeError as e:
-            print(f"   ⚠️  视图 {vname} 创建失败（可能已存在）：{str(e)[:120]}")
-
-    # 仓库变量
-    try:
-        repo_full = gh_cli("repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
-        gh_cli("variable", "set", variable_name, "--body", str(number), "--repo", repo_full)
-        print(f"   ✅ 仓库变量 {variable_name}={number} 已设置（{repo_full}）")
-    except RuntimeError as e:
-        print(f"   ⚠️  设置仓库变量失败（不影响 Project 本身）：{e}")
-
-    print(f"\n🎉 Project「{title}」#{number}")
-    print(f"   网页：https://github.com/users/{owner}/projects/{number}")
-    print(f"   灌数据：python3 sync_portfolio.py --project-number {number}")
-    print(f"   看板分组需在网页把分组拖到「模块」列（GraphQL 不支持分组）")
-    return number
-
-
-# ── 模式二：同步 ───────────────────────────────────────────────
-def field_value(kind, value, spec):
-    """把 Python 值转成 ProjectV2FieldValue。返回 None 表示该字段不该写。"""
+# ── 同步 ────────────────────────────────────────────────────────
+def field_value(kind, value):
     if value in (None, ""):
         return None
-    if kind == "single":
-        if value not in [o[0] for o in spec.get("options", [])]:
-            return None
-        return {"singleSelectOptionId": None}   # 占位，稍后换成 option id
     if kind == "number":
         try:
             return {"number": float(value)}
@@ -388,16 +229,16 @@ def field_value(kind, value, spec):
     return {"text": str(value)}
 
 
-def sync(project_number, owner, dry_run=False, prune=False):
-    items = build_items()
-    print(f"📦 项目组合：{len(items)} 个系列")
-    for it in items:
-        score = it["score"] if it["score"] is not None else "—"
-        print(f"   {it['module']:4s} {it['title']:22s} 仓库={it['repo'] or '—':30s} "
-              f"评分={score} 最近推送={it['pushed'] or '—'}")
-        if not it["repo"]:
-            print(f"        ⚠️ 系列「{it['keyword']}」在 GitHub 上找不到对应仓库 —— "
-                  f"PROJECT_SERIES 里的关键词可能已失效（仓库被删/改名）")
+def sync(project_number, owner, dry_run=False):
+    repos = fetch_repos()
+    registry = build_registry(repos)
+    scores = load_scores()
+
+    print(f"📦 项目条目 {len(registry)} 个 · Project #{project_number}")
+    for p in registry:
+        score = scores.get(p["key"])
+        print(f"   {p['module']:4s} {p['title']:30s} 仓库={p['key']:32s} "
+              f"评分={score if score is not None else '—'} 最近推送={p['pushed'] or '—'}")
 
     if dry_run:
         print("\n🧪 --dry-run：到此为止，不触碰 Project。")
@@ -406,10 +247,7 @@ def sync(project_number, owner, dry_run=False, prune=False):
     data = gql(PROJECT_QUERY, {"login": owner, "num": project_number})
     project = (data.get("repositoryOwner") or {}).get("projectV2")
     if not project:
-        raise RuntimeError(
-            f"找不到 Project #{project_number}（owner={owner}）。"
-            "令牌需含 project scope；或先跑 --create-project 建。"
-        )
+        raise RuntimeError(f"找不到 Project #{project_number}。令牌需含 project scope。")
     pid = project["id"]
     print(f"\n✅ Project #{project_number} → {pid}")
 
@@ -422,54 +260,56 @@ def sync(project_number, owner, dry_run=False, prune=False):
             }
     missing = [n for n in FIELDS if n not in fields]
     if missing:
-        raise RuntimeError(f"Project 缺少字段: {', '.join(missing)}。先跑 --create-project 建字段。")
+        raise RuntimeError(f"Project 缺少字段: {', '.join(missing)}")
 
-    existing = {}
+    # 看板条目：content.id 就是 issue 的 node id → 用它对上项目 issue
+    item_of_issue = {}
     for node in project["items"]["nodes"]:
         content = node.get("content") or {}
-        if not content.get("title"):
-            continue
-        # 读出该 item 当前的单选字段值（派生内置 Status 时要用「推进状态」的现值，
-        # 不能用默认值——否则你标了「休眠」，内置 Status 会被写回 In Progress）
-        cur = {}
+        if content.get("__typename") == "Issue" and content.get("id"):
+            item_of_issue[content["id"]] = node["id"]
+    # item 上已有的单选字段值（派生内置 Status 时要读「推进状态」现值）
+    item_values = {}
+    for node in project["items"]["nodes"]:
+        vals = {}
         for fv in (node.get("fieldValues") or {}).get("nodes", []):
             fname = (fv.get("field") or {}).get("name")
             if fname:
-                cur[fname] = fv.get("name")
-        existing[content["title"]] = {"id": node["id"], "body": content.get("body") or "", "fields": cur}
+                vals[fname] = fv.get("name")
+        item_values[node["id"]] = vals
 
-    expected_titles = {it["title"] for it in items}
-    created = synced = 0
+    issues = project_issues(owner)
+    synced = added = 0
 
-    for it in items:
-        is_new = it["title"] not in existing
-        if is_new:
-            body = it["summary"]
-            if it["repo_url"]:
-                body += f"\n\n仓库：{it['repo_url']}"
-            r = gql(ADD_DRAFT, {"pid": pid, "title": it["title"], "body": body})
-            item_id = r["addProjectV2DraftIssue"]["projectItem"]["id"]
-            created += 1
-            print(f"   ✚ 新建 {it['title']}")
-        else:
-            item_id = existing[it["title"]]["id"]
+    for p in registry:
+        iss = issues.get(p["key"])
+        if not iss:
+            print(f"   ⚠ 找不到项目条目 issue（proj:{p['key']}），跳过 —— 先跑 setup_project_issues.py")
+            continue
+        item_id = item_of_issue.get(iss["id"])
+        if not item_id:
+            gql(ADD_TO_PROJECT, {"p": pid, "c": iss["id"]})
+            added += 1
+            item_id = None  # 下一轮才有 item；字段先跳过
+            print(f"   ✚ 加入看板 {p['title']}")
+        if not item_id:
+            continue
 
+        # 只写机器字段。人工字段（推进状态/进度/DDL/负责人）**绝不写** ——
+        # 哪怕写的值和现值一样也算写：一旦某次读不到现值（字段没拉到），
+        # 写默认值就等于抹掉你填的「休眠」。默认值只在建条目时给，
+        # 由 setup_project_issues.py 负责。
         values = {
-            # 机器字段：每次覆盖
-            "模块": it["module"],
-            "评分": it["score"],
-            "最近推送": it["pushed"],
-            "仓库": it["repo_url"] or it["repo"],
-            "栈": it["stack"],
+            "模块": p["module"],
+            "评分": scores.get(p["key"]),
+            "最近推送": p["pushed"],
+            "仓库": p["repo_url"] or p["key"],
+            "栈": p["stack"],
         }
-        # 人工字段：仅新建时给默认值，之后永不覆盖
-        if is_new:
-            for fname, default in HUMAN_DEFAULTS.items():
-                values.setdefault(fname, default)
 
         for fname, value in values.items():
             spec = FIELDS[fname]
-            val = field_value(spec["kind"], value, spec)
+            val = field_value(spec["kind"], value)
             if val is None:
                 continue
             if spec["kind"] == "single":
@@ -480,55 +320,32 @@ def sync(project_number, owner, dry_run=False, prune=False):
                 val = {"singleSelectOptionId": opt_id}
             gql(SET_FIELD, {"pid": pid, "iid": item_id, "fid": fields[fname]["id"], "val": val})
 
-        # 派生写内置 Status（看板默认分组轴），值由「推进状态」映射而来。
-        # 新建项用刚写入的默认值；已有项读**现值**，保证不与人工填的状态打架。
+        # 派生写内置 Status（看板默认分组轴）。源是该项「推进状态」的**现值**（只读）
         builtin = fields.get("Status")
         if builtin and builtin.get("options"):
-            if is_new:
-                src = values.get("推进状态") or HUMAN_DEFAULTS["推进状态"]
-            else:
-                src = existing[it["title"]]["fields"].get("推进状态") or HUMAN_DEFAULTS["推进状态"]
+            cur = item_values.get(item_id, {})
+            src = cur.get("推进状态") or HUMAN_DEFAULTS["推进状态"]
             opt = DERIVED_STATUS.get(src)
             opt_id = builtin["options"].get(opt) if opt else None
             if opt_id:
                 gql(SET_FIELD, {"pid": pid, "iid": item_id, "fid": builtin["id"],
                                 "val": {"singleSelectOptionId": opt_id}})
-            else:
-                print(f"   ⚠ 内置 Status 没有选项「{opt}」，跳过")
-
         synced += 1
-        print(f"   ✓ 同步 {it['title']}")
+        print(f"   ✓ {p['title']}")
 
-    if prune:
-        stale = [t for t, v in existing.items()
-                 if t not in expected_titles and "github.com/" in v["body"]]
-        for title in stale:
-            gql(DELETE_ITEM, {"pid": pid, "iid": existing[title]["id"]})
-            print(f"   🗑 删除陈旧条目 {title}")
-
-    print(f"\n✅ 完成：新建 {created} 个，同步 {synced} 个，项目共 {len(items)} 个")
-    print("   人工字段（进度/DDL/状态/负责人）已保留，未被覆盖。")
+    print(f"\n✅ 完成：同步 {synced} 个项目条目，新加入看板 {added} 个")
+    print("   人工字段（推进状态/进度/DDL/负责人）已保留，未被覆盖。")
     print(f"   {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     return 0
 
 
 def main():
-    ap = argparse.ArgumentParser(description="项目组合 ↔ GitHub Project 工具")
-    ap.add_argument("--create-project", action="store_true", help="创建 Project + 字段 + 视图")
-    ap.add_argument("--project-number", type=int, help="Project 编号（同步时必填）")
+    ap = argparse.ArgumentParser(description="项目层字段 → Project #1 的项目条目")
+    ap.add_argument("--project-number", type=int, default=1, help="Project 编号（默认 1 = 任务看板）")
     ap.add_argument("--owner", default=os.environ.get("PORTFOLIO_OWNER", DEFAULT_OWNER))
-    ap.add_argument("--title", default=DEFAULT_TITLE)
-    ap.add_argument("--variable-name", default=DEFAULT_VARIABLE)
-    ap.add_argument("--dry-run", action="store_true", help="只打印将要做什么，不写任何东西")
-    ap.add_argument("--prune", action="store_true", help="删除本脚本创建的陈旧条目")
+    ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
-
-    if args.create_project:
-        create_project(args.owner, args.title, args.variable_name)
-        return 0
-    if not args.project_number:
-        ap.error("同步需要 --project-number，或用 --create-project 先建 Project")
-    return sync(args.project_number, args.owner, args.dry_run, args.prune)
+    return sync(args.project_number, args.owner, args.dry_run)
 
 
 if __name__ == "__main__":

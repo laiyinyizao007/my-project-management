@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""用 mock 验证 sync_portfolio 的字段保护与幂等逻辑（不需要令牌）。
+"""验证 sync_portfolio 的字段策略（mock，不需要令牌）。
+
+三个必须守住的不变量：
+  1. 机器字段（模块/评分/最近推送/仓库/栈）每次同步都刷新
+  2. 人工字段（推进状态/进度/DDL/负责人）**永不**被同步覆盖
+  3. 内置 Status 由「推进状态」派生，且读的是该项**现值**而不是默认值
 
 运行：python3 tests/test_sync_portfolio.py
 """
@@ -11,122 +16,149 @@ sys.path.insert(0, str(REPO_ROOT))
 import sync_portfolio as sp
 
 CALLS = []
-STATE = {"items": {}, "fields": {}, "next_id": 1}
+ITEMS = {}        # item_id -> {issue_node_id, number, title, values}
+NEXT = [1]
 
-FIELD_IDS = {"模块": "F_MOD", "评分": "F_SCORE", "最近推送": "F_PUSH", "仓库": "F_REPO",
-             "栈": "F_STACK", "推进状态": "F_STAT", "Status": "F_BUILTIN", "进度": "F_PROG", "DDL": "F_DDL", "负责人": "F_OWNER"}
-OPT_IDS = {("模块", "工作"): "O_WORK", ("模块", "个人"): "O_PERS",
-           ("推进状态", "进行中"): "O_ACTIVE", ("推进状态", "休眠"): "O_IDLE", ("推进状态", "归档候选"): "O_ARCH"}
+FIELD_IDS = {
+    "模块": "F_MOD", "评分": "F_SCORE", "最近推送": "F_PUSH", "仓库": "F_REPO",
+    "栈": "F_STACK", "推进状态": "F_STAT", "进度": "F_PROG", "DDL": "F_DDL",
+    "负责人": "F_OWN", "Status": "F_BUILTIN",
+}
+OPTS = {
+    "模块": {"工作": "O_W", "个人": "O_P", "工具": "O_T"},
+    "推进状态": {"进行中": "O_ACTIVE", "休眠": "O_IDLE", "归档候选": "O_ARCH"},
+    "Status": {"Todo": "O_TODO", "In Progress": "O_WIP", "Done": "O_DONE"},
+}
+NAME_OF = {v: k for k, v in FIELD_IDS.items()}
+
 
 def fake_gql(query, variables=None):
     variables = variables or {}
-    CALLS.append((query.strip().split("\n")[0][:40], variables))
+    CALLS.append((query, variables))
 
-    if "createProjectV2(" in query:
-        return {"createProjectV2": {"projectV2": {"id": "P1", "number": 99, "title": "项目组合"}}}
-    if "OWNER" in query or "repositoryOwner(login: $login) {" in query and "projectV2" not in query:
-        return {"repositoryOwner": {"__typename": "User", "id": "U1", "login": "laiyinyizao007"}}
     if "projectV2(number: $num)" in query and "items(" in query:
+        nodes = []
+        for iid, meta in ITEMS.items():
+            nodes.append({
+                "id": iid,
+                "content": {"__typename": "Issue", "id": meta["issue_id"],
+                            "number": meta["number"], "title": meta["title"]},
+                "fieldValues": {"nodes": [
+                    {"name": v, "field": {"name": k}}
+                    for k, v in meta["values"].items() if k in ("推进状态", "Status")
+                ]},
+            })
         return {"repositoryOwner": {"projectV2": {
-            "id": "P1", "title": "项目组合",
+            "id": "P1", "title": "任务看板",
             "fields": {"nodes": [
                 {"__typename": "ProjectV2SingleSelectField", "id": FIELD_IDS["模块"], "name": "模块",
-                 "options": [{"id": "O_WORK", "name": "工作"}, {"id": "O_PERS", "name": "个人"}]},
-                {"__typename": "ProjectV2Field", "id": FIELD_IDS["评分"], "name": "评分"},
-                {"__typename": "ProjectV2Field", "id": FIELD_IDS["最近推送"], "name": "最近推送"},
-                {"__typename": "ProjectV2Field", "id": FIELD_IDS["仓库"], "name": "仓库"},
-                {"__typename": "ProjectV2Field", "id": FIELD_IDS["栈"], "name": "栈"},
+                 "options": [{"id": i, "name": n} for n, i in OPTS["模块"].items()]},
                 {"__typename": "ProjectV2SingleSelectField", "id": FIELD_IDS["推进状态"], "name": "推进状态",
-                 "options": [{"id": "O_ACTIVE", "name": "进行中"}, {"id": "O_IDLE", "name": "休眠"}]},
-                {"__typename": "ProjectV2Field", "id": FIELD_IDS["进度"], "name": "进度"},
-                {"__typename": "ProjectV2Field", "id": FIELD_IDS["DDL"], "name": "DDL"},
-                {"__typename": "ProjectV2Field", "id": FIELD_IDS["负责人"], "name": "负责人"},
-                {"__typename": "ProjectV2SingleSelectField", "id": "F_BUILTIN", "name": "Status",
-                 "options": [{"id": "O_TODO", "name": "Todo"}, {"id": "O_WIP", "name": "In Progress"}]},
-            ]},
-            "items": {"nodes": [
-                {"id": iid, "content": {"id": iid, "title": t, "body": b},
-                 "fieldValues": {"nodes": STATE["fields"].get(iid, [])}}
-                for iid, (t, b) in STATE["items"].items()
-            ]},
+                 "options": [{"id": i, "name": n} for n, i in OPTS["推进状态"].items()]},
+                {"__typename": "ProjectV2SingleSelectField", "id": FIELD_IDS["Status"], "name": "Status",
+                 "options": [{"id": i, "name": n} for n, i in OPTS["Status"].items()]},
+            ] + [{"__typename": "ProjectV2Field", "id": FIELD_IDS[n], "name": n}
+                 for n in ("评分", "最近推送", "仓库", "栈", "进度", "DDL", "负责人")]},
+            "items": {"nodes": nodes},
         }}}
-    if "addProjectV2DraftIssue" in query:
-        iid = f"ITEM{STATE['next_id']}"
-        STATE["next_id"] += 1
-        STATE["items"][iid] = (variables["title"], variables.get("body") or "")
-        return {"addProjectV2DraftIssue": {"projectItem": {"id": iid}}}
+    if "repository(owner: $owner, name: $repo)" in query:
+        return {"repository": {"issues": {"nodes": [
+            {"id": "I_" + k, "number": 100 + i, "title": f"项目 {k}",
+             "labels": {"nodes": [{"name": "type: project"}, {"name": f"proj:{k}"}]}}
+            for i, k in enumerate(["alpha", "beta"])
+        ]}}}
     if "updateProjectV2ItemFieldValue" in query:
-        fid = variables["fid"]
-        name = {v: k for k, v in FIELD_IDS.items()}[fid]
-        STATE.setdefault("written", []).append((variables["iid"], name, variables["val"]))
+        fid = variables["fid"]; name = NAME_OF[fid]
+        for iid, meta in ITEMS.items():
+            if variables["iid"] == iid:
+                v = variables["val"]
+                val = v.get("singleSelectOptionId")
+                if val:   # id → 还原成名称（与真实 API 的 fieldValues 一致）
+                    for opts in OPTS.values():
+                        val = {i: n for n, i in opts.items()}.get(val, val)
+                meta["values"][name] = val or v.get("number") or v.get("text") or v.get("date")
         return {"updateProjectV2ItemFieldValue": {"projectV2Item": {"id": variables["iid"]}}}
-    if "deleteProjectV2Item" in query:
-        STATE["items"].pop(variables["iid"], None)
-        return {"deleteProjectV2Item": {"deletedItemId": variables["iid"]}}
-    if "createProjectV2Field" in query:
-        return {"createProjectV2Field": {"projectV2Field": {"id": "NEWFIELD", "name": variables["name"]}}}
-    if "createProjectV2View" in query:
-        return {"createProjectV2View": {"projectV2View": {"id": "V1", "name": variables["name"]}}}
+    if "addProjectV2ItemById" in query:
+        return {"addProjectV2ItemById": {"projectV2Item": {"id": "ITEM_NEW"}}}
     raise AssertionError("未预期的 query: " + query[:80])
 
+
 sp.gql = fake_gql
-sp.fetch_repos = lambda: [
-    {"name": "green-compass-net", "description": "", "primaryLanguage": "TypeScript",
-     "stargazerCount": 1, "pushedAt": "2026-11-06T00:00:00Z", "isArchived": False,
-     "isFork": False, "url": "https://github.com/laiyinyizao007/green-compass-net"},
-    {"name": "lovable-life-hub", "description": "", "primaryLanguage": "TypeScript",
-     "stargazerCount": 2, "pushedAt": "2026-11-06T00:00:00Z", "isArchived": False,
-     "isFork": False, "url": "https://github.com/laiyinyizao007/lovable-life-hub"},
+sp.gh_cli = lambda *a: json.dumps([
+    {"name": "alpha", "description": "", "primaryLanguage": {"name": "TypeScript"}, "stargazerCount": 1,
+     "pushedAt": "2026-11-08T00:00:00Z", "isArchived": False, "isFork": False,
+     "isPrivate": False, "url": "https://github.com/x/alpha"},
+    {"name": "beta", "description": "", "primaryLanguage": {"name": "Python"}, "stargazerCount": 2,
+     "pushedAt": "2026-11-07T00:00:00Z", "isArchived": False, "isFork": False,
+     "isPrivate": False, "url": "https://github.com/x/beta"},
+])
+sp.load_scores = lambda: {"alpha": 20, "beta": 45}
+
+# 注册表与项目 issue 都 mock 掉，只留两个项目条目，便于精确断言
+sp.build_registry = lambda repos=None: [
+    {"key": "alpha", "title": "项目 alpha", "module": "工作", "desc": "", "tags": [],
+     "series": "alpha", "stack": "TypeScript", "repo_url": "https://github.com/x/alpha",
+     "pushed": "2026-11-08", "language": "TypeScript"},
+    {"key": "beta", "title": "项目 beta", "module": "个人", "desc": "", "tags": [],
+     "series": "beta", "stack": "Python", "repo_url": "https://github.com/x/beta",
+     "pushed": "2026-11-07", "language": "Python"},
 ]
-sp.load_scores = lambda: {"green-compass-net": 20, "lovable-life-hub": 30}
+sp.project_issues = lambda owner: {
+    "alpha": {"id": "I_alpha", "number": 101, "title": "项目 alpha"},
+    "beta":  {"id": "I_beta",  "number": 102, "title": "项目 beta"},
+}
 
-print("══════ 场景 1：首次同步（Project 为空）══════")
-STATE["items"] = {}; STATE["written"] = []; STATE["next_id"] = 1
-sp.sync(99, "laiyinyizao007", dry_run=False, prune=False)
-created = len(STATE["items"])
-w1 = list(STATE["written"])
-fields_written = {f for _, f, _ in w1}
-print(f"\n  条目数={created}（期望 9）")
-print(f"  写过的字段={sorted(fields_written)}")
-assert created == 9, f"条目数不对: {created}"
-assert "进度" not in fields_written, "不应写进度"
-assert "DDL" not in fields_written, "不应写 DDL"
-assert {"模块", "评分", "最近推送", "仓库", "栈", "推进状态", "负责人"} <= fields_written
-# 推进状态/负责人 默认值各 9 次
-stat_cnt = sum(1 for _, f, _ in w1 if f == "推进状态")
-own_cnt = sum(1 for _, f, _ in w1 if f == "负责人")
-assert stat_cnt == 9 and own_cnt == 9, f"默认值次数不对 status={stat_cnt} owner={own_cnt}"
-print("  ✓ 首次同步：9 条全建；机器字段+人工默认值写入；进度/DDL 未写")
 
-print("\n══════ 场景 2：再次同步（人工字段必须不被覆盖）══════")
-STATE["written"] = []
-sp.sync(99, "laiyinyizao007", dry_run=False, prune=False)
-w2 = list(STATE["written"])
-fields2 = {f for _, f, _ in w2}
-print(f"  条目数={len(STATE['items'])}（应仍为 9，不得重复创建）")
-print(f"  写过的字段={sorted(fields2)}")
-assert len(STATE["items"]) == 9, f"重复创建了：{len(STATE['items'])}"
-assert "进度" not in fields2, "进度不应被覆盖"
-assert "DDL" not in fields2, "DDL 不应被覆盖"
-assert "推进状态" not in fields2, "推进状态不应被覆盖"
-assert "负责人" not in fields2, "负责人不应被覆盖"
-assert {"模块", "评分", "最近推送", "仓库", "栈"} <= fields2, "机器字段应继续写"
-print("  ✓ 二次同步：幂等；人工字段零覆盖；机器字段照常刷新")
+def setup():
+    ITEMS.clear(); NEXT[0] = 1
+    for k in ("alpha", "beta"):
+        iid = f"ITEM{NEXT[0]}"; NEXT[0] += 1
+        ITEMS[iid] = {"issue_id": f"I_{k}", "number": 100, "title": f"项目 {k}", "values": {}}
 
-print("\n══════ 场景 3：--prune 只删自己创建的陈旧条目 ══════")
-STATE["items"]["FOREIGN"] = ("我手动加的条目", "跟 GitHub 无关")
-STATE["items"]["ITEM1"] = ("🏥 Fidelity Craftsmen", "旧条目\n\n仓库：https://github.com/x/y")
-STATE["written"] = []
-sp.sync(99, "laiyinyizao007", dry_run=False, prune=True)
-titles = [t for t, _ in STATE["items"].values()]
-print(f"  剩余条目={len(titles)}，含 FOREIGN={'我手动加的条目' in titles}")
-assert "我手动加的条目" in titles, "不该删用户自己加的条目"
-print("  ✓ prune：保留手工条目")
 
-print("\n══════ 场景 4：dry-run 不写任何东西 ══════")
-before = len(STATE["items"]); STATE["written"] = []
-sp.sync(99, "laiyinyizao007", dry_run=True, prune=False)
-assert len(STATE["items"]) == before and not STATE["written"], "dry-run 写了东西！"
+print("══════ 场景 1：首次同步 ══════")
+setup()
+CALLS.clear()
+sp.sync(1, "laiyinyizao007", dry_run=False)
+w1 = [c for c in CALLS if "updateProjectV2ItemFieldValue" in c[0]]
+names = [NAME_OF[c[1]["fid"]] for c in w1]
+print(f"  写了 {len(w1)} 个字段值")
+assert "评分" in names and "模块" in names and "仓库" in names, names
+assert "推进状态" not in names, "同步脚本永不写人工字段"
+assert "进度" not in names and "DDL" not in names, "同步脚本永不写进度/DDL"
+assert "负责人" not in names, "同步脚本永不写负责人"
+print("  ✓ 只写机器字段；人工字段一次都不碰")
+
+print("\n══════ 场景 2：二次同步 —— 人工字段不得被覆盖 ══════")
+for meta in ITEMS.values():
+    if meta["issue_id"] == "I_alpha":
+        meta["values"]["推进状态"] = "休眠"
+        meta["values"]["进度"] = 42
+        meta["values"]["DDL"] = "2026-12-01"
+CALLS.clear()
+sp.sync(1, "laiyinyizao007", dry_run=False)
+w2 = [c for c in CALLS if "updateProjectV2ItemFieldValue" in c[0]]
+names2 = [NAME_OF[c[1]["fid"]] for c in w2]
+print(f"  写了字段: {sorted(set(names2))}")
+assert "推进状态" not in names2, "推进状态不应被同步覆盖"
+assert "负责人" not in names2, "负责人不应被同步覆盖"
+assert "进度" not in names2, "进度不应被同步覆盖"
+assert "DDL" not in names2, "DDL 不应被同步覆盖"
+assert {"模块", "评分", "最近推送", "仓库", "栈"} <= set(names2), "机器字段应继续刷新"
+print("  ✓ 人工字段零写入；机器字段照常刷新")
+
+print("\n══════ 场景 3：派生 Status 读现值，不是默认值 ══════")
+w3 = [c for c in CALLS if c[1].get("fid") == FIELD_IDS["Status"]]
+vals = [c[1]["val"].get("singleSelectOptionId") for c in w3]
+print(f"  派生 Status 写入 {len(w3)} 次，取值: {vals}")
+assert OPTS["Status"]["Todo"] in vals, "休眠(现值) 应派生为 Todo，而不是默认的 In Progress"
+assert OPTS["Status"]["In Progress"] in vals, "beta(默认进行中) 应派生为 In Progress"
+print("  ✓ 派生 Status 按各项现值映射")
+
+print("\n══════ 场景 4：dry-run 零写入 ══════")
+CALLS.clear()
+sp.sync(1, "laiyinyizao007", dry_run=True)
+assert not [c for c in CALLS if "updateProjectV2ItemFieldValue" in c[0]], "dry-run 写了！"
 print("  ✓ dry-run：零写入")
 
 print("\n✅ 全部断言通过")
