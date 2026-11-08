@@ -3,7 +3,7 @@
 
 **只有一个板子了。** Project #1 里并存两类行：
   - 10 个**项目组条目**（顶层 Issue，住在各自的主仓，标签 `type: group` + `group:<key>`）
-    → 项目层字段：大组 / 推进状态 / 评分 / 最近推送 / 仓库 / 栈 / 进度 / DDL / 负责人
+    → 项目层字段：分类 / 推进状态 / 评分 / 最近推送 / 仓库 / 栈 / 进度 / DDL / 负责人
   - 各仓的**任务** issue（挂在项目组下作 sub-issue，跨仓）
     → 任务层字段：Priority / Category / Size / Status / Sprint
 GitHub 内置的 **Parent issue** 和 **Sub-issues progress** 自动表达层级与完成度。
@@ -12,7 +12,7 @@ GitHub 内置的 **Parent issue** 和 **Sub-issues progress** 自动表达层级
 仓库事实来自 GitHub API —— 全部在本仓内，不依赖本机工作区。
 
 写入策略（改之前先读）：
-  机器字段  大组 / 评分 / 最近推送 / 仓库 / 栈   每次同步**覆盖** —— 它们是代码算出的事实
+  机器字段  分类 / 评分 / 最近推送 / 仓库 / 栈   每次同步**覆盖** —— 它们是代码算出的事实
   人工字段  推进状态 / 进度 / DDL / 负责人          **同步脚本一次都不写** —— 连写同样的值都算写：
              一旦某次读不到现值，写默认值就等于抹掉你填的「休眠」。
              默认值只在建条目时给，由 setup_project_issues.py 负责。
@@ -41,7 +41,7 @@ DEFAULT_OWNER = "laiyinyizao007"
 
 # ── 字段定义 ────────────────────────────────────────────────────
 FIELDS = {
-    "大组":     {"kind": "single", "machine": True},
+    "分类":     {"kind": "single", "machine": True},
     "评分":     {"kind": "number", "machine": True},
     "最近推送": {"kind": "date",   "machine": True},
     "仓库":     {"kind": "text",   "machine": True},
@@ -239,7 +239,7 @@ def sync(project_number, owner, dry_run=False):
         pr = meta.get(g["primary"])
         pushed = (pr["pushedAt"] or "")[:10] if pr else "—"
         score = scores.get(g["primary"], "—")
-        print(f"   {g['module']:6s} {g['title']:24s} 主仓={g['primary']:26s} "
+        print(f"   {g['category']:6s} {g['title']:24s} 主仓={g['primary']:26s} "
               f"组内仓 {len(g['repos'])}  评分={score} 最近推送={pushed}")
 
     if dry_run:
@@ -296,7 +296,7 @@ def sync(project_number, owner, dry_run=False):
         pr = meta.get(g["primary"], {})
         # 只写机器字段；人工字段一次都不碰
         values = {
-            "大组": g["module"],
+            "分类": g["category"],
             "评分": scores.get(g["primary"]),
             "最近推送": (pr.get("pushedAt") or "")[:10],
             "仓库": pr.get("url") or f"https://github.com/{owner}/{g['primary']}",
@@ -328,27 +328,27 @@ def sync(project_number, owner, dry_run=False):
         synced += 1
         print(f"   ✓ {g['title']}（{g['primary']}）")
 
-        # 把「大组」派生写到组内的任务行上 ——
-        # 这样看板里就能「先按大组分组 → 组内再按 Parent issue 分组」，
-        # 直接得到 大组 → 项目组 → 任务 三层。
-        # 任务行的大组是从项目组派生的机器字段，允许覆盖。
+        # 把「分类」派生写到组内的任务行上 ——
+        # 这样看板里就能「先按分类分组 → 组内再按 Parent issue 分组」，
+        # 直接得到 分类 → 项目组 → 任务 三层。
+        # 任务行的分类是从项目组派生的机器字段，允许覆盖。
         for rname in g["repos"]:
             for t in repo_task_issues(owner, rname):
                 titem = item_of_issue.get(t["id"])
                 if not titem:
                     continue
-                opt_id = fields["大组"]["options"].get(g["module"])
+                opt_id = fields["分类"]["options"].get(g["category"])
                 if not opt_id:
                     continue
                 cur = item_values.get(titem, {})
-                if cur.get("大组") == g["module"]:
-                    continue          # 已是这个大组，不用重写
-                gql(SET_FIELD, {"pid": pid, "iid": titem, "fid": fields["大组"]["id"],
+                if cur.get("分类") == g["category"]:
+                    continue          # 已是这个分类，不用重写
+                gql(SET_FIELD, {"pid": pid, "iid": titem, "fid": fields["分类"]["id"],
                                 "val": {"singleSelectOptionId": opt_id}})
                 task_tagged += 1
-                print(f"     ↳ {rname}#{t['number']} 大组 = {g['module']}")
+                print(f"     ↳ {rname}#{t['number']} 分类 = {g['category']}")
 
-    print(f"\n✅ 完成：同步 {synced} 个项目组，新加入看板 {added} 个，任务行标注大组 {task_tagged} 个")
+    print(f"\n✅ 完成：同步 {synced} 个项目组，新加入看板 {added} 个，任务行标注分类 {task_tagged} 个")
     print("   人工字段（推进状态/进度/DDL/负责人）未被覆盖。")
     print(f"   {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     return 0

@@ -2,10 +2,10 @@
 """验证 sync_portfolio 的字段策略（mock，不需要令牌）。
 
 必须守住的不变量：
-  1. 机器字段（大组/评分/最近推送/仓库/栈）每次同步都刷新
+  1. 机器字段（分类/评分/最近推送/仓库/栈）每次同步都刷新
   2. 人工字段（推进状态/进度/DDL/负责人）**一次都不写** —— 连写同样的值都算写
   3. 内置 Status 由「推进状态」派生，且读的是该项**现值**而不是默认值
-  4. 任务行的大组由项目组派生，且只在不一致时才写
+  4. 任务行��分类由项目组派生，且只在不一致时才写
 
 运行：python3 tests/test_sync_portfolio.py
 """
@@ -20,12 +20,12 @@ CALLS = []
 ITEMS = {}        # item_id -> {issue_id, number, title, values}
 
 FIELD_IDS = {
-    "大组": "F_GRP", "评分": "F_SCORE", "最近推送": "F_PUSH", "仓库": "F_REPO",
+    "分类": "F_GRP", "评分": "F_SCORE", "最近推送": "F_PUSH", "仓库": "F_REPO",
     "栈": "F_STACK", "推进状态": "F_STAT", "进度": "F_PROG", "DDL": "F_DDL",
     "负责人": "F_OWN", "Status": "F_BUILTIN",
 }
 OPTS = {
-    "大组": {"客户交付": "O_W", "个人产品": "O_P", "效率工具": "O_T"},
+    "分类": {"客户交付": "O_W", "个人产品": "O_P", "效率工具": "O_T"},
     "推进状态": {"进行中": "O_ACTIVE", "休眠": "O_IDLE", "归档候选": "O_ARCH"},
     "Status": {"Todo": "O_TODO", "In Progress": "O_WIP", "Done": "O_DONE"},
 }
@@ -45,14 +45,14 @@ def fake_gql(query, variables=None):
                             "number": meta["number"], "title": meta["title"]},
                 "fieldValues": {"nodes": [
                     {"name": v, "field": {"name": k}}
-                    for k, v in meta["values"].items() if k in ("推进状态", "Status", "大组")
+                    for k, v in meta["values"].items() if k in ("推进状态", "Status", "分类")
                 ]},
             })
         return {"repositoryOwner": {"projectV2": {
             "id": "P1", "title": "任务看板",
             "fields": {"nodes": [
-                {"__typename": "ProjectV2SingleSelectField", "id": FIELD_IDS["大组"], "name": "大组",
-                 "options": [{"id": i, "name": n} for n, i in OPTS["大组"].items()]},
+                {"__typename": "ProjectV2SingleSelectField", "id": FIELD_IDS["分类"], "name": "分类",
+                 "options": [{"id": i, "name": n} for n, i in OPTS["分类"].items()]},
                 {"__typename": "ProjectV2SingleSelectField", "id": FIELD_IDS["推进状态"], "name": "推进状态",
                  "options": [{"id": i, "name": n} for n, i in OPTS["推进状态"].items()]},
                 {"__typename": "ProjectV2SingleSelectField", "id": FIELD_IDS["Status"], "name": "Status",
@@ -98,9 +98,9 @@ sp.gh_cli = lambda *a: json.dumps([
 ])
 sp.load_scores = lambda: {"alpha": 20, "beta": 45}
 sp.build_groups = lambda: [
-    {"key": "alpha", "title": "组 alpha", "module": "客户交付", "primary": "alpha",
+    {"key": "alpha", "title": "组 alpha", "category": "客户交付", "primary": "alpha",
      "repos": ["alpha"], "desc": "", "tags": ["TypeScript"]},
-    {"key": "beta", "title": "组 beta", "module": "个人产品", "primary": "beta",
+    {"key": "beta", "title": "组 beta", "category": "个人产品", "primary": "beta",
      "repos": ["beta"], "desc": "", "tags": ["Python"]},
 ]
 
@@ -123,16 +123,16 @@ sp.sync(1, "laiyinyizao007", dry_run=False)
 w1 = [c for c in CALLS if "updateProjectV2ItemFieldValue" in c[0]]
 names = [NAME_OF[c[1]["fid"]] for c in w1]
 print(f"  写了 {len(w1)} 个字段值")
-assert "评分" in names and "大组" in names and "仓库" in names, names
+assert "评分" in names and "分类" in names and "仓库" in names, names
 assert "推进状态" not in names, "同步脚本永不写人工字段"
 assert "进度" not in names and "DDL" not in names and "负责人" not in names
 print("  ✓ 只写机器字段；人工字段一次都没碰")
 
-# 场景 1 里的任务行大组写入（第二次同步时已一致，不该再写）
+# 场景 1 里的任务行分类写入（第二次同步时已一致，不该再写）
 task_writes_first = [c for c in CALLS
-                     if c[1].get("fid") == FIELD_IDS["大组"] and c[1]["iid"].startswith("ITEM_T_")]
-print(f"  任务行大组写入 {len(task_writes_first)} 次")
-assert task_writes_first, "任务行应被标注大组"
+                     if c[1].get("fid") == FIELD_IDS["分类"] and c[1]["iid"].startswith("ITEM_T_")]
+print(f"  任务行分类写入 {len(task_writes_first)} 次")
+assert task_writes_first, "任务行应被标注分类"
 
 print("\n══════ 场景 2：二次同步 —— 人工字段不得被覆盖 ══════")
 for meta in ITEMS.values():
@@ -147,7 +147,7 @@ names2 = [NAME_OF[c[1]["fid"]] for c in w2]
 print(f"  写了字段: {sorted(set(names2))}")
 for f in ("推进状态", "进度", "DDL", "负责人"):
     assert f not in names2, f"{f} 不应被同步覆盖"
-assert {"大组", "评分", "最近推送", "仓库", "栈"} <= set(names2), "机器字段应继续刷新"
+assert {"分类", "评分", "最近推送", "仓库", "栈"} <= set(names2), "机器字段应继续刷新"
 print("  ✓ 人工字段零写入；机器字段照常刷新")
 
 print("\n══════ 场景 3：派生 Status 读现值 ══════")
@@ -158,13 +158,13 @@ assert OPTS["Status"]["Todo"] in vals, "休眠(现值) 应派生为 Todo，而�
 assert OPTS["Status"]["In Progress"] in vals
 print("  ✓ 派生 Status 按各项现值映射")
 
-print("\n══════ 场景 4：任务行的大组由项目组派生（一致时不重复写）═══════")
+print("\n══════ 场景 4：任务行��分类由项目组派生（一致时不重复写）═══════")
 CALLS.clear()
 sp.sync(1, "laiyinyizao007", dry_run=False)
-again = [c for c in CALLS if c[1].get("fid") == FIELD_IDS["大组"] and c[1]["iid"].startswith("ITEM_T_")]
-print(f"  第二次同步：任务行大组再写 {len(again)} 次（应只写不一致的）")
-assert len(again) == 0, "大组已一致时不该重复写"
-print("  ✓ 任务行大组只在不一致时写")
+again = [c for c in CALLS if c[1].get("fid") == FIELD_IDS["分类"] and c[1]["iid"].startswith("ITEM_T_")]
+print(f"  第二次同步：任务行分类再写 {len(again)} 次（应只写不一致的）")
+assert len(again) == 0, "分类已一致时不该重复写"
+print("  ✓ 任务行分类只在不一致时写")
 
 print("\n══════ 场景 5：dry-run 零写入 ══════")
 CALLS.clear()

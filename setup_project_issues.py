@@ -2,7 +2,7 @@
 """建立「项目组 → 任务」的原生层级（GitHub Parent issue / Sub-issues）。
 
 结构：
-    大组（字段，客户端分组用）
+    分类（字段，看板里做第一层分组）
       └── 项目组（顶层 Issue，住在该组的**主仓**）
             └── 任务（组内各仓的 issue，跨仓 sub-issue）
 
@@ -272,7 +272,7 @@ def main():
     for g in groups:
         alive = [r for r in g["repos"] if r in known]
         missing = [r for r in g["repos"] if r not in known]
-        print(f"  {g['module']:6s} {g['title']:26s} 主仓={g['primary']:26s} "
+        print(f"  {g['category']:6s} {g['title']:26s} 主仓={g['primary']:26s} "
               f"组内仓 {len(alive)}/{len(g['repos'])}" + (f" ⚠ 缺 {missing}" if missing else ""))
 
     if args.dry_run:
@@ -292,7 +292,7 @@ def main():
         key_label = ensure_label(primary, f"group:{g['key']}", "C5DEF5",
                                  f"归属项目组：{g['title']}")
 
-        body = f"{g['desc']}\n\n- 大组：{g['module']}\n- 主仓：{primary}\n"
+        body = f"{g['desc']}\n\n- 分类：{g['category']}\n- 主仓：{primary}\n"
         body += f"- 组内仓：{', '.join(g['repos'])}\n- 技术栈：{' · '.join(g['tags'][:4])}\n"
         body += "\n<!-- 本 Issue 是该项目组在看板上的顶层条目；下面的子任务是组内各仓的具体工作项。 -->"
 
