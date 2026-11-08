@@ -65,7 +65,7 @@ FIELDS = {
     "最近推送": {"kind": "date",   "machine": True},
     "仓库":     {"kind": "text",   "machine": True},
     "栈":       {"kind": "text",   "machine": True},
-    "状态":     {"kind": "single", "machine": False,
+    "推进状态": {"kind": "single", "machine": False,
                  "options": [("进行中", "GREEN", "当前在推进"),
                              ("休眠", "GRAY", "暂时没动但没放弃"),
                              ("归档候选", "ORANGE", "长期未动，考虑归档")]},
@@ -76,8 +76,18 @@ FIELDS = {
 
 # 首次创建时人工字段的默认值
 HUMAN_DEFAULTS = {
-    "状态": "进行中",
+    "推进状态": "进行中",
     "负责人": "我",
+}
+
+# 派生写入 GitHub **内置**的 Status 字段（Todo / In Progress / Done）。
+# 为什么要有：看板视图的默认分组轴是内置 Status，不写它的话 9 条全挤在
+# "Todo" 一列里，看着像坏了。自定义「推进状态」有更贴切的三档
+# （进行中/休眠/归档候选），但分组轴只能在网页拖，所以两边都写。
+DERIVED_STATUS = {
+    "进行中":   "In Progress",
+    "休眠":     "Todo",
+    "归档候选": "Done",
 }
 
 
@@ -150,6 +160,14 @@ fragment proj on ProjectV2 {
     nodes {
       id
       content { ... on DraftIssue { id title body } }
+      fieldValues(first: 20) {
+        nodes {
+          ... on ProjectV2ItemFieldSingleSelectValue {
+            name
+            field { ... on ProjectV2FieldCommon { name } }
+          }
+        }
+      }
     }
   }
 }
@@ -409,8 +427,16 @@ def sync(project_number, owner, dry_run=False, prune=False):
     existing = {}
     for node in project["items"]["nodes"]:
         content = node.get("content") or {}
-        if content.get("title"):
-            existing[content["title"]] = {"id": node["id"], "body": content.get("body") or ""}
+        if not content.get("title"):
+            continue
+        # 读出该 item 当前的单选字段值（派生内置 Status 时要用「推进状态」的现值，
+        # 不能用默认值——否则你标了「休眠」，内置 Status 会被写回 In Progress）
+        cur = {}
+        for fv in (node.get("fieldValues") or {}).get("nodes", []):
+            fname = (fv.get("field") or {}).get("name")
+            if fname:
+                cur[fname] = fv.get("name")
+        existing[content["title"]] = {"id": node["id"], "body": content.get("body") or "", "fields": cur}
 
     expected_titles = {it["title"] for it in items}
     created = synced = 0
@@ -453,6 +479,23 @@ def sync(project_number, owner, dry_run=False, prune=False):
                     continue
                 val = {"singleSelectOptionId": opt_id}
             gql(SET_FIELD, {"pid": pid, "iid": item_id, "fid": fields[fname]["id"], "val": val})
+
+        # 派生写内置 Status（看板默认分组轴），值由「推进状态」映射而来。
+        # 新建项用刚写入的默认值；已有项读**现值**，保证不与人工填的状态打架。
+        builtin = fields.get("Status")
+        if builtin and builtin.get("options"):
+            if is_new:
+                src = values.get("推进状态") or HUMAN_DEFAULTS["推进状态"]
+            else:
+                src = existing[it["title"]]["fields"].get("推进状态") or HUMAN_DEFAULTS["推进状态"]
+            opt = DERIVED_STATUS.get(src)
+            opt_id = builtin["options"].get(opt) if opt else None
+            if opt_id:
+                gql(SET_FIELD, {"pid": pid, "iid": item_id, "fid": builtin["id"],
+                                "val": {"singleSelectOptionId": opt_id}})
+            else:
+                print(f"   ⚠ 内置 Status 没有选项「{opt}」，跳过")
+
         synced += 1
         print(f"   ✓ 同步 {it['title']}")
 

@@ -11,12 +11,12 @@ sys.path.insert(0, str(REPO_ROOT))
 import sync_portfolio as sp
 
 CALLS = []
-STATE = {"items": {}, "next_id": 1}
+STATE = {"items": {}, "fields": {}, "next_id": 1}
 
 FIELD_IDS = {"模块": "F_MOD", "评分": "F_SCORE", "最近推送": "F_PUSH", "仓库": "F_REPO",
-             "栈": "F_STACK", "状态": "F_STAT", "进度": "F_PROG", "DDL": "F_DDL", "负责人": "F_OWNER"}
+             "栈": "F_STACK", "推进状态": "F_STAT", "Status": "F_BUILTIN", "进度": "F_PROG", "DDL": "F_DDL", "负责人": "F_OWNER"}
 OPT_IDS = {("模块", "工作"): "O_WORK", ("模块", "个人"): "O_PERS",
-           ("状态", "进行中"): "O_ACTIVE", ("状态", "休眠"): "O_IDLE", ("状态", "归档候选"): "O_ARCH"}
+           ("推进状态", "进行中"): "O_ACTIVE", ("推进状态", "休眠"): "O_IDLE", ("推进状态", "归档候选"): "O_ARCH"}
 
 def fake_gql(query, variables=None):
     variables = variables or {}
@@ -36,14 +36,17 @@ def fake_gql(query, variables=None):
                 {"__typename": "ProjectV2Field", "id": FIELD_IDS["最近推送"], "name": "最近推送"},
                 {"__typename": "ProjectV2Field", "id": FIELD_IDS["仓库"], "name": "仓库"},
                 {"__typename": "ProjectV2Field", "id": FIELD_IDS["栈"], "name": "栈"},
-                {"__typename": "ProjectV2SingleSelectField", "id": FIELD_IDS["状态"], "name": "状态",
+                {"__typename": "ProjectV2SingleSelectField", "id": FIELD_IDS["推进状态"], "name": "推进状态",
                  "options": [{"id": "O_ACTIVE", "name": "进行中"}, {"id": "O_IDLE", "name": "休眠"}]},
                 {"__typename": "ProjectV2Field", "id": FIELD_IDS["进度"], "name": "进度"},
                 {"__typename": "ProjectV2Field", "id": FIELD_IDS["DDL"], "name": "DDL"},
                 {"__typename": "ProjectV2Field", "id": FIELD_IDS["负责人"], "name": "负责人"},
+                {"__typename": "ProjectV2SingleSelectField", "id": "F_BUILTIN", "name": "Status",
+                 "options": [{"id": "O_TODO", "name": "Todo"}, {"id": "O_WIP", "name": "In Progress"}]},
             ]},
             "items": {"nodes": [
-                {"id": iid, "content": {"id": iid, "title": t, "body": b}}
+                {"id": iid, "content": {"id": iid, "title": t, "body": b},
+                 "fieldValues": {"nodes": STATE["fields"].get(iid, [])}}
                 for iid, (t, b) in STATE["items"].items()
             ]},
         }}}
@@ -88,9 +91,9 @@ print(f"  写过的字段={sorted(fields_written)}")
 assert created == 9, f"条目数不对: {created}"
 assert "进度" not in fields_written, "不应写进度"
 assert "DDL" not in fields_written, "不应写 DDL"
-assert {"模块", "评分", "最近推送", "仓库", "栈", "状态", "负责人"} <= fields_written
-# 状态/负责人 默认值各 9 次
-stat_cnt = sum(1 for _, f, _ in w1 if f == "状态")
+assert {"模块", "评分", "最近推送", "仓库", "栈", "推进状态", "负责人"} <= fields_written
+# 推进状态/负责人 默认值各 9 次
+stat_cnt = sum(1 for _, f, _ in w1 if f == "推进状态")
 own_cnt = sum(1 for _, f, _ in w1 if f == "负责人")
 assert stat_cnt == 9 and own_cnt == 9, f"默认值次数不对 status={stat_cnt} owner={own_cnt}"
 print("  ✓ 首次同步：9 条全建；机器字段+人工默认值写入；进度/DDL 未写")
@@ -105,7 +108,7 @@ print(f"  写过的字段={sorted(fields2)}")
 assert len(STATE["items"]) == 9, f"重复创建了：{len(STATE['items'])}"
 assert "进度" not in fields2, "进度不应被覆盖"
 assert "DDL" not in fields2, "DDL 不应被覆盖"
-assert "状态" not in fields2, "状态不应被覆盖"
+assert "推进状态" not in fields2, "推进状态不应被覆盖"
 assert "负责人" not in fields2, "负责人不应被覆盖"
 assert {"模块", "评分", "最近推送", "仓库", "栈"} <= fields2, "机器字段应继续写"
 print("  ✓ 二次同步：幂等；人工字段零覆盖；机器字段照常刷新")
