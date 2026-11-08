@@ -142,9 +142,8 @@ fragment proj on ProjectV2 {
       __typename
       ... on ProjectV2Field { id name }
       ... on ProjectV2SingleSelectField { id name options { id name } }
-      ... on ProjectV2DateField { id name }
-      ... on ProjectV2NumberField { id name }
-      ... on ProjectV2TextField { id name }
+      ... on ProjectV2MultiSelectField { id name }
+      ... on ProjectV2IterationField { id name }
     }
   }
   items(first: 100) {
@@ -152,6 +151,15 @@ fragment proj on ProjectV2 {
       id
       content { ... on DraftIssue { id title body } }
     }
+  }
+}
+"""
+
+LIST_PROJECTS = """
+query($login: String!) {
+  repositoryOwner(login: $login) {
+    ... on User { projectsV2(first: 50) { nodes { number title } } }
+    ... on Organization { projectsV2(first: 50) { nodes { number title } } }
   }
 }
 """
@@ -183,7 +191,7 @@ mutation($pid: ID!, $name: String!, $layout: ProjectV2ViewLayout!) {
 ADD_DRAFT = """
 mutation($pid: ID!, $title: String!, $body: String) {
   addProjectV2DraftIssue(input: { projectId: $pid, title: $title, body: $body }) {
-    projectV2Item { id }
+    projectItem { id }
   }
 }
 """
@@ -280,10 +288,19 @@ def create_project(owner, title, variable_name):
     owner_id = owner_node["id"]
     print(f"   owner node id: {owner_id}")
 
-    r = gql(CREATE_PROJECT, {"ownerId": owner_id, "title": title})
-    project = r["createProjectV2"]["projectV2"]
-    pid, number = project["id"], project["number"]
-    print(f"   ✅ Project 已创建：#{number}  ({pid})")
+    # 幂等：同名 Project 已存在就接着补字段，不重复建
+    listed = gql(LIST_PROJECTS, {"login": owner})
+    nodes = (listed.get("repositoryOwner") or {}).get("projectsV2", {}).get("nodes", [])
+    hit = next((p for p in nodes if p.get("title") == title), None)
+    if hit:
+        number = hit["number"]
+        print(f"   ⏭️  同名 Project 已存在（#{number}），接着补字段，不重复创建")
+        pid = gql(PROJECT_QUERY, {"login": owner, "num": number})["repositoryOwner"]["projectV2"]["id"]
+    else:
+        r = gql(CREATE_PROJECT, {"ownerId": owner_id, "title": title})
+        project = r["createProjectV2"]["projectV2"]
+        pid, number = project["id"], project["number"]
+        print(f"   ✅ Project 已创建：#{number}  ({pid})")
 
     # 字段
     data = gql(PROJECT_QUERY, {"login": owner, "num": number})
@@ -302,15 +319,22 @@ def create_project(owner, title, variable_name):
 
     # 视图
     data = gql(PROJECT_QUERY, {"login": owner, "num": number})
-    views = data["repositoryOwner"]["projectV2"]
-    view_names = {v["name"] for v in views.get("views", {}).get("nodes", []) if v.get("name")} \
-        if isinstance(views.get("views"), dict) else set()
+    view_names = set()
+    for node in data["repositoryOwner"]["projectV2"]["fields"]["nodes"]:
+        pass
+    # 视图列表在 projectV2.views（部分 schema 版本才有），取不到就当作不存在，直接尝试创建
+    views_raw = data["repositoryOwner"]["projectV2"].get("views")
+    if isinstance(views_raw, dict):
+        view_names = {v["name"] for v in views_raw.get("nodes", []) if v.get("name")}
     for vname, layout in (("Table", "TABLE_LAYOUT"), ("看板", "BOARD_LAYOUT")):
         if vname in view_names:
             print(f"   ⏭️  视图 {vname} 已存在，跳过")
             continue
-        gql(CREATE_VIEW, {"pid": pid, "name": vname, "layout": layout})
-        print(f"   ✅ 视图 {vname} 已创建")
+        try:
+            gql(CREATE_VIEW, {"pid": pid, "name": vname, "layout": layout})
+            print(f"   ✅ 视图 {vname} 已创建")
+        except RuntimeError as e:
+            print(f"   ⚠️  视图 {vname} 创建失败（可能已存在）：{str(e)[:120]}")
 
     # 仓库变量
     try:
@@ -398,7 +422,7 @@ def sync(project_number, owner, dry_run=False, prune=False):
             if it["repo_url"]:
                 body += f"\n\n仓库：{it['repo_url']}"
             r = gql(ADD_DRAFT, {"pid": pid, "title": it["title"], "body": body})
-            item_id = r["addProjectV2DraftIssue"]["projectV2Item"]["id"]
+            item_id = r["addProjectV2DraftIssue"]["projectItem"]["id"]
             created += 1
             print(f"   ✚ 新建 {it['title']}")
         else:

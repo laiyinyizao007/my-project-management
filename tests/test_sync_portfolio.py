@@ -51,7 +51,7 @@ def fake_gql(query, variables=None):
         iid = f"ITEM{STATE['next_id']}"
         STATE["next_id"] += 1
         STATE["items"][iid] = (variables["title"], variables.get("body") or "")
-        return {"addProjectV2DraftIssue": {"projectV2Item": {"id": iid}}}
+        return {"addProjectV2DraftIssue": {"projectItem": {"id": iid}}}
     if "updateProjectV2ItemFieldValue" in query:
         fid = variables["fid"]
         name = {v: k for k, v in FIELD_IDS.items()}[fid]
