@@ -1,0 +1,65 @@
+name: Sync Portfolio Project
+
+# 把项目组合（PROJECT_SERIES）同步到 GitHub Project「项目组合」
+# 每周日 23:00（北京时间）跑一次，在「每周 Profile 自动更新」之后一小时，
+# 读到的 tracked_config.json 已经是当周刷新过的。
+on:
+  schedule:
+    - cron: '0 15 * * 0'  # 每周日 UTC 15:00（北京时间 23:00）
+  workflow_dispatch:
+    inputs:
+      prune:
+        description: '顺带删除本脚本创建的陈旧条目'
+        type: boolean
+        default: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 安装依赖
+        run: pip install anthropic python-dotenv
+
+      - name: 确认 gh CLI 可用
+        run: gh --version
+
+      - name: 同步项目组合到 Project
+        env:
+          # 用 PROJECT_TOKEN 而非 GITHUB_TOKEN：后者默认没有 projects: write 权限
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PORTFOLIO_OWNER: ${{ github.repository_owner }}
+          # 仓库变量不会自动进环境变量，必须显式映射
+          PORTFOLIO_PROJECT_NUMBER: ${{ vars.PORTFOLIO_PROJECT_NUMBER }}
+        run: |
+          if [ -z "$PORTFOLIO_PROJECT_NUMBER" ]; then
+            echo "::error::未找到仓库变量 PORTFOLIO_PROJECT_NUMBER"
+            echo "::error::先在本地跑 python3 sync_portfolio.py --create-project 创建 Project 并设置该变量"
+            exit 1
+          fi
+          echo "Project #$PORTFOLIO_PROJECT_NUMBER (owner=$PORTFOLIO_OWNER)"
+          python3 sync_portfolio.py \
+            --project-number "$PORTFOLIO_PROJECT_NUMBER" \
+            --owner "$PORTFOLIO_OWNER" \
+            ${{ inputs.prune && '--prune' || '' }}
+
+      - name: 同步摘要
+        if: always()
+        run: |
+          {
+            echo "## 项目组合同步"
+            echo ""
+            echo "- Project: #${{ env.PORTFOLIO_PROJECT_NUMBER }}"
+            echo "- 时间: $(date -u '+%Y-%m-%d %H:%M UTC')"
+            echo "- 人工字段（进度/DDL/状态/负责人）未被覆盖"
+          } >> "$GITHUB_STEP_SUMMARY"
