@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""把项目层字段同步到 GitHub Project #1「任务看板」的项目条目上。
+"""把项目层字段同步到 GitHub Project #1「任务看板」的项目组条目上。
 
 **只有一个板子了。** Project #1 里并存两类行：
-  - 13 个**项目条目**（顶层 Issue，标签 `type: project` + `proj:<仓 slug>`）
-    → 用项目层字段：模块 / 推进状态 / 评分 / 最近推送 / 仓库 / 栈 / 进度 / DDL / 负责人
-  - 65 个**任务**（各仓的 issue，挂在项目条目下作 sub-issue）
-    → 用任务层字段：Priority / Category / Size / Status / Sprint
+  - 10 个**项目组条目**（顶层 Issue，住在各自的主仓，标签 `type: group` + `group:<key>`）
+    → 项目层字段：大组 / 推进状态 / 评分 / 最近推送 / 仓库 / 栈 / 进度 / DDL / 负责人
+  - 各仓的**任务** issue（挂在项目组下作 sub-issue，跨仓）
+    → 任务层字段：Priority / Category / Size / Status / Sprint
 GitHub 内置的 **Parent issue** 和 **Sub-issues progress** 自动表达层级与完成度。
 
-项目定义来自 project_registry.py（= update_profile.py 的 PROJECT_SERIES + 工具仓列表），
-评分来自 tracked_config.json，仓库事实来自 GitHub API —— 全部在本仓内，不依赖本机工作区。
+项目组定义来自 project_registry.py（唯一来源），评分来自 tracked_config.json，
+仓库事实来自 GitHub API —— 全部在本仓内，不依赖本机工作区。
 
 写入策略（改之前先读）：
-  机器字段  模块 / 评分 / 最近推送 / 仓库 / 栈   每次同步**覆盖** —— 它们是代码算出的事实
-  人工字段  推进状态 / 进度 / DDL / 负责人          **同步脚本永不写** —— 连写同样的值都算写：
+  机器字段  大组 / 评分 / 最近推送 / 仓库 / 栈   每次同步**覆盖** —— 它们是代码算出的事实
+  人工字段  推进状态 / 进度 / DDL / 负责人          **同步脚本一次都不写** —— 连写同样的值都算写：
              一旦某次读不到现值，写默认值就等于抹掉你填的「休眠」。
-             默认值由 setup_project_issues.py 在建条目时给。
+             默认值只在建条目时给，由 setup_project_issues.py 负责。
   派生      GitHub 内置 Status 由「推进状态」映射（看板默认分组轴靠它）
 
 用法：
@@ -34,16 +34,14 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
-from project_registry import build_registry  # noqa: E402
+from project_registry import build_groups  # noqa: E402
 
 TRACKED_CONFIG = BASE_DIR / "tracked_config.json"
-HOME_REPO = "my-project-management"
 DEFAULT_OWNER = "laiyinyizao007"
 
 # ── 字段定义 ────────────────────────────────────────────────────
-# machine=True → 每次同步覆盖；machine=False → 仅创建时写默认值
 FIELDS = {
-    "模块":     {"kind": "single", "machine": True},
+    "大组":     {"kind": "single", "machine": True},
     "评分":     {"kind": "number", "machine": True},
     "最近推送": {"kind": "date",   "machine": True},
     "仓库":     {"kind": "text",   "machine": True},
@@ -54,14 +52,12 @@ FIELDS = {
     "负责人":   {"kind": "text",   "machine": False},
 }
 
-# 首次创建时人工字段的默认值
 HUMAN_DEFAULTS = {
     "推进状态": "进行中",
     "负责人": "我",
 }
 
-# 派生写入 GitHub **内置**的 Status 字段（看板默认分组轴）。
-# 自定义「推进状态」的三档更贴切，但分组轴只能在网页拖，所以两边都写。
+# 派生写入 GitHub 内置的 Status（看板默认分组轴）
 DERIVED_STATUS = {
     "进行中":   "In Progress",
     "休眠":     "Todo",
@@ -136,16 +132,11 @@ fragment proj on ProjectV2 {
 }
 """
 
-PROJECT_ISSUES_QUERY = """
+REPO_ISSUES_QUERY = """
 query($owner: String!, $repo: String!) {
   repository(owner: $owner, name: $repo) {
     issues(first: 100, states: [OPEN, CLOSED]) {
-      nodes {
-        id
-        number
-        title
-        labels(first: 10) { nodes { name } }
-      }
+      nodes { id number title labels(first: 10) { nodes { name } } }
     }
   }
 }
@@ -153,7 +144,7 @@ query($owner: String!, $repo: String!) {
 
 ADD_TO_PROJECT = """
 mutation($p: ID!, $c: ID!) {
-  addProjectV2ItemById(input: {projectId: $p, contentId: $c}) { projectV2Item { id } }
+  addProjectV2ItemById(input: {projectId: $p, contentId: $c}) { item { id } }
 }
 """
 
@@ -201,18 +192,26 @@ def load_scores():
     return out
 
 
-def project_issues(owner):
-    """my-project-management 里带 type: project 标签的 issue → {proj_key: issue}"""
-    nodes = gql(PROJECT_ISSUES_QUERY, {"owner": owner, "repo": HOME_REPO})["repository"]["issues"]["nodes"]
-    out = {}
+def repo_task_issues(owner, repo):
+    """仓里的任务 issue（排除项目组条目）"""
+    nodes = gql(REPO_ISSUES_QUERY, {"owner": owner, "repo": repo})["repository"]["issues"]["nodes"]
+    out = []
     for n in nodes:
         labels = [l["name"] for l in n["labels"]["nodes"]]
-        if "type: project" not in labels:
+        if "type: group" in labels or "type: project" in labels:
             continue
-        key = next((l[5:] for l in labels if l.startswith("proj:")), None)
-        if key:
-            out[key] = n
+        out.append({"id": n["id"], "number": n["number"], "title": n["title"]})
     return out
+
+
+def group_issue(owner, repo, key):
+    """某个仓里带 group:<key> 标签的项目组条目"""
+    nodes = gql(REPO_ISSUES_QUERY, {"owner": owner, "repo": repo})["repository"]["issues"]["nodes"]
+    for n in nodes:
+        labels = [l["name"] for l in n["labels"]["nodes"]]
+        if "type: group" in labels and f"group:{key}" in labels:
+            return n
+    return None
 
 
 # ── 同步 ────────────────────────────────────────────────────────
@@ -231,14 +230,17 @@ def field_value(kind, value):
 
 def sync(project_number, owner, dry_run=False):
     repos = fetch_repos()
-    registry = build_registry(repos)
+    meta = {r["name"]: r for r in repos}
+    groups = build_groups()
     scores = load_scores()
 
-    print(f"📦 项目条目 {len(registry)} 个 · Project #{project_number}")
-    for p in registry:
-        score = scores.get(p["key"])
-        print(f"   {p['module']:4s} {p['title']:30s} 仓库={p['key']:32s} "
-              f"评分={score if score is not None else '—'} 最近推送={p['pushed'] or '—'}")
+    print(f"📦 项目组 {len(groups)} 个 · Project #{project_number}")
+    for g in groups:
+        pr = meta.get(g["primary"])
+        pushed = (pr["pushedAt"] or "")[:10] if pr else "—"
+        score = scores.get(g["primary"], "—")
+        print(f"   {g['module']:6s} {g['title']:24s} 主仓={g['primary']:26s} "
+              f"组内仓 {len(g['repos'])}  评分={score} 最近推送={pushed}")
 
     if dry_run:
         print("\n🧪 --dry-run：到此为止，不触碰 Project。")
@@ -262,15 +264,12 @@ def sync(project_number, owner, dry_run=False):
     if missing:
         raise RuntimeError(f"Project 缺少字段: {', '.join(missing)}")
 
-    # 看板条目：content.id 就是 issue 的 node id → 用它对上项目 issue
     item_of_issue = {}
+    item_values = {}
     for node in project["items"]["nodes"]:
         content = node.get("content") or {}
         if content.get("__typename") == "Issue" and content.get("id"):
             item_of_issue[content["id"]] = node["id"]
-    # item 上已有的单选字段值（派生内置 Status 时要读「推进状态」现值）
-    item_values = {}
-    for node in project["items"]["nodes"]:
         vals = {}
         for fv in (node.get("fieldValues") or {}).get("nodes", []):
             fname = (fv.get("field") or {}).get("name")
@@ -278,35 +277,31 @@ def sync(project_number, owner, dry_run=False):
                 vals[fname] = fv.get("name")
         item_values[node["id"]] = vals
 
-    issues = project_issues(owner)
-    synced = added = 0
-
-    for p in registry:
-        iss = issues.get(p["key"])
+    synced = added = task_tagged = 0
+    for g in groups:
+        iss = group_issue(owner, g["primary"], g["key"])
         if not iss:
-            print(f"   ⚠ 找不到项目条目 issue（proj:{p['key']}），跳过 —— 先跑 setup_project_issues.py")
+            print(f"   ⚠ 找不到项目组条目（{g['primary']} group:{g['key']}），跳过 —— 先跑 setup_project_issues.py")
             continue
         item_id = item_of_issue.get(iss["id"])
         if not item_id:
-            gql(ADD_TO_PROJECT, {"p": pid, "c": iss["id"]})
-            added += 1
-            item_id = None  # 下一轮才有 item；字段先跳过
-            print(f"   ✚ 加入看板 {p['title']}")
-        if not item_id:
-            continue
+            try:
+                item_id = gql(ADD_TO_PROJECT, {"p": pid, "c": iss["id"]})['addProjectV2ItemById']['item']['id']
+                added += 1
+                print(f"   ✚ 加入看板 {g['title']}")
+            except RuntimeError:
+                print(f"   ⚠ 加入看板失败 {g['title']}")
+                continue
 
-        # 只写机器字段。人工字段（推进状态/进度/DDL/负责人）**绝不写** ——
-        # 哪怕写的值和现值一样也算写：一旦某次读不到现值（字段没拉到），
-        # 写默认值就等于抹掉你填的「休眠」。默认值只在建条目时给，
-        # 由 setup_project_issues.py 负责。
+        pr = meta.get(g["primary"], {})
+        # 只写机器字段；人工字段一次都不碰
         values = {
-            "模块": p["module"],
-            "评分": scores.get(p["key"]),
-            "最近推送": p["pushed"],
-            "仓库": p["repo_url"] or p["key"],
-            "栈": p["stack"],
+            "大组": g["module"],
+            "评分": scores.get(g["primary"]),
+            "最近推送": (pr.get("pushedAt") or "")[:10],
+            "仓库": pr.get("url") or f"https://github.com/{owner}/{g['primary']}",
+            "栈": " · ".join(g["tags"][:4]),
         }
-
         for fname, value in values.items():
             spec = FIELDS[fname]
             val = field_value(spec["kind"], value)
@@ -320,7 +315,7 @@ def sync(project_number, owner, dry_run=False):
                 val = {"singleSelectOptionId": opt_id}
             gql(SET_FIELD, {"pid": pid, "iid": item_id, "fid": fields[fname]["id"], "val": val})
 
-        # 派生写内置 Status（看板默认分组轴）。源是该项「推进状态」的**现值**（只读）
+        # 派生写内置 Status（读「推进状态」现值，只读）
         builtin = fields.get("Status")
         if builtin and builtin.get("options"):
             cur = item_values.get(item_id, {})
@@ -331,17 +326,37 @@ def sync(project_number, owner, dry_run=False):
                 gql(SET_FIELD, {"pid": pid, "iid": item_id, "fid": builtin["id"],
                                 "val": {"singleSelectOptionId": opt_id}})
         synced += 1
-        print(f"   ✓ {p['title']}")
+        print(f"   ✓ {g['title']}（{g['primary']}）")
 
-    print(f"\n✅ 完成：同步 {synced} 个项目条目，新加入看板 {added} 个")
-    print("   人工字段（推进状态/进度/DDL/负责人）已保留，未被覆盖。")
+        # 把「大组」派生写到组内的任务行上 ——
+        # 这样看板里就能「先按大组分组 → 组内再按 Parent issue 分组」，
+        # 直接得到 大组 → 项目组 → 任务 三层。
+        # 任务行的大组是从项目组派生的机器字段，允许覆盖。
+        for rname in g["repos"]:
+            for t in repo_task_issues(owner, rname):
+                titem = item_of_issue.get(t["id"])
+                if not titem:
+                    continue
+                opt_id = fields["大组"]["options"].get(g["module"])
+                if not opt_id:
+                    continue
+                cur = item_values.get(titem, {})
+                if cur.get("大组") == g["module"]:
+                    continue          # 已是这个大组，不用重写
+                gql(SET_FIELD, {"pid": pid, "iid": titem, "fid": fields["大组"]["id"],
+                                "val": {"singleSelectOptionId": opt_id}})
+                task_tagged += 1
+                print(f"     ↳ {rname}#{t['number']} 大组 = {g['module']}")
+
+    print(f"\n✅ 完成：同步 {synced} 个项目组，新加入看板 {added} 个，任务行标注大组 {task_tagged} 个")
+    print("   人工字段（推进状态/进度/DDL/负责人）未被覆盖。")
     print(f"   {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
     return 0
 
 
 def main():
-    ap = argparse.ArgumentParser(description="项目层字段 → Project #1 的项目条目")
-    ap.add_argument("--project-number", type=int, default=1, help="Project 编号（默认 1 = 任务看板）")
+    ap = argparse.ArgumentParser(description="项目层字段 → Project #1 的项目组条目")
+    ap.add_argument("--project-number", type=int, default=1)
     ap.add_argument("--owner", default=os.environ.get("PORTFOLIO_OWNER", DEFAULT_OWNER))
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
