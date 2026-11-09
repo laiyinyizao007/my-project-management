@@ -783,15 +783,18 @@ def ensure_relation(notion, db_id, name, target_db_id):
     于是每次同步都新建一个关系、名字被占位成「域 1」「域 2」…
     （真踩过：项目库一度挂着 5 个指向域库的关系）。
     所以用「删掉重建」——关系数据反正下一轮同步会重写。
+
+    注意：一个目标库可以挂**多条**关系（「仓库」「仓库 2」「仓库 3」…，
+    因为 Notion 一条关系最多存 25 个），所以只按**名字**判定，
+    不能看到「指向同一个库」就删。
     """
     props = db_properties(notion, db_id)
-    same_target = [k for k, v in props.items()
-                   if v.get("type") == "relation"
-                   and (v.get("relation") or {}).get("database_id") == target_db_id]
-    if same_target == [name]:
+    entry = props.get(name)
+    if (entry and entry.get("type") == "relation"
+            and (entry.get("relation") or {}).get("database_id") == target_db_id):
         return False
-    for k in same_target:
-        _patch_props(notion, db_id, {k: None})
+    if entry:
+        _patch_props(notion, db_id, {name: None})
     _patch_props(notion, db_id, {name: {"relation": {"database_id": target_db_id, "single_property": {}}}})
     return True
 
