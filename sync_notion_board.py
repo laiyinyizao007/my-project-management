@@ -157,9 +157,17 @@ class Notion:
     def patch(self, path, payload):
         return self.request("PATCH", path, payload)
 
-    def search(self, title):
-        """按标题找页面（用来找到父页面）"""
-        payload = {"query": title, "filter": {"value": "page", "property": "object"}}
+    def search(self, title, kind="page"):
+        """按标题找页面/数据库。
+
+        filter 的 value 只能是 page 或 data_source —— 不带 filter 会把
+        两种都搜出来，但带上 filter 才能精确找到数据库（否则每次都新建一套）。
+        """
+        payload = {"query": title}
+        if kind == "page":
+            payload["filter"] = {"value": "page", "property": "object"}
+        elif kind == "database":
+            payload["filter"] = {"value": "data_source", "property": "object"}
         return self.post("/search", payload).get("results", [])
 
     def query_db(self, db_id):
@@ -189,6 +197,11 @@ def title_prop(text):
     return {"title": [{"type": "text", "text": {"content": str(text or "")[:1900]}}]}
 
 
+def db_title(text):
+    """数据库标题：/databases 要的是数组，不是页面的属性对象。"""
+    return [{"type": "text", "text": {"content": str(text or "")[:1900]}}]
+
+
 def rich(text):
     return {"rich_text": [{"type": "text", "text": {"content": str(text or "")[:1900]}}]}
 
@@ -198,7 +211,13 @@ def select(name):
 
 
 def number(value):
-    return {"number": float(value) if value is not None else None}
+    """空串 / 非数字 → 空值。GitHub 的字段读出来可能是 ''。"""
+    if value in (None, ""):
+        return {"number": None}
+    try:
+        return {"number": float(value)}
+    except (TypeError, ValueError):
+        return {"number": None}
 
 
 def date(value):
@@ -216,9 +235,17 @@ def key_of(page, name="GitHub Key"):
 
 
 def title_of(page):
-    for p in (page.get("properties") or {}).get("名称", {}).get("title", []) or []:
-        return p.get("plain_text") or p.get("text", {}).get("content", "")
-    for p in (page.get("properties") or {}).get("标题", {}).get("title", []) or []:
+    """页面的标题。
+
+    Notion 页面的默认标题属性名是 **title**（数据库里可以叫「名称」「标题」…），
+    认错了就永远找不到页面 —— 这个坑踩过一次。
+    """
+    props = page.get("properties") or {}
+    for key in ("title", "名称", "标题"):
+        for p in props.get(key, {}).get("title", []) or []:
+            return p.get("plain_text") or p.get("text", {}).get("content", "")
+    # 数据库的标题在 title 数组里，不在 properties 里
+    for p in page.get("title", []) or []:
         return p.get("plain_text") or p.get("text", {}).get("content", "")
     return ""
 
@@ -301,6 +328,30 @@ query($owner:String!,$repo:String!){
 """
 
 
+def parallel_map(items, limit, worker):
+    """并发跑一批任务，最多 limit 个同时在飞；结果顺序保持不变。"""
+    import threading
+    results = [None] * len(items)
+    cursor = [0]
+    lock = threading.Lock()
+
+    def run():
+        while True:
+            with lock:
+                i = cursor[0]
+                cursor[0] += 1
+            if i >= len(items):
+                return
+            results[i] = worker(items[i])
+
+    threads = [threading.Thread(target=run) for _ in range(min(max(1, limit), len(items)))]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    return [r for r in results if r is not None]
+
+
 def find_group_issue(repo, key):
     data = gql(GROUP_ISSUES_QUERY, {"owner": OWNER, "repo": repo})
     for n in data["repository"]["issues"]["nodes"]:
@@ -321,13 +372,12 @@ def collect_groups():
     groups = explicit + auto
     board = read_board()
 
-    out = []
-    for g in groups:
+    # 每个组要查一次 GraphQL 找组条目 + 拉组内各仓的任务：
+    # 95 个组串行要两分钟。并发上限 8。
+    def one(g):
         iss = find_group_issue(g["primary"], g["key"])
         if not iss:
-            continue
-        item = board.get(iss["id"], {})
-        values = item.get("values", {})
+            return None
         # 组内仓：Issue 正文里写着，比本地注册表更贴近 GitHub 上的实际
         repos_in_group = []
         for line in (iss.get("body") or "").splitlines():
@@ -337,6 +387,12 @@ def collect_groups():
         for rname in repos_in_group:
             for t in repo_issues(rname):
                 tasks.append({"repo": rname, **t})
+        return g, iss, repos_in_group, tasks
+
+    out = []
+    for g, iss, repos_in_group, tasks in parallel_map(groups, 8, one):
+        item = board.get(iss["id"], {})
+        values = item.get("values", {})
         out.append({
             "key": f"group:{g['key']}",
             "title": iss["title"],
@@ -379,9 +435,16 @@ def ensure_parent(notion):
 
 
 def find_database(notion, title):
-    for page in notion.search(title):
-        if page.get("object") == "database" and title_of(page) == title:
-            return page
+    """找数据库。
+
+    搜索结果里**混着已归档的库**（归档过的照样能被搜到），
+    选错一个就 404 —— 所以先把归档的剔掉。
+    """
+    for db in notion.search(title, kind="database"):
+        if db.get("archived") or db.get("in_trash"):
+            continue
+        if title_of(db) == title:
+            return db
     return None
 
 
@@ -395,10 +458,13 @@ def ensure_databases(notion, parent_id):
             continue
         payload_props = json.loads(json.dumps(props))
         if title == TASKS_DB_TITLE:
-            payload_props["所属项目组"] = {"relation": {"database_id": out.get(GROUPS_DB_TITLE)}}
+            # relation 属性必须给出 single_property 或 dual_property，否则校验不过
+            payload_props["所属项目组"] = {
+                "relation": {"database_id": out.get(GROUPS_DB_TITLE), "single_property": {}}
+            }
         created = notion.post("/databases", {
             "parent": {"type": "page_id", "page_id": parent_id},
-            "title": title_prop(title),
+            "title": db_title(title),
             "properties": payload_props,
         })
         out[title] = created["id"]
@@ -587,9 +653,6 @@ def main():
         return 2
 
     notion = Notion(token)
-    groups = collect_groups()
-    total_tasks = sum(len(g["tasks"]) for g in groups)
-    print(f"📦 GitHub 看板：{len(groups)} 个项目组 / {total_tasks} 个任务")
 
     parent_id = ensure_parent(notion)
     dbs = ensure_databases(notion, parent_id)
@@ -598,6 +661,10 @@ def main():
     if args.setup:
         print("✅ Notion 结构已就绪（父页面 + 两个数据库）")
         return 0
+
+    groups = collect_groups()
+    total_tasks = sum(len(g["tasks"]) for g in groups)
+    print(f"📦 GitHub 看板：{len(groups)} 个项目组 / {total_tasks} 个任务")
 
     # 先回写：你在 Notion 里的改动要趁 GitHub 的值覆盖 Notion 之前写回去
     pushed = write_back(notion, dbs[GROUPS_DB_TITLE], groups, args.dry_run)
