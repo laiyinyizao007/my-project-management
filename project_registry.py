@@ -27,6 +27,7 @@
   把项目指到错的仓 —— 所以这里全部写死。
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -287,12 +288,50 @@ def load_workspace_tags(index_path=None):
     return out
 
 
+# 在 Notion 上手工挪过仓的话，同步会把改动写回这个文件，
+# 它**覆盖**注册表里的 repos 列表 —— 不然下一轮 setup 又按注册表改回去。
+MEMBERSHIP_FILE = Path(__file__).resolve().parent / "group_membership.json"
+
+
+def load_membership():
+    """手工调整过的组内仓：**增量**，不是整份替换。
+
+    {组 key: {"add": [仓名], "remove": [仓名]}}
+    存成增量才不会把组里原有的仓弄丢（存整份的话，挪一个仓就把别的都抹了）。
+    """
+    if not MEMBERSHIP_FILE.is_file():
+        return {}
+    try:
+        data = json.loads(MEMBERSHIP_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for key, delta in (data or {}).items():
+        if isinstance(delta, list):          # 旧格式（整份列表）也认
+            out[key] = {"add": list(delta), "remove": []}
+        elif isinstance(delta, dict):
+            out[key] = {"add": list(delta.get("add") or []),
+                        "remove": list(delta.get("remove") or [])}
+    return out
+
+
+def save_membership(mapping):
+    MEMBERSHIP_FILE.write_text(json.dumps(mapping, ensure_ascii=False, indent=2) + "\n",
+                               encoding="utf-8")
+
+
 def build_groups():
     """项目组列表（附上仓库元数据，repos 里的仓可能不存在则过滤掉）。"""
+    over = load_membership()
     out = []
     for g in GROUPS:
         d = dict(g)
-        d["repos"] = list(g["repos"])
+        delta = over.get(g["key"]) or {}
+        repos = [r for r in g["repos"] if r not in (delta.get("remove") or [])]
+        for r in (delta.get("add") or []):
+            if r not in repos:
+                repos.append(r)
+        d["repos"] = repos
         out.append(d)
     return out
 

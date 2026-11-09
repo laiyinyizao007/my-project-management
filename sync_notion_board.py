@@ -51,6 +51,7 @@ from setup_project_issues import (  # noqa: E402
     ADD_SUB,
     ADD_TO_PROJECT,
     SET_FIELD,
+    UPDATE_ISSUE,
     gql,
     repo_issues,
     repo_node_id,
@@ -99,6 +100,11 @@ TAG2CATEGORY = {t: c for c, ts in TAG_TO_CATEGORY.items() for t in ts}
 def categories_of(tags):
     """标签集合 → 分类集合（多选：一个仓可以既是产品又是知识库）。"""
     return sorted({TAG2CATEGORY[t] for t in (tags or ()) if t in TAG2CATEGORY})
+
+
+def rel(page, name):
+    """行上的关系属性 → [目标行 id]"""
+    return [r["id"] for r in (page.get("properties") or {}).get(name, {}).get("relation", [])]
 
 
 def multi_select(names):
@@ -327,6 +333,19 @@ def url(value):
 # 比较时的容差（秒）：写入的时间戳和 Notion 记的 last_edited 差零点几秒，
 # 不留容差的话每一行都会被误判成「你刚改过」。
 EDIT_TOLERANCE = 2
+
+
+def user_edited(page):
+    """这一行在上次同步之后被人动过吗？
+
+    动过 → 同步就**别覆盖**你改的字段。
+    （之前无条件重写，你把仓挪到别的项目，过两小时又跑回规则算的值。）
+    """
+    edited = as_dt(page.get("last_edited_time"))
+    synced = as_dt(prop_date(page, "上次同步"))
+    if not edited or not synced:
+        return False
+    return edited > synced + datetime.timedelta(seconds=EDIT_TOLERANCE)
 
 
 def as_dt(value):
@@ -872,6 +891,7 @@ def sync_groups(notion, db_id, groups, dry_run=False):
     existing = {key_of(p): p for p in notion.query_db(db_id)}
     created = updated = archived = 0
     relation_targets = {}
+    kept = []
     wanted = {}
     for g in groups:
         wanted[g["key"]] = g
@@ -883,6 +903,11 @@ def sync_groups(notion, db_id, groups, dry_run=False):
         props["分类"] = multi_select(g.get("categories") or [])
         page = existing.get(g["key"])
         if page:
+            # 你动过这一行 → 域/分类不覆盖（你手改的归属优先）
+            if user_edited(page):
+                props.pop("域", None)
+                props.pop("分类", None)
+                kept.append(title_of(page) or g["key"])
             notion.patch(f"/pages/{page['id']}", {"properties": props})
             relation_targets[g["key"]] = page["id"]
             updated += 1
@@ -903,6 +928,8 @@ def sync_groups(notion, db_id, groups, dry_run=False):
             continue
         notion.patch(f"/pages/{page['id']}", {"archived": True})
         archived += 1
+    if kept:
+        print(f"   ✋ 保留了你手改的 {len(kept)} 个项目（域/分类没被覆盖）")
     return created, updated, relation_targets, archived
 
 
@@ -911,6 +938,7 @@ def sync_repos(notion, db_id, repos, group_ids, dry_run=False):
     existing = {title_of(p): p for p in notion.query_db(db_id)}
     created = updated = archived = 0
     ids = {}
+    kept = []
     wanted = set()
     for r in repos:
         name = r["name"]
@@ -933,6 +961,12 @@ def sync_repos(notion, db_id, repos, group_ids, dry_run=False):
             props["项目"] = {"relation": [{"id": grp_id}]}
         page = existing.get(name)
         if page:
+            # 你在上次同步之后动过这一行 → **别覆盖你改的**（项目/域/分类）。
+            # 之前是无条件重写，所以你把仓挪到别的项目，两小时后又跑回规则算的值。
+            if user_edited(page):
+                for field in ("项目", "域", "分类"):
+                    props.pop(field, None)
+                kept.append(name)
             notion.patch(f"/pages/{page['id']}", {"properties": props})
             ids[name] = page["id"]
             updated += 1
@@ -952,6 +986,8 @@ def sync_repos(notion, db_id, repos, group_ids, dry_run=False):
             continue
         notion.patch(f"/pages/{page['id']}", {"archived": True})
         archived += 1
+    if kept:
+        print(f"   ✋ 保留了你手改的 {len(kept)} 行（项目/域/分类没被覆盖）")
     return created, updated, ids, archived
 
 
@@ -1109,6 +1145,116 @@ def set_issue_state(repo, number, closed):
         return {"skipped": "archived"}
     url = f"https://api.github.com/repos/{OWNER}/{repo}/issues/{number}"
     return gh_rest("PATCH", url, {"state": "closed" if closed else "open"})
+
+
+def expected_membership():
+    """按注册表算出来的 {仓名: 组 key}。
+
+    不拉 GitHub 全量 —— 那要两分半，会把「每 15 分钟查一次」拖垮。
+    这里只要仓库清单和 Issues 状态（两次 gh 调用）。
+    """
+    from setup_project_issues import fetch_issue_capability, fetch_repos
+    from project_registry import build_auto_groups, build_groups, load_workspace_tags
+
+    repos = fetch_repos()
+    cap = fetch_issue_capability()
+    for r in repos:
+        r["hasIssuesEnabled"] = cap.get(r["name"], True)
+    explicit = build_groups()
+    auto = build_auto_groups(repos, groups=explicit, tags_by_repo=load_workspace_tags())
+    out = {}
+    for g in explicit + auto:
+        for name in g["repos"]:
+            out.setdefault(name, g["key"])
+    return out
+
+
+def notion_group_ids(notion, db_id):
+    """{组 key: Notion 项目行 id}"""
+    out = {}
+    for page in notion.query_db(db_id):
+        key = key_of(page)
+        if key.startswith("group:"):
+            out[key[len("group:"):]] = page["id"]
+    return out
+
+
+def sync_membership(notion, repo_db_id, group_ids, expected, dry_run=False):
+    """你在 Notion 上把仓挪到别的项目 → 写回 GitHub 与注册表。
+
+    expected: {仓名: 组 key}（按规则算出来的归属）
+    返回改动的清单。
+    """
+    from project_registry import load_membership, save_membership
+
+    moves = []
+    for page in notion.query_db(repo_db_id):
+        name = title_of(page)
+        rel_ids = rel(page, "项目")
+        actual = None
+        for gid in rel_ids:
+            for key, pid in group_ids.items():
+                if pid == gid:
+                    actual = key
+                    break
+        registry_key = expected.get(name)   # 注册表说它属于谁（= 原来）
+        if registry_key is None or actual is None:
+            continue
+        if registry_key == actual:
+            continue
+        # 你在 Notion 里把它挪到了 actual —— 那边是新的
+        moves.append((name, registry_key, actual))
+
+    if not moves:
+        return []
+
+    membership = load_membership()
+    for name, old_key, new_key in moves:
+        print(f"   ↔ 仓「{name}」：{old_key} → {new_key}")
+        # 记成**增量**（add/remove），不是整份替换 ——
+        # 整份替换会把组里原有的仓弄丢（踩过：挪一个仓，任务系统组只剩它自己）
+        for key in (old_key, new_key):
+            membership.setdefault(key, {"add": [], "remove": []})
+        if name not in membership[new_key]["add"]:
+            membership[new_key]["add"].append(name)
+        if name not in membership[old_key]["remove"]:
+            membership[old_key]["remove"].append(name)
+    if not dry_run:
+        save_membership(membership)
+        # GitHub 上那个组的正文也要跟着改（组内仓列表）
+        update_group_bodies(moves)
+    return moves
+
+
+def update_group_bodies(moves):
+    """把组条目正文里的「组内仓」列表更新成最新的归属。"""
+    from project_registry import build_groups
+
+    defs = {g["key"]: g for g in build_groups()}
+    touched = set()
+    for name, old_key, new_key in moves:
+        touched.add(old_key)
+        touched.add(new_key)
+    for key in touched:
+        g = defs.get(key)
+        if not g:
+            continue
+        issue = find_group_issue(g["primary"], key)
+        if not issue:
+            continue
+        body = group_body(g)
+        try:
+            gql(UPDATE_ISSUE, {"id": issue["id"], "body": body})
+        except RuntimeError as e:
+            print(f"   ⚠️ 更新组正文失败 {key}: {str(e)[:110]}")
+
+
+def group_body(g):
+    """组条目正文（和 setup_project_issues 生成的格式一致）。"""
+    body = f"{g['desc']}\n\n- 分类：{g['category']}\n- 主仓：{g['primary']}\n"
+    body += f"- 组内仓：{', '.join(g['repos'])}\n- 技术栈：{' · '.join(g['tags'][:4])}\n"
+    body += "\n<!-- 本 Issue 是该项目组在看板上的顶层条目；下面的子任务是组内各仓的具体工作项。 -->"
+    return body
 
 
 def write_back_issue_state(notion, db_id, dry_run=False):
@@ -1354,6 +1500,10 @@ def main():
         pushed = write_back(notion, group_db_ids, None, args.dry_run)
         for title, changes in pushed:
             print(f"   ↩ 回写 {title}: {json.dumps(changes, ensure_ascii=False)}")
+        # 你把仓挪到别的项目 → 写回 GitHub 与注册表
+        expected = expected_membership()
+        gid_map = notion_group_ids(notion, dbs[GROUPS_DB_TITLE])
+        moves = sync_membership(notion, dbs[REPOS_DB_TITLE], gid_map, expected, args.dry_run)
         # issue 的完成状态 → 关掉 / 打开 GitHub issue
         state_changes = write_back_issue_state(notion, dbs[TASKS_DB_TITLE], args.dry_run)
         for key, state in state_changes:
