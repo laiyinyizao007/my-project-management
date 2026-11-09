@@ -233,11 +233,40 @@ def number(value):
 
 
 def date(value):
+    """Notion 日期属性。DDL 这类只到天，截成 2026-11-09。"""
     return {"date": {"start": str(value)[:10]} if value else None}
+
+
+def stamp(value):
+    """Notion 日期属性，但**保留时分秒**。
+
+    「上次同步」必须带完整时间戳：Notion 的 last_edited_time 是
+    2026-11-09T07:32:00.000Z 这样的完整时间，只存到天的话
+    字符串比较永远是「你改过」，每次检查都白跑一遍。
+    """
+    return {"date": {"start": str(value)} if value else None}
 
 
 def url(value):
     return {"url": value or None}
+
+
+def as_dt(value):
+    """把 Notion 的时间字符串变成可比较的时间对象。
+
+    Notion 的 last_edited_time 结尾是 Z（UTC），我们自己写的「上次同步」
+    结尾是 +00:00 —— 直接比字符串的话，同一秒内会误判成「你改过」。
+    """
+    from datetime import datetime
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        return None
 
 
 def issue_number_of(page):
@@ -547,7 +576,7 @@ def group_props(g, now):
         "任务数": number(len(g["tasks"])),
         "进展记录": rich(g.get("latestUpdate", "")),
         "链接": url(g["url"]),
-        "上次同步": date(now),
+        "上次同步": stamp(now),
     }
 
 
@@ -607,7 +636,7 @@ def sync_tasks(notion, db_id, groups, relation_targets, dry_run=False):
                 "DDL": date(t.get("due") or ""),
                 "仓库": rich(t["repo"]),
                 "链接": url(f"https://github.com/{OWNER}/{t['repo']}/issues/{t['number']}"),
-                "上次同步": date(now),
+                "上次同步": stamp(now),
             }
             target = relation_targets.get(g["key"])
             if target:
@@ -673,11 +702,17 @@ def write_back(notion, db_ids, dry_run=False):
     pid = gql('query{user(login:"%s"){projectV2(number:%d){id}}}' % (OWNER, PROJECT_NUMBER))[
         "user"]["projectV2"]["id"]
     fields = fetch_fields(pid)
+    # 同一个项目在多个库里各有一行（主库 + 分类视图库）。
+    # 去重时**要留 last_edited_time 最新的那份** ——
+    # 按库顺序「先到先得」的话，主库里没动过的那份会把视图库里改过的那份挡住。
     pages = {}
     for db_id in db_ids:
         for page in notion.query_db(db_id):
             key = key_of(page)
-            if key and key not in pages:
+            if not key:
+                continue
+            old = pages.get(key)
+            if old is None or (page.get("last_edited_time") or "") > (old.get("last_edited_time") or ""):
                 pages[key] = page
 
     # 先筛出被改过的行 —— 大多数时候 0 到 2 行
@@ -687,7 +722,11 @@ def write_back(notion, db_ids, dry_run=False):
         edited_at = page.get("last_edited_time")
         if not synced_at or not edited_at:
             continue
-        if edited_at <= synced_at:
+        edited_dt = as_dt(edited_at)
+        synced_dt = as_dt(synced_at)
+        if edited_dt is None or synced_dt is None:
+            continue
+        if edited_dt <= synced_dt:
             continue                      # 你没动过 → 以 GitHub 为准
         touched.append((key, page))
     if not touched:
@@ -744,7 +783,7 @@ def write_back(notion, db_ids, dry_run=False):
         # 记一笔「这次改动处理过了」：否则下一次跑又把它当新改动，
         # 而且全量刷新会把 Notion 里的值覆盖回 GitHub（其实已经是同一个值，无害但吵）
         if not dry_run:
-            notion.patch(f"/pages/{page['id']}", {"properties": {"上次同步": date(now_iso())}})
+            notion.patch(f"/pages/{page['id']}", {"properties": {"上次同步": stamp(now_iso())}})
     return pushed
 
 
