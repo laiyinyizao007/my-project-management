@@ -1026,7 +1026,7 @@ def main():
 
     parent_id = ensure_parent(notion)
     dbs = ensure_databases(notion, parent_id)
-    print(f"📓 Notion：分类 {dbs.get(CATEGORY_DB_TITLE, '')[:8]} → 项目 {dbs.get(GROUPS_DB_TITLE, '')[:8]} → 仓库 {dbs.get(REPOS_DB_TITLE, '')[:8]} → issue {dbs.get(TASKS_DB_TITLE, '')[:8]}")
+    print(f"📓 Notion：域 {dbs.get(CATEGORY_DB_TITLE, '')[:8]} → 项目 {dbs.get(GROUPS_DB_TITLE, '')[:8]} → 仓库 {dbs.get(REPOS_DB_TITLE, '')[:8]} → issue {dbs.get(TASKS_DB_TITLE, '')[:8]}")
 
     if args.setup:
         print("✅ Notion 结构已就绪（分类 → 项目 → 仓库 → issue 四个库）")
