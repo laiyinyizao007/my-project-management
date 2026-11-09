@@ -27,6 +27,7 @@
 """
 
 import argparse
+import collections
 import datetime
 import json
 import os
@@ -43,6 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from project_registry import (  # noqa: E402
     build_auto_groups,
     build_groups,
+    categorize,
     load_workspace_tags,
 )
 from setup_project_issues import (  # noqa: E402
@@ -500,6 +502,54 @@ def find_group_issue(repo, key):
     return None
 
 
+def virtual_groups(repos, groups, tags_by_repo=None):
+    """只能在 Notion 侧存在的项目。
+
+    GitHub 不允许在**归档仓**或**关闭了 Issues 的仓**里开 issue，
+    所以这两类仓建不了组条目 —— 它们的「项目」只存在于 Notion。
+    """
+    covered = set()
+    for g in groups:
+        covered.update(g.get("repos") or [])
+    tags_by_repo = tags_by_repo or {}
+
+    def category_of(name):
+        tags = tags_by_repo.get(name) or ()
+        return categorize(tags)[0]
+
+    out = []
+    for key, title, desc, match in (
+        ("archived", "📦 已归档", "归档仓：GitHub 不允许在归档仓开 issue，所以它们没有组条目，只在这里有归属",
+         lambda r: r.get("isArchived")),
+        ("no-issues", "🔒 关闭 Issues", "这些仓把 Issues 关了，GitHub 上建不了组条目，只在这里有归属",
+         lambda r: not r.get("isArchived") and r.get("hasIssuesEnabled") is False),
+    ):
+        members = [r for r in repos if r["name"] not in covered and match(r)]
+        if not members:
+            continue
+        cats = collections.Counter(category_of(r["name"]) for r in members)
+        domain = cats.most_common(1)[0][0] if cats else "效率工具"
+        out.append({
+            "key": f"group:{key}",
+            "title": title,
+            "module": domain,
+            "status": "进行中",
+            "owner": "",
+            "ddl": "",
+            "score": None,
+            "lastPush": "",
+            "repos": [r["name"] for r in members],
+            "tasks": [],
+            "url": "",
+            "primary": "",
+            "categories": sorted({c for r in members
+                                  for c in categories_of(tags_by_repo.get(r["name"]) or ())}),
+            "virtual": True,
+            "desc": desc,
+        })
+    return out
+
+
 def collect_groups():
     """全部项目组：GitHub 上的字段 + 任务列表"""
     repos = fetch_repos()
@@ -517,18 +567,42 @@ def collect_groups():
         iss = find_group_issue(g["primary"], g["key"])
         if not iss:
             return None
-        # 组内仓：Issue 正文里写着，比本地注册表更贴近 GitHub 上的实际
-        repos_in_group = []
-        for line in (iss.get("body") or "").splitlines():
-            if line.startswith("- 组内仓："):
-                repos_in_group = [x.strip() for x in line.split("：", 1)[1].split(",") if x.strip()]
+        # 组内仓以**注册表**为准 —— GitHub 上那个组条目的正文可能是旧的
+        # （把新仓加进组之后，正文不会自动更新；踩过：atomic-craft-ui 一直没挂上）
+        repos_in_group = list(g["repos"])
         tasks = []
         for rname in repos_in_group:
             for t in repo_issues(rname):
                 tasks.append({"repo": rname, **t})
         return g, iss, repos_in_group, tasks
 
+    # 建不了 GitHub 组的仓 → 虚拟项目（只在 Notion 侧存在，没有 GitHub 条目）
+    vgroups = virtual_groups(repos, groups, load_workspace_tags())
+
     out = []
+    for g in vgroups:
+        out.append({
+            "key": g["key"],
+            "title": g["title"],
+            "issueId": "",
+            "repo": "",
+            "issueNumber": None,
+            "repos": g["repos"],
+            "category": g["module"],
+            "status": g["status"],
+            "progress": None,
+            "owner": "",
+            "ddl": "",
+            "score": None,
+            "lastPush": "",
+            "stack": "",
+            "url": "",
+            "tasks": [],
+            "latestUpdate": "",
+            "categories": g["categories"],
+            "summary": g["desc"],
+            "virtual": True,
+        })
     for g, iss, repos_in_group, tasks in parallel_map(groups, 8, one):
         item = board.get(iss["id"], {})
         values = item.get("values", {})
@@ -550,6 +624,9 @@ def collect_groups():
             "url": f"https://github.com/{OWNER}/{g['primary']}/issues/{iss['number']}",
             "latestUpdate": latest_progress(g["primary"], iss["number"]),
             "tasks": tasks,
+            "categories": g.get("categories") or [],
+            "summary": g.get("desc") or "",
+            "virtual": False,
         })
     return out
 

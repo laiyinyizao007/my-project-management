@@ -140,7 +140,7 @@ def find_group_issue(repo, key):
     query($owner:String!, $repo:String!) {
       repository(owner:$owner, name:$repo) {
         issues(first:100, states:[OPEN,CLOSED]) {
-          nodes { id number title labels(first:10) { nodes { name } } }
+          nodes { id number title body labels(first:10) { nodes { name } } }
         }
       }
     }
@@ -203,6 +203,11 @@ mutation($parent:ID!, $child:ID!) {
   addSubIssue(input:{issueId:$parent, subIssueId:$child, replaceParent:true}) {
     issue { id } subIssue { id }
   }
+}
+"""
+UPDATE_ISSUE = """
+mutation($id:ID!,$body:String) {
+  updateIssue(input:{id:$id, body:$body}) { issue { id number } }
 }
 """
 CREATE_ISSUE = """
@@ -407,7 +412,14 @@ def main():
         try:
             issue = find_group_issue(primary, g["key"])
             if issue:
-                print(f"  ⏭️  复用 {primary}#{issue['number']} {g['title']}")
+                # 正文可能过期：往组里加了仓，注册表变了，但 GitHub 上那个条目
+                # 还写着旧的仓列表 —— 同步时按正文解析就会漏掉新仓（踩过：
+                # atomic-craft-ui 一直没挂到项目上）。所以这里同步过来。
+                if (issue.get("body") or "").strip() != body.strip():
+                    gql(UPDATE_ISSUE, {"id": issue["id"], "body": body})
+                    print(f"  ♻️  更新 {primary}#{issue['number']} 的正文（组内仓列表变了）")
+                else:
+                    print(f"  ⏭️  复用 {primary}#{issue['number']} {g['title']}")
             else:
                 issue = gql(CREATE_ISSUE, {"repo": rid, "title": g["title"], "body": body,
                                            "labels": labels})['createIssue']['issue']
