@@ -57,10 +57,18 @@ PROJECT_NUMBER = 1
 API = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
 TOKEN_FILE = Path(os.environ.get("NOTION_TOKEN_FILE", str(Path.home() / ".dsh/project-console/notion-token")))
+# 数据库 id 的本地缓存 —— 每次都去 Notion 搜一遍要花掉一分多钟，
+# 而库 id 是不会变的（除非手动删库重建）。
+DB_CACHE_FILE = Path(os.environ.get(
+    "NOTION_DB_CACHE_FILE", str(Path.home() / ".dsh/project-console/notion-dbs.json")))
 
 PARENT_TITLE = "项目总控台"
 GROUPS_DB_TITLE = "项目组"
 TASKS_DB_TITLE = "任务"
+# 分类视图库：Notion API 建不出「带筛选的保存视图」（官方限制），
+# 所以每个分类各建一个库，由同步脚本各填一份 —— 打开就是筛好的看板，零点击。
+# 这三个库是**只读投影**：唯一可写源是「项目组」库。
+VIEW_DB_TITLES = ["客户交付", "个人产品", "效率工具"]
 
 # ── Notion 属性定义 ────────────────────────────────────────────
 GROUP_PROPS = {
@@ -187,6 +195,10 @@ class Notion:
 
 
 def read_token():
+    """令牌：优先环境变量（CI 里用），其次本地文件。"""
+    env = os.environ.get("NOTION_TOKEN", "").strip()
+    if env:
+        return env
     if not TOKEN_FILE.is_file():
         return ""
     return TOKEN_FILE.read_text(encoding="utf-8").strip()
@@ -226,6 +238,31 @@ def date(value):
 
 def url(value):
     return {"url": value or None}
+
+
+def issue_number_of(page):
+    """从「链接」里取 issue 编号（.../issues/123）。"""
+    link = ((page.get("properties") or {}).get("链接", {}).get("url")) or ""
+    tail = link.rstrip("/").rsplit("/", 1)[-1]
+    return tail if tail.isdigit() else ""
+
+
+def find_issue_node(repo, number):
+    """按仓和编号找 issue 的 node id（写回时要拿它对上看板条目）。"""
+    q = """
+    query($owner:String!,$repo:String!,$number:Int!){
+      repository(owner:$owner,name:$repo){ issue(number:$number){ id number title } }
+    }
+    """
+    try:
+        data = gql(q, {"owner": OWNER, "repo": repo, "number": int(number)})
+        return (data.get("repository") or {}).get("issue")
+    except RuntimeError:
+        return None
+
+
+def now_iso():
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
 def key_of(page, name="GitHub Key"):
@@ -448,10 +485,25 @@ def find_database(notion, title):
     return None
 
 
-def ensure_databases(notion, parent_id):
-    """建/找两个数据库，返回 {标题: database_id}"""
+def ensure_databases(notion, parent_id, use_cache=True):
+    """建/找数据库，返回 {标题: database_id}。
+
+    带缓存时：缓存里有的直接用，没有的才去 Notion 搜 / 建。
+    """
+    cached = {}
+    if use_cache and DB_CACHE_FILE.is_file():
+        try:
+            cached = json.loads(DB_CACHE_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            cached = {}
+    out = {k: v for k, v in cached.items() if v}
+    plan = [(GROUPS_DB_TITLE, GROUP_PROPS), (TASKS_DB_TITLE, TASK_PROPS)]
+    plan += [(name, GROUP_PROPS) for name in VIEW_DB_TITLES]
+    missing = [(title, props) for title, props in plan if title not in out]
+    if not missing:
+        return out
     out = {}
-    for title, props in ((GROUPS_DB_TITLE, GROUP_PROPS), (TASKS_DB_TITLE, TASK_PROPS)):
+    for title, props in missing:
         found = find_database(notion, title)
         if found:
             out[title] = found["id"]
@@ -468,33 +520,53 @@ def ensure_databases(notion, parent_id):
             "properties": payload_props,
         })
         out[title] = created["id"]
+    try:
+        DB_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        DB_CACHE_FILE.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+        DB_CACHE_FILE.chmod(0o600)
+    except OSError:
+        pass
     return out
 
 
 # ── 同步 ──────────────────────────────────────────────────────
-def sync_groups(notion, db_id, groups, dry_run=False):
+def group_props(g, now):
+    """项目组在 Notion 里的一行。"""
+    return {
+        "名称": title_prop(g["title"]),
+        "GitHub Key": rich(g["key"]),
+        "分类": select(g["category"]),
+        "推进状态": select(g["status"]),
+        "进度": number(g["progress"]),
+        "负责人": rich(g["owner"]),
+        "DDL": date(g["ddl"]),
+        "主仓": rich(g["repo"]),
+        "组内仓": rich(", ".join(g["repos"])),
+        "评分": number(g["score"]),
+        "最近推送": rich(g["lastPush"]),
+        "任务数": number(len(g["tasks"])),
+        "进展记录": rich(g.get("latestUpdate", "")),
+        "链接": url(g["url"]),
+        "上次同步": date(now),
+    }
+
+
+def sync_groups(notion, db_id, groups, dry_run=False, only_category=None):
+    """把项目组写进一个库。
+
+    only_category 给定的话，只写这个分类的行，并把库里其它分类的行**归档**掉
+    —— 视图库是「按分类切出来的一份投影」，项目换分类时要从旧库挪走。
+    """
     existing = {key_of(p): p for p in notion.query_db(db_id)}
-    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    created = updated = 0
+    now = now_iso()
+    created = updated = archived = 0
     relation_targets = {}
+    wanted = {}
     for g in groups:
-        props = {
-            "名称": title_prop(g["title"]),
-            "GitHub Key": rich(g["key"]),
-            "分类": select(g["category"]),
-            "推进状态": select(g["status"]),
-            "进度": number(g["progress"]),
-            "负责人": rich(g["owner"]),
-            "DDL": date(g["ddl"]),
-            "主仓": rich(g["repo"]),
-            "组内仓": rich(", ".join(g["repos"])),
-            "评分": number(g["score"]),
-            "最近推送": rich(g["lastPush"]),
-            "任务数": number(len(g["tasks"])),
-            "进展记录": rich(g.get("latestUpdate", "")),
-            "链接": url(g["url"]),
-            "上次同步": date(now),
-        }
+        if only_category and g["category"] != only_category:
+            continue
+        wanted[g["key"]] = g
+        props = group_props(g, now)
         page = existing.get(g["key"])
         if page:
             notion.patch(f"/pages/{page['id']}", {"properties": props})
@@ -509,7 +581,15 @@ def sync_groups(notion, db_id, groups, dry_run=False):
             })
             relation_targets[g["key"]] = new["id"]
             created += 1
-    return created, updated, relation_targets
+    # 不该在这个库里的行 → 归档（挪进回收站，不真删）
+    for key, page in existing.items():
+        if key in wanted:
+            continue
+        if dry_run:
+            continue
+        notion.patch(f"/pages/{page['id']}", {"archived": True})
+        archived += 1
+    return created, updated, relation_targets, archived
 
 
 def sync_tasks(notion, db_id, groups, relation_targets, dry_run=False):
@@ -579,28 +659,51 @@ def latest_progress(repo, number):
     return ""
 
 
-def write_back(notion, db_id, groups, dry_run=False):
-    """把 Notion 上被改过的字段写回 GitHub"""
+def write_back(notion, db_ids, dry_run=False):
+    """把 Notion 上被改过的字段写回 GitHub。
+
+    db_ids 是**所有**组库（主库 + 分类视图库）——
+    你在哪个库里改的都算数，谁先改的算谁的。
+
+    只处理「被改过」的行：没改过的行一次 API 都不碰。
+    所以这个检查很便宜，可以每 15 分钟跑一次。
+    """
     from setup_project_issues import fetch_board_items, fetch_fields
 
     pid = gql('query{user(login:"%s"){projectV2(number:%d){id}}}' % (OWNER, PROJECT_NUMBER))[
         "user"]["projectV2"]["id"]
     fields = fetch_fields(pid)
-    items = fetch_board_items(pid)
-    pages = {key_of(p): p for p in notion.query_db(db_id)}
+    pages = {}
+    for db_id in db_ids:
+        for page in notion.query_db(db_id):
+            key = key_of(page)
+            if key and key not in pages:
+                pages[key] = page
 
-    pushed = []
-    for g in groups:
-        page = pages.get(g["key"])
-        if not page:
-            continue
+    # 先筛出被改过的行 —— 大多数时候 0 到 2 行
+    touched = []
+    for key, page in pages.items():
         synced_at = prop_date(page, "上次同步")
         edited_at = page.get("last_edited_time")
         if not synced_at or not edited_at:
             continue
         if edited_at <= synced_at:
             continue                      # 你没动过 → 以 GitHub 为准
-        item = items.get(g["issueId"])
+        touched.append((key, page))
+    if not touched:
+        return []
+
+    items = fetch_board_items(pid)
+    pushed = []
+    for key, page in touched:
+        repo = prop_text(page, "主仓")
+        number = issue_number_of(page)
+        if not repo or not number:
+            continue
+        issue = find_issue_node(repo, number)
+        if not issue:
+            continue
+        item = items.get(issue["id"])
         if not item:
             continue
         item_id, current = item
@@ -618,8 +721,9 @@ def write_back(notion, db_id, groups, dry_run=False):
                 changes[fname] = want
         if not changes:
             continue
+        title = title_of(page) or key
         if dry_run:
-            pushed.append((g["title"], changes))
+            pushed.append((title, changes))
             continue
         for fname, want in changes.items():
             spec = fields.get(fname)
@@ -636,7 +740,11 @@ def write_back(notion, db_id, groups, dry_run=False):
                     continue
                 val = {"singleSelectOptionId": oid}
             gql(SET_FIELD, {"pid": pid, "iid": item_id, "fid": spec["id"], "val": val})
-        pushed.append((g["title"], changes))
+        pushed.append((title, changes))
+        # 记一笔「这次改动处理过了」：否则下一次跑又把它当新改动，
+        # 而且全量刷新会把 Notion 里的值覆盖回 GitHub（其实已经是同一个值，无害但吵）
+        if not dry_run:
+            notion.patch(f"/pages/{page['id']}", {"properties": {"上次同步": date(now_iso())}})
     return pushed
 
 
@@ -644,6 +752,8 @@ def main():
     ap = argparse.ArgumentParser(description="GitHub 看板 → Notion 看板 镜像同步")
     ap.add_argument("--setup", action="store_true", help="建页面和数据库（幂等）")
     ap.add_argument("--dry-run", action="store_true", help="只看要做什么，不写 Notion")
+    ap.add_argument("--check", action="store_true",
+                    help="只查 Notion 有没有改动（有就回写 GitHub），不做全量刷新 —— 便宜，可以跑得勤")
     args = ap.parse_args()
 
     token = read_token()
@@ -662,21 +772,39 @@ def main():
         print("✅ Notion 结构已就绪（父页面 + 两个数据库）")
         return 0
 
+    if args.check:
+        # 只回写：读 Notion（几个查询）→ 比对「上次同步」→ 有改动就写回 GitHub。
+        # 不拉 GitHub 全量，也不刷新 Notion —— 所以很便宜，可以每 15 分钟跑一次。
+        group_db_ids = [dbs[GROUPS_DB_TITLE]] + [dbs[n] for n in VIEW_DB_TITLES if n in dbs]
+        pushed = write_back(notion, group_db_ids, args.dry_run)
+        for title, changes in pushed:
+            print(f"   ↩ 回写 {title}: {json.dumps(changes, ensure_ascii=False)}")
+        print(f"✅ 检查完成：{len(pushed)} 处改动已写回 GitHub（Notion API {notion.calls} 次）")
+        return 0
+
     groups = collect_groups()
     total_tasks = sum(len(g["tasks"]) for g in groups)
     print(f"📦 GitHub 看板：{len(groups)} 个项目组 / {total_tasks} 个任务")
 
     # 先回写：你在 Notion 里的改动要趁 GitHub 的值覆盖 Notion 之前写回去
-    pushed = write_back(notion, dbs[GROUPS_DB_TITLE], groups, args.dry_run)
+    group_db_ids = [dbs[GROUPS_DB_TITLE]] + [dbs[n] for n in VIEW_DB_TITLES if n in dbs]
+    pushed = write_back(notion, group_db_ids, args.dry_run)
     for title, changes in pushed:
         print(f"   ↩ 回写 {title}: {json.dumps(changes, ensure_ascii=False)}")
     if pushed:
         print(f"✅ 从 Notion 回写 {len(pushed)} 个项目组的字段")
 
-    c1, u1, rel = sync_groups(notion, dbs[GROUPS_DB_TITLE], groups, args.dry_run)
+    c1, u1, rel, a1 = sync_groups(notion, dbs[GROUPS_DB_TITLE], groups, args.dry_run)
     c2, u2 = sync_tasks(notion, dbs[TASKS_DB_TITLE], groups, rel, args.dry_run)
-    print(f"✅ 项目组：新建 {c1} ｜ 更新 {u1}")
+    print(f"✅ 项目组：新建 {c1} ｜ 更新 {u1}" + (f" ｜ 归档 {a1}" if a1 else ""))
     print(f"✅ 任务：新建 {c2} ｜ 更新 {u2}")
+
+    # 分类视图库：每个分类一份投影，打开就是筛好的
+    for name in VIEW_DB_TITLES:
+        if name not in dbs:
+            continue
+        vc, vu, _vrel, va = sync_groups(notion, dbs[name], groups, args.dry_run, only_category=name)
+        print(f"✅ 视图库「{name}」：新建 {vc} ｜ 更新 {vu}" + (f" ｜ 归档 {va}" if va else ""))
     print(f"   （Notion API 调用 {notion.calls} 次）")
     return 0
 
