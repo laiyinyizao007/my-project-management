@@ -154,12 +154,19 @@ def find_group_issue(repo, key):
 
 
 def repo_issues(repo):
-    """仓里的**任务** issue（排除项目组条目本身 —— 它们是顶层，不能互为子任务）"""
+    """仓里的**任务** issue（排除项目组条目本身 —— 它们是顶层，不能互为子任务）
+
+    请求失败必须**报错**，不能当成「这个仓没有 issue」——
+    静默吞掉的话，撞上限流的那一轮会把「0 个任务」当成事实写下去，
+    看板和 Notion 里的任务就凭空消失了。
+    """
     out = []
     for state in ("open", "closed"):
-        r, _ = rest('GET', f"/repos/{OWNER}/{repo}/issues?state={state}&per_page=100")
+        r, code = rest('GET', f"/repos/{OWNER}/{repo}/issues?state={state}&per_page=100")
+        if code != "200":
+            raise RuntimeError(f"拉 {repo} 的 {state} issue 失败：HTTP {code} {str(r)[:140]}")
         if not isinstance(r, list):
-            continue
+            raise RuntimeError(f"拉 {repo} 的 {state} issue 返回的不是列表：{str(r)[:140]}")
         for i in r:
             if 'pull_request' in i:
                 continue
@@ -180,9 +187,9 @@ def issue_node_id(repo, number):
 
 
 def current_children(repo, number):
-    r, _ = rest('GET', f"/repos/{OWNER}/{repo}/issues/{number}/sub_issues")
-    if not isinstance(r, list):
-        return set()
+    r, code = rest('GET', f"/repos/{OWNER}/{repo}/issues/{number}/sub_issues")
+    if code != "200" or not isinstance(r, list):
+        raise RuntimeError(f"拉 {repo}#{number} 的子任务失败：HTTP {code} {str(r)[:140]}")
     return {i['number'] for i in r}
 
 

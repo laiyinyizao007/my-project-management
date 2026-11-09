@@ -65,10 +65,12 @@ DB_CACHE_FILE = Path(os.environ.get(
 PARENT_TITLE = "项目总控台"
 GROUPS_DB_TITLE = "项目组"
 TASKS_DB_TITLE = "任务"
-# 分类视图库：Notion API 建不出「带筛选的保存视图」（官方限制），
-# 所以每个分类各建一个库，由同步脚本各填一份 —— 打开就是筛好的看板，零点击。
-# 这三个库是**只读投影**：唯一可写源是「项目组」库。
-VIEW_DB_TITLES = ["客户交付", "个人产品", "效率工具"]
+# 曾经按分类各建一个库（客户交付/个人产品/效率工具）当「筛好的看板」。
+# 那是个绕法错误：Notion API 建不出带筛选的保存视图，于是用复制数据来变出筛选效果 ——
+# 结果 95 行存成 190 行，而且你在视图库改了、主库那份不跟着变。
+# 现在只留「项目组」一个库，分类看板用 Notion 原生的**链接数据库视图**做：
+# 视图和数据是同一份，改一处两处都变，不存在显示不一致。
+VIEW_DB_TITLES = []
 
 # ── Notion 属性定义 ────────────────────────────────────────────
 GROUP_PROPS = {
@@ -401,6 +403,8 @@ def parallel_map(items, limit, worker):
     cursor = [0]
     lock = threading.Lock()
 
+    errors = []
+
     def run():
         while True:
             with lock:
@@ -408,13 +412,19 @@ def parallel_map(items, limit, worker):
                 cursor[0] += 1
             if i >= len(items):
                 return
-            results[i] = worker(items[i])
+            try:
+                results[i] = worker(items[i])
+            except Exception as e:      # noqa: BLE001 —— 失败必须冒出去
+                errors.append(e)
 
     threads = [threading.Thread(target=run) for _ in range(min(max(1, limit), len(items)))]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
+    if errors:
+        # 一条失败就整轮失败：宁可报错，也不能拿半截数据去覆盖 Notion
+        raise errors[0]
     return [r for r in results if r is not None]
 
 
@@ -527,7 +537,6 @@ def ensure_databases(notion, parent_id, use_cache=True):
             cached = {}
     out = {k: v for k, v in cached.items() if v}
     plan = [(GROUPS_DB_TITLE, GROUP_PROPS), (TASKS_DB_TITLE, TASK_PROPS)]
-    plan += [(name, GROUP_PROPS) for name in VIEW_DB_TITLES]
     missing = [(title, props) for title, props in plan if title not in out]
     if not missing:
         return out
@@ -580,20 +589,14 @@ def group_props(g, now):
     }
 
 
-def sync_groups(notion, db_id, groups, dry_run=False, only_category=None):
-    """把项目组写进一个库。
-
-    only_category 给定的话，只写这个分类的行，并把库里其它分类的行**归档**掉
-    —— 视图库是「按分类切出来的一份投影」，项目换分类时要从旧库挪走。
-    """
+def sync_groups(notion, db_id, groups, dry_run=False):
+    """把项目组写进库；库里已经不存在的行（GitHub 上删了/改名了）自动归档。"""
     existing = {key_of(p): p for p in notion.query_db(db_id)}
     now = now_iso()
     created = updated = archived = 0
     relation_targets = {}
     wanted = {}
     for g in groups:
-        if only_category and g["category"] != only_category:
-            continue
         wanted[g["key"]] = g
         props = group_props(g, now)
         page = existing.get(g["key"])
@@ -838,12 +841,6 @@ def main():
     print(f"✅ 项目组：新建 {c1} ｜ 更新 {u1}" + (f" ｜ 归档 {a1}" if a1 else ""))
     print(f"✅ 任务：新建 {c2} ｜ 更新 {u2}")
 
-    # 分类视图库：每个分类一份投影，打开就是筛好的
-    for name in VIEW_DB_TITLES:
-        if name not in dbs:
-            continue
-        vc, vu, _vrel, va = sync_groups(notion, dbs[name], groups, args.dry_run, only_category=name)
-        print(f"✅ 视图库「{name}」：新建 {vc} ｜ 更新 {vu}" + (f" ｜ 归档 {va}" if va else ""))
     print(f"   （Notion API 调用 {notion.calls} 次）")
     return 0
 
