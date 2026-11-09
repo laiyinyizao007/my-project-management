@@ -66,7 +66,7 @@ DB_CACHE_FILE = Path(os.environ.get(
 
 PARENT_TITLE = "项目总控台"
 # 四层结构：分类 → 项目 → 仓库 → issue，每一层都是关系连着的。
-CATEGORY_DB_TITLE = "分类"
+CATEGORY_DB_TITLE = "域"
 GROUPS_DB_TITLE = "项目"
 REPOS_DB_TITLE = "仓库"
 TASKS_DB_TITLE = "issue"
@@ -78,11 +78,36 @@ TASKS_DB_TITLE = "issue"
 VIEW_DB_TITLES = []
 
 # ── Notion 属性定义 ────────────────────────────────────────────
+# 「分类」是行上的属性（多选），回答「这是什么性质」。
+# 值从工作区索引已有的标签推导，不另造词 —— 标签是人判过的，分类只是换个说法。
+TAG_TO_CATEGORY = {
+    "产品": ("web-app", "ai-agent", "game"),
+    "工具": ("tooling", "family:self-tools"),
+    "自动化": ("automation", "personal-admin", "agent-config"),
+    "基础设施": ("infra-devops", "hardware-iot", "crypto-v vpn", "security", "messaging-bot"),
+    "素材": ("dataset", "data-pipeline", "media-content"),
+    "知识库": ("knowledge-base", "learning-reference"),
+}
+TAG_TO_CATEGORY["基础设施"] = ("infra-devops", "hardware-iot", "crypto-vpn", "security", "messaging-bot")
+TAG2CATEGORY = {t: c for c, ts in TAG_TO_CATEGORY.items() for t in ts}
+
+
+def categories_of(tags):
+    """标签集合 → 分类集合（多选：一个仓可以既是产品又是知识库）。"""
+    return sorted({TAG2CATEGORY[t] for t in (tags or ()) if t in TAG2CATEGORY})
+
+
+def multi_select(names):
+    return {"multi_select": [{"name": n} for n in names]}
+
+
 GROUP_PROPS = {
     "名称": {"title": {}},
     "GitHub Key": {"rich_text": {}},
-    # 分类改成**关系** —— 指向「分类」库，不再是一个 select 文本
-    "分类": {"relation": {}},
+    # 域：**关系** —— 指向「域」库（为谁做的）
+    "域": {"relation": {}},
+    # 分类：多选属性（是什么性质），值从标签推导
+    "分类": {"multi_select": {"options": [{"name": n} for n in TAG_TO_CATEGORY]}},
     "推进状态": {"select": {"options": [
         {"name": "进行中", "color": "blue"},
         {"name": "休眠", "color": "gray"},
@@ -100,7 +125,7 @@ GROUP_PROPS = {
     "上次同步": {"date": {}},
 }
 
-# 分类库：三个分类，顶层
+# 域库：三个域，顶层
 CATEGORY_PROPS = {
     "名称": {"title": {}},
     "说明": {"rich_text": {}},
@@ -112,7 +137,8 @@ CATEGORY_PROPS = {
 REPO_PROPS = {
     "名称": {"title": {}},
     "GitHub Key": {"rich_text": {}},
-    "分类": {"relation": {}},
+    "域": {"relation": {}},
+    "分类": {"multi_select": {"options": [{"name": n} for n in TAG_TO_CATEGORY]}},
     "项目": {"relation": {}},
     "语言": {"rich_text": {}},
     "最后推送": {"rich_text": {}},
@@ -549,7 +575,7 @@ def find_database(notion, title):
     return None
 
 
-LEGACY_RENAMES = {"项目组": "项目", "任务": "issue"}
+LEGACY_RENAMES = {"项目组": "项目", "任务": "issue", "分类": "域"}
 
 
 def ensure_databases(notion, parent_id, use_cache=True):
@@ -640,16 +666,17 @@ def _apply_relations(notion, dbs):
     if not (cat and grp and rep and iss):
         return
 
-    # 项目库：分类 select → 分类关系；组内仓文本 → 仓库关系的逆向（自动生成）
-    _patch_props(notion, grp, {"分类": None})
-    _patch_props(notion, grp, {"分类": {"relation": {"database_id": cat, "single_property": {}}}})
+    # 项目库：原来的「分类」关系改名成「域」，腾出「分类」这个位置放多选属性
+    _patch_props(notion, grp, {"分类": {"name": "域", "relation": {"database_id": cat, "single_property": {}}}})
     _patch_props(notion, grp, {"组内仓": None})
+    _patch_props(notion, grp, {"分类": {"multi_select": {"options": [{"name": n} for n in TAG_TO_CATEGORY]}}})
 
     # 仓库库：分类关系 + 项目关系
     _patch_props(notion, rep, {
-        "分类": {"relation": {"database_id": cat, "single_property": {}}},
+        "分类": {"name": "域", "relation": {"database_id": cat, "single_property": {}}},
         "项目": {"relation": {"database_id": grp, "single_property": {}}},
     })
+    _patch_props(notion, rep, {"分类": {"multi_select": {"options": [{"name": n} for n in TAG_TO_CATEGORY]}}})
 
     # issue 库：所属仓库关系 + 所属项目组改名成所属项目
     _patch_props(notion, iss, {"仓库": None})
@@ -663,9 +690,9 @@ def _apply_relations(notion, dbs):
 
 # ── 同步 ──────────────────────────────────────────────────────
 CATEGORIES = [
-    ("客户交付", "给别人做的项目：客户合同下的交付"),
-    ("个人产品", "自己做出来给别人用的东西"),
-    ("效率工具", "给自己用的工具与自动化"),
+    ("客户交付", "域：给别人做的项目 —— 客户合同下的交付"),
+    ("个人产品", "域：自己做出来给别人用的东西"),
+    ("效率工具", "域：给自己用的工具与自动化"),
 ]
 
 
@@ -732,7 +759,8 @@ def sync_groups(notion, db_id, groups, category_ids, dry_run=False):
         props = group_props(g, now)
         cat_id = category_ids.get(g["category"])
         if cat_id:
-            props["分类"] = {"relation": [{"id": cat_id}]}
+            props["域"] = {"relation": [{"id": cat_id}]}
+        props["分类"] = multi_select(g.get("categories") or [])
         page = existing.get(g["key"])
         if page:
             notion.patch(f"/pages/{page['id']}", {"properties": props})
@@ -782,7 +810,8 @@ def sync_repos(notion, db_id, repos, category_ids, group_ids, dry_run=False):
         }
         cat_id = category_ids.get(r.get("category"))
         if cat_id:
-            props["分类"] = {"relation": [{"id": cat_id}]}
+            props["域"] = {"relation": [{"id": cat_id}]}
+        props["分类"] = multi_select(r.get("categories") or [])
         grp_id = group_ids.get(name)
         if grp_id:
             props["项目"] = {"relation": [{"id": grp_id}]}
@@ -1030,6 +1059,14 @@ def main():
     ledger = json.loads(LEDGER_FILE.read_text(encoding="utf-8")) if LEDGER_FILE.is_file() else {"repos": []}
     repos = ledger.get("repos", [])
 
+    # 项目的分类 = 组内各仓的标签并集 → 分类
+    repo_tags = {r["name"]: r.get("tags") or [] for r in repos}
+    for g in groups:
+        merged = set()
+        for rname in (g.get("repos") or []):
+            merged.update(repo_tags.get(rname) or [])
+        g["categories"] = categories_of(merged)
+
     # 仓 → 项目 的对应（一个仓属于哪个项目组）
     repo_to_group = {}
     for g in groups:
@@ -1042,6 +1079,7 @@ def main():
             task_count[t["repo"]] = task_count.get(t["repo"], 0) + 1
     for r in repos:
         r["tasks"] = task_count.get(r["name"], 0)
+        r["categories"] = categories_of(r.get("tags") or [])
 
     cc, cu, cat_ids = sync_categories(notion, dbs[CATEGORY_DB_TITLE], groups, repos, args.dry_run)
     print(f"✅ 分类：新建 {cc} ｜ 更新 {cu}")
