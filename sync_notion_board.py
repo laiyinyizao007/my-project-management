@@ -27,6 +27,7 @@
 """
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -308,6 +309,11 @@ def stamp(value):
 
 def url(value):
     return {"url": value or None}
+
+
+# 比较时的容差（秒）：写入的时间戳和 Notion 记的 last_edited 差零点几秒，
+# 不留容差的话每一行都会被误判成「你刚改过」。
+EDIT_TOLERANCE = 2
 
 
 def as_dt(value):
@@ -723,6 +729,10 @@ def _apply_relations(notion, dbs):
     # 仓库库：「域」是 select，「项目」是关系
     ensure_select(notion, rep, "域", DOMAIN_OPTIONS)
     ensure_relation(notion, rep, "项目", grp)
+
+    # 项目库：「仓库」关系 —— 少了这条，项目页上就是空的分组
+    # （Notion API 的关系是两条独立属性，不会互填，两边都得有）
+    ensure_relation(notion, grp, "仓库", rep)
     _patch_props(notion, rep, {"分类": {"multi_select": {"options": [{"name": n} for n in TAG_TO_CATEGORY]}}})
 
     # issue 库：「所属仓库」+「所属项目」
@@ -765,13 +775,15 @@ def group_props(g, now):
 def sync_groups(notion, db_id, groups, dry_run=False):
     """把项目写进库；库里已经不存在的行（GitHub 上删了/改名了）自动归档。"""
     existing = {key_of(p): p for p in notion.query_db(db_id)}
-    now = now_iso()
     created = updated = archived = 0
     relation_targets = {}
     wanted = {}
     for g in groups:
         wanted[g["key"]] = g
-        props = group_props(g, now)
+        # 时间戳要**逐行取**：函数开头算一次的话，几十次写入陆续发出去，
+        # 最后一行的写入时间会比那个 now 晚几十秒 ——
+        # 于是每一行看起来都「比你上次同步新」，回写就误判成你改过了。
+        props = group_props(g, now_iso())
         props["域"] = select(g["category"])
         props["分类"] = multi_select(g.get("categories") or [])
         page = existing.get(g["key"])
@@ -802,7 +814,6 @@ def sync_groups(notion, db_id, groups, dry_run=False):
 def sync_repos(notion, db_id, repos, group_ids, dry_run=False):
     """仓库层 = 台账。178 个仓，每个都有分类，能挂上项目的挂上项目。"""
     existing = {title_of(p): p for p in notion.query_db(db_id)}
-    now = now_iso()
     created = updated = archived = 0
     ids = {}
     wanted = set()
@@ -818,7 +829,7 @@ def sync_repos(notion, db_id, repos, group_ids, dry_run=False):
             "Issues 关闭": {"checkbox": bool(r.get("issuesDisabled"))},
             "说明": rich(r.get("notes") or ""),
             "链接": url(r.get("url") or f"https://github.com/{OWNER}/{name}"),
-            "上次同步": stamp(now),
+            "上次同步": stamp(now_iso()),
         }
         props["域"] = select(r.get("category"))
         props["分类"] = multi_select(r.get("categories") or [])
@@ -857,7 +868,6 @@ def sync_reverse(notion, dbs, groups, repos, group_ids, repo_ids, issue_ids, dry
     而 rollup 是在本库上滚的（域.项目数 = 域库里的「项目」关系），
     所以反向这几条必须一起写，否则 rollup 数出来全是 0。
     """
-    now = now_iso()
     by_project = {}
     for g in groups:
         ids = [issue_ids[f"task:{t['repo']}#{t['number']}"] for t in g["tasks"]
@@ -873,6 +883,23 @@ def sync_reverse(notion, dbs, groups, repos, group_ids, repo_ids, issue_ids, dry
     # Notion 一个关系属性最多 100 项。超了就**整条不填** ——
     # 填一半会让 rollup 显示 100，静默错比空着更难发现。
     over = []
+
+    # 项目.仓库 —— 项目由哪些仓组成
+    repo_ids_by_project = {}
+    for g in groups:
+        ids = [repo_ids[r] for r in (g.get("repos") or []) if r in repo_ids]
+        repo_ids_by_project[g["key"]] = ids
+    for g in groups:
+        gid = group_ids.get(g["key"])
+        ids = repo_ids_by_project.get(g["key"], [])
+        if not gid or dry_run:
+            continue
+        if len(ids) > 100:
+            over.append((f"项目「{g['title']}」的仓库", len(ids)))
+            continue
+        notion.patch(f"/pages/{gid}", {"properties": {
+            "仓库": {"relation": [{"id": i} for i in ids]},
+        }})
 
     # 项目.任务
     for g in groups:
@@ -907,7 +934,6 @@ def sync_reverse(notion, dbs, groups, repos, group_ids, repo_ids, issue_ids, dry
 def sync_tasks(notion, db_id, groups, relation_targets, repo_ids, dry_run=False):
     """issue 层：精确连到它所在的那个仓，同时连到所属项目。返回 {key: page_id}。"""
     existing = {key_of(p): p for p in notion.query_db(db_id)}
-    now = now_iso()
     created = updated = 0
     issue_ids = {}
     for g in groups:
@@ -920,7 +946,7 @@ def sync_tasks(notion, db_id, groups, relation_targets, repo_ids, dry_run=False)
                 "负责人": rich(t.get("assignee") or ""),
                 "DDL": date(t.get("due") or ""),
                 "链接": url(f"https://github.com/{OWNER}/{t['repo']}/issues/{t['number']}"),
-                "上次同步": stamp(now),
+                "上次同步": stamp(now_iso()),
             }
             repo_id = repo_ids.get(t["repo"])
             if repo_id:
@@ -996,7 +1022,9 @@ def write_back_issue_state(notion, db_id, dry_run=False):
         synced_at = prop_date(page, "上次同步")
         edited_at = page.get("last_edited_time")
         edited_dt, synced_dt = as_dt(edited_at), as_dt(synced_at)
-        if not edited_dt or not synced_dt or edited_dt <= synced_dt:
+        if not edited_dt or not synced_dt:
+            continue
+        if edited_dt <= synced_dt + datetime.timedelta(seconds=EDIT_TOLERANCE):
             continue
         touched.append((key, page))
     changed = []
@@ -1124,7 +1152,7 @@ def write_back(notion, db_ids, groups=None, dry_run=False):
         synced_dt = as_dt(synced_at)
         if edited_dt is None or synced_dt is None:
             continue
-        if edited_dt <= synced_dt:
+        if edited_dt <= synced_dt + datetime.timedelta(seconds=EDIT_TOLERANCE):
             continue                      # 你没动过 → 以 GitHub 为准
         touched.append((key, page))
     if not touched:
