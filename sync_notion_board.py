@@ -330,9 +330,20 @@ def url(value):
     return {"url": value or None}
 
 
-# 比较时的容差（秒）：写入的时间戳和 Notion 记的 last_edited 差零点几秒，
-# 不留容差的话每一行都会被误判成「你刚改过」。
-EDIT_TOLERANCE = 2
+# 比较时的容差（秒）：写入的时间戳和 Notion 记的 last_edited 落在同一秒内
+# 就算「你刚改过」——不留余差的话大约一半的行会被误判。
+EDIT_TOLERANCE = 1
+
+
+def as_sec(value):
+    """把时间戳截到**秒**。
+
+    Notion 的 last_edited_time 只精确到秒，我写进「上次同步」的是毫秒。
+    两边精度不一样时，我的 .999 和 Notion 的下一秒会被判成「差了一秒」——
+    于是大约一半的行被误判成「你改过」，同步就什么都不更新了。
+    """
+    dt = as_dt(value)
+    return dt.replace(microsecond=0) if dt else None
 
 
 def user_edited(page):
@@ -341,11 +352,12 @@ def user_edited(page):
     动过 → 同步就**别覆盖**你改的字段。
     （之前无条件重写，你把仓挪到别的项目，过两小时又跑回规则算的值。）
     """
-    edited = as_dt(page.get("last_edited_time"))
-    synced = as_dt(prop_date(page, "上次同步"))
+    edited = as_sec(page.get("last_edited_time"))
+    synced = as_sec(prop_date(page, "上次同步"))
     if not edited or not synced:
         return False
-    return edited > synced + datetime.timedelta(seconds=EDIT_TOLERANCE)
+    # 留 1 秒余量：写入与 last_edited 落在同一秒内不算「你改过」
+    return edited > synced + datetime.timedelta(seconds=1)
 
 
 def as_dt(value):
@@ -1045,6 +1057,7 @@ def sync_reverse(notion, dbs, groups, repos, group_ids, repo_ids, issue_ids, dry
             continue
         notion.patch(f"/pages/{gid}", {"properties": {
             "任务": {"relation": [{"id": i} for i in ids]},
+            "上次同步": stamp(now_iso()),
         }})
     # 仓库.issue
     for r in repos:
@@ -1057,6 +1070,7 @@ def sync_reverse(notion, dbs, groups, repos, group_ids, repo_ids, issue_ids, dry
             continue
         notion.patch(f"/pages/{rid}", {"properties": {
             "issue": {"relation": [{"id": i} for i in ids]},
+            "上次同步": stamp(now_iso()),
         }})
     for what, n in over:
         print(f"   ⚠️ {what} 有 {n} 项，超过 Notion 关系上限 100 —— 整条没填，"
@@ -1264,10 +1278,10 @@ def write_back_issue_state(notion, db_id, dry_run=False):
     for key, page in pages.items():
         synced_at = prop_date(page, "上次同步")
         edited_at = page.get("last_edited_time")
-        edited_dt, synced_dt = as_dt(edited_at), as_dt(synced_at)
+        edited_dt, synced_dt = as_sec(edited_at), as_sec(synced_at)
         if not edited_dt or not synced_dt:
             continue
-        if edited_dt <= synced_dt + datetime.timedelta(seconds=EDIT_TOLERANCE):
+        if edited_dt <= synced_dt + datetime.timedelta(seconds=1):
             continue
         touched.append((key, page))
     changed = []
@@ -1391,11 +1405,11 @@ def write_back(notion, db_ids, groups=None, dry_run=False):
         edited_at = page.get("last_edited_time")
         if not synced_at or not edited_at:
             continue
-        edited_dt = as_dt(edited_at)
-        synced_dt = as_dt(synced_at)
+        edited_dt = as_sec(edited_at)
+        synced_dt = as_sec(synced_at)
         if edited_dt is None or synced_dt is None:
             continue
-        if edited_dt <= synced_dt + datetime.timedelta(seconds=EDIT_TOLERANCE):
+        if edited_dt <= synced_dt + datetime.timedelta(seconds=1):
             continue                      # 你没动过 → 以 GitHub 为准
         touched.append((key, page))
     if not touched:
