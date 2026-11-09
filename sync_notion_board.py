@@ -59,12 +59,17 @@ NOTION_VERSION = "2022-06-28"
 TOKEN_FILE = Path(os.environ.get("NOTION_TOKEN_FILE", str(Path.home() / ".dsh/project-console/notion-token")))
 # 数据库 id 的本地缓存 —— 每次都去 Notion 搜一遍要花掉一分多钟，
 # 而库 id 是不会变的（除非手动删库重建）。
+LEDGER_FILE = Path(os.environ.get(
+    "REPO_LEDGER_FILE", str(Path(__file__).resolve().parent / "repo-ledger.json")))
 DB_CACHE_FILE = Path(os.environ.get(
     "NOTION_DB_CACHE_FILE", str(Path.home() / ".dsh/project-console/notion-dbs.json")))
 
 PARENT_TITLE = "项目总控台"
-GROUPS_DB_TITLE = "项目组"
-TASKS_DB_TITLE = "任务"
+# 四层结构：分类 → 项目 → 仓库 → issue，每一层都是关系连着的。
+CATEGORY_DB_TITLE = "分类"
+GROUPS_DB_TITLE = "项目"
+REPOS_DB_TITLE = "仓库"
+TASKS_DB_TITLE = "issue"
 # 曾经按分类各建一个库（客户交付/个人产品/效率工具）当「筛好的看板」。
 # 那是个绕法错误：Notion API 建不出带筛选的保存视图，于是用复制数据来变出筛选效果 ——
 # 结果 95 行存成 190 行，而且你在视图库改了、主库那份不跟着变。
@@ -76,11 +81,8 @@ VIEW_DB_TITLES = []
 GROUP_PROPS = {
     "名称": {"title": {}},
     "GitHub Key": {"rich_text": {}},
-    "分类": {"select": {"options": [
-        {"name": "客户交付", "color": "orange"},
-        {"name": "个人产品", "color": "green"},
-        {"name": "效率工具", "color": "blue"},
-    ]}},
+    # 分类改成**关系** —— 指向「分类」库，不再是一个 select 文本
+    "分类": {"relation": {}},
     "推进状态": {"select": {"options": [
         {"name": "进行中", "color": "blue"},
         {"name": "休眠", "color": "gray"},
@@ -90,7 +92,6 @@ GROUP_PROPS = {
     "负责人": {"rich_text": {}},
     "DDL": {"date": {}},
     "主仓": {"rich_text": {}},
-    "组内仓": {"rich_text": {}},
     "评分": {"number": {}},
     "最近推送": {"rich_text": {}},
     "任务数": {"number": {}},
@@ -99,21 +100,45 @@ GROUP_PROPS = {
     "上次同步": {"date": {}},
 }
 
+# 分类库：三个分类，顶层
+CATEGORY_PROPS = {
+    "名称": {"title": {}},
+    "说明": {"rich_text": {}},
+    "项目数": {"number": {}},
+    "仓库数": {"number": {}},
+}
+
+# 仓库库 = 台账。178 个仓（活跃 + 归档），每个都有归属。
+REPO_PROPS = {
+    "名称": {"title": {}},
+    "GitHub Key": {"rich_text": {}},
+    "分类": {"relation": {}},
+    "项目": {"relation": {}},
+    "语言": {"rich_text": {}},
+    "最后推送": {"rich_text": {}},
+    "已归档": {"checkbox": {}},
+    "Issues 关闭": {"checkbox": {}},
+    "说明": {"rich_text": {}},
+    "任务数": {"number": {}},
+    "链接": {"url": {}},
+    "上次同步": {"date": {}},
+}
+
 TASK_PROPS = {
     "标题": {"title": {}},
     "GitHub Key": {"rich_text": {}},
-    "所属项目组": {"relation": {}},      # 运行时补上 relation id
+    # issue 精确属于它所在的那个仓 —— 这条关系是准的
+    "所属仓库": {"relation": {}},
+    "所属项目": {"relation": {}},
     "状态": {"select": {"options": [
         {"name": "开放", "color": "blue"},
         {"name": "完成", "color": "green"},
     ]}},
     "负责人": {"rich_text": {}},
     "DDL": {"date": {}},
-    "仓库": {"rich_text": {}},
     "链接": {"url": {}},
     "上次同步": {"date": {}},
 }
-
 
 # ── Notion REST 客户端 ─────────────────────────────────────────
 class Notion:
@@ -524,8 +549,11 @@ def find_database(notion, title):
     return None
 
 
+LEGACY_RENAMES = {"项目组": "项目", "任务": "issue"}
+
+
 def ensure_databases(notion, parent_id, use_cache=True):
-    """建/找数据库，返回 {标题: database_id}。
+    """建/找四个库（分类 → 项目 → 仓库 → issue），返回 {标题: database_id}。
 
     带缓存时：缓存里有的直接用，没有的才去 Notion 搜 / 建。
     """
@@ -536,28 +564,42 @@ def ensure_databases(notion, parent_id, use_cache=True):
         except (OSError, ValueError):
             cached = {}
     out = {k: v for k, v in cached.items() if v}
-    plan = [(GROUPS_DB_TITLE, GROUP_PROPS), (TASKS_DB_TITLE, TASK_PROPS)]
+
+    # 旧的库名先改名（改名的数据还在，重建就白丢 95+74 行了）
+    for old_name, new_name in LEGACY_RENAMES.items():
+        if new_name in out:
+            continue
+        found = find_database(notion, old_name)
+        if found:
+            notion.patch(f"/databases/{found['id']}", {"title": db_title(new_name)})
+            out[new_name] = found["id"]
+            print(f"   ↻ 库「{old_name}」改名成「{new_name}」")
+
+    plan = [
+        (CATEGORY_DB_TITLE, CATEGORY_PROPS),
+        (GROUPS_DB_TITLE, GROUP_PROPS),
+        (REPOS_DB_TITLE, REPO_PROPS),
+        (TASKS_DB_TITLE, TASK_PROPS),
+    ]
     missing = [(title, props) for title, props in plan if title not in out]
-    if not missing:
-        return out
-    out = {}
     for title, props in missing:
         found = find_database(notion, title)
         if found:
             out[title] = found["id"]
-            continue
-        payload_props = json.loads(json.dumps(props))
-        if title == TASKS_DB_TITLE:
-            # relation 属性必须给出 single_property 或 dual_property，否则校验不过
-            payload_props["所属项目组"] = {
-                "relation": {"database_id": out.get(GROUPS_DB_TITLE), "single_property": {}}
-            }
-        created = notion.post("/databases", {
-            "parent": {"type": "page_id", "page_id": parent_id},
-            "title": db_title(title),
-            "properties": payload_props,
-        })
-        out[title] = created["id"]
+        else:
+            # 关系属性建库时还不能填（目标库还没建出来），先剥掉，之后再连
+            plain = {k: v for k, v in json.loads(json.dumps(props)).items()
+                     if not (isinstance(v, dict) and "relation" in v)}
+            created = notion.post("/databases", {
+                "parent": {"type": "page_id", "page_id": parent_id},
+                "title": db_title(title),
+                "properties": plain,
+            })
+            out[title] = created["id"]
+
+    # 关系属性要指向具体的库，建完之后再补
+    _apply_relations(notion, out)
+
     try:
         DB_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
         DB_CACHE_FILE.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -567,19 +609,108 @@ def ensure_databases(notion, parent_id, use_cache=True):
     return out
 
 
+def _patch_props(notion, db_id, props, ignore_missing=True):
+    """改库的属性。删一个已经删掉的属性是 404 —— 那是「已经没了」，不是错误。"""
+    try:
+        notion.patch(f"/databases/{db_id}", {"properties": props})
+        return True
+    except RuntimeError as e:
+        if ignore_missing and "object_not_found" in str(e):
+            return False
+        raise
+
+
+def _relation(db_id):
+    """关系的两种写法：新 API 要 data_source_id，老的收 database_id。都试一遍。"""
+    return {"database_id": db_id, "single_property": {}}
+
+
+def _apply_relations(notion, dbs):
+    """把关系属性接到对应的库上。
+
+    步骤有讲究：
+      1. 先删掉同名旧属性（项目库的「分类」原来是 select）
+      2. 再按新定义建关系（同名可以复用）
+      3. 顺手删掉被关系取代的文本列（项目库的「组内仓」→ 关系「仓库」的逆向）
+    """
+    cat = dbs.get(CATEGORY_DB_TITLE)
+    grp = dbs.get(GROUPS_DB_TITLE)
+    rep = dbs.get(REPOS_DB_TITLE)
+    iss = dbs.get(TASKS_DB_TITLE)
+    if not (cat and grp and rep and iss):
+        return
+
+    # 项目库：分类 select → 分类关系；组内仓文本 → 仓库关系的逆向（自动生成）
+    _patch_props(notion, grp, {"分类": None})
+    _patch_props(notion, grp, {"分类": {"relation": {"database_id": cat, "single_property": {}}}})
+    _patch_props(notion, grp, {"组内仓": None})
+
+    # 仓库库：分类关系 + 项目关系
+    _patch_props(notion, rep, {
+        "分类": {"relation": {"database_id": cat, "single_property": {}}},
+        "项目": {"relation": {"database_id": grp, "single_property": {}}},
+    })
+
+    # issue 库：所属仓库关系 + 所属项目组改名成所属项目
+    _patch_props(notion, iss, {"仓库": None})
+    _patch_props(notion, iss, {"所属仓库": {"relation": {"database_id": rep, "single_property": {}}}})
+    # 改名要带完整 schema，只给 name 会被拒
+    _patch_props(notion, iss, {"所属项目组": {
+        "name": "所属项目",
+        "relation": {"database_id": grp, "single_property": {}},
+    }})
+
+
 # ── 同步 ──────────────────────────────────────────────────────
+CATEGORIES = [
+    ("客户交付", "给别人做的项目：客户合同下的交付"),
+    ("个人产品", "自己做出来给别人用的东西"),
+    ("效率工具", "给自己用的工具与自动化"),
+]
+
+
+def sync_categories(notion, db_id, groups, repos, dry_run=False):
+    """三个分类行。计数每次重算。"""
+    existing = {title_of(p): p for p in notion.query_db(db_id)}
+    now = now_iso()
+    created = updated = 0
+    ids = {}
+    for name, desc in CATEGORIES:
+        n_projects = sum(1 for g in groups if g["category"] == name)
+        n_repos = sum(1 for r in repos if r.get("category") == name)
+        props = {
+            "名称": title_prop(name),
+            "说明": rich(desc),
+            "项目数": number(n_projects),
+            "仓库数": number(n_repos),
+        }
+        page = existing.get(name)
+        if page:
+            notion.patch(f"/pages/{page['id']}", {"properties": props})
+            ids[name] = page["id"]
+            updated += 1
+        else:
+            if dry_run:
+                continue
+            new = notion.post("/pages", {
+                "parent": {"type": "database_id", "database_id": db_id},
+                "properties": props,
+            })
+            ids[name] = new["id"]
+            created += 1
+    return created, updated, ids
+
+
 def group_props(g, now):
     """项目组在 Notion 里的一行。"""
     return {
         "名称": title_prop(g["title"]),
         "GitHub Key": rich(g["key"]),
-        "分类": select(g["category"]),
         "推进状态": select(g["status"]),
         "进度": number(g["progress"]),
         "负责人": rich(g["owner"]),
         "DDL": date(g["ddl"]),
         "主仓": rich(g["repo"]),
-        "组内仓": rich(", ".join(g["repos"])),
         "评分": number(g["score"]),
         "最近推送": rich(g["lastPush"]),
         "任务数": number(len(g["tasks"])),
@@ -589,8 +720,8 @@ def group_props(g, now):
     }
 
 
-def sync_groups(notion, db_id, groups, dry_run=False):
-    """把项目组写进库；库里已经不存在的行（GitHub 上删了/改名了）自动归档。"""
+def sync_groups(notion, db_id, groups, category_ids, dry_run=False):
+    """把项目写进库；库里已经不存在的行（GitHub 上删了/改名了）自动归档。"""
     existing = {key_of(p): p for p in notion.query_db(db_id)}
     now = now_iso()
     created = updated = archived = 0
@@ -599,6 +730,9 @@ def sync_groups(notion, db_id, groups, dry_run=False):
     for g in groups:
         wanted[g["key"]] = g
         props = group_props(g, now)
+        cat_id = category_ids.get(g["category"])
+        if cat_id:
+            props["分类"] = {"relation": [{"id": cat_id}]}
         page = existing.get(g["key"])
         if page:
             notion.patch(f"/pages/{page['id']}", {"properties": props})
@@ -624,9 +758,62 @@ def sync_groups(notion, db_id, groups, dry_run=False):
     return created, updated, relation_targets, archived
 
 
-def sync_tasks(notion, db_id, groups, relation_targets, dry_run=False):
+def sync_repos(notion, db_id, repos, category_ids, group_ids, dry_run=False):
+    """仓库层 = 台账。178 个仓，每个都有分类，能挂上项目的挂上项目。"""
+    existing = {title_of(p): p for p in notion.query_db(db_id)}
+    now = now_iso()
+    created = updated = archived = 0
+    ids = {}
+    wanted = set()
+    for r in repos:
+        name = r["name"]
+        wanted.add(name)
+        props = {
+            "名称": title_prop(name),
+            "GitHub Key": rich(name),
+            "语言": rich(r.get("language") or ""),
+            "最后推送": rich(r.get("lastCommit") or r.get("pushedAt") or ""),
+            "已归档": {"checkbox": bool(r.get("archived"))},
+            "Issues 关闭": {"checkbox": bool(r.get("issuesDisabled"))},
+            "说明": rich(r.get("notes") or ""),
+            "任务数": number(r.get("tasks") or 0),
+            "链接": url(r.get("url") or f"https://github.com/{OWNER}/{name}"),
+            "上次同步": stamp(now),
+        }
+        cat_id = category_ids.get(r.get("category"))
+        if cat_id:
+            props["分类"] = {"relation": [{"id": cat_id}]}
+        grp_id = group_ids.get(name)
+        if grp_id:
+            props["项目"] = {"relation": [{"id": grp_id}]}
+        page = existing.get(name)
+        if page:
+            notion.patch(f"/pages/{page['id']}", {"properties": props})
+            ids[name] = page["id"]
+            updated += 1
+        else:
+            if dry_run:
+                continue
+            new = notion.post("/pages", {
+                "parent": {"type": "database_id", "database_id": db_id},
+                "properties": props,
+            })
+            ids[name] = new["id"]
+            created += 1
+    for name, page in existing.items():
+        if name in wanted:
+            continue
+        if dry_run:
+            continue
+        notion.patch(f"/pages/{page['id']}", {"archived": True})
+        archived += 1
+    return created, updated, ids, archived
+
+
+def sync_tasks(notion, db_id, groups, relation_targets, repo_ids, dry_run=False):
+    """issue 层：精确连到它所在的那个仓，同时连到所属项目。"""
     existing = {key_of(p): p for p in notion.query_db(db_id)}
-    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    now = now_iso()
     created = updated = 0
     for g in groups:
         for t in g["tasks"]:
@@ -637,13 +824,15 @@ def sync_tasks(notion, db_id, groups, relation_targets, dry_run=False):
                 "状态": select("完成" if t.get("state") == "closed" else "开放"),
                 "负责人": rich(t.get("assignee") or ""),
                 "DDL": date(t.get("due") or ""),
-                "仓库": rich(t["repo"]),
                 "链接": url(f"https://github.com/{OWNER}/{t['repo']}/issues/{t['number']}"),
                 "上次同步": stamp(now),
             }
+            repo_id = repo_ids.get(t["repo"])
+            if repo_id:
+                props["所属仓库"] = {"relation": [{"id": repo_id}]}
             target = relation_targets.get(g["key"])
             if target:
-                props["所属项目组"] = {"relation": [{"id": target}]}
+                props["所属项目"] = {"relation": [{"id": target}]}
             page = existing.get(key)
             if page:
                 notion.patch(f"/pages/{page['id']}", {"properties": props})
@@ -808,16 +997,16 @@ def main():
 
     parent_id = ensure_parent(notion)
     dbs = ensure_databases(notion, parent_id)
-    print(f"📓 Notion：项目组库 {dbs[GROUPS_DB_TITLE]} ｜ 任务库 {dbs[TASKS_DB_TITLE]}")
+    print(f"📓 Notion：分类 {dbs.get(CATEGORY_DB_TITLE, '')[:8]} → 项目 {dbs.get(GROUPS_DB_TITLE, '')[:8]} → 仓库 {dbs.get(REPOS_DB_TITLE, '')[:8]} → issue {dbs.get(TASKS_DB_TITLE, '')[:8]}")
 
     if args.setup:
-        print("✅ Notion 结构已就绪（父页面 + 两个数据库）")
+        print("✅ Notion 结构已就绪（分类 → 项目 → 仓库 → issue 四个库）")
         return 0
 
     if args.check:
         # 只回写：读 Notion（几个查询）→ 比对「上次同步」→ 有改动就写回 GitHub。
         # 不拉 GitHub 全量，也不刷新 Notion —— 所以很便宜，可以每 15 分钟跑一次。
-        group_db_ids = [dbs[GROUPS_DB_TITLE]] + [dbs[n] for n in VIEW_DB_TITLES if n in dbs]
+        group_db_ids = [dbs[GROUPS_DB_TITLE]]
         pushed = write_back(notion, group_db_ids, args.dry_run)
         for title, changes in pushed:
             print(f"   ↩ 回写 {title}: {json.dumps(changes, ensure_ascii=False)}")
@@ -829,17 +1018,51 @@ def main():
     print(f"📦 GitHub 看板：{len(groups)} 个项目组 / {total_tasks} 个任务")
 
     # 先回写：你在 Notion 里的改动要趁 GitHub 的值覆盖 Notion 之前写回去
-    group_db_ids = [dbs[GROUPS_DB_TITLE]] + [dbs[n] for n in VIEW_DB_TITLES if n in dbs]
+    group_db_ids = [dbs[GROUPS_DB_TITLE]]
     pushed = write_back(notion, group_db_ids, args.dry_run)
     for title, changes in pushed:
         print(f"   ↩ 回写 {title}: {json.dumps(changes, ensure_ascii=False)}")
     if pushed:
         print(f"✅ 从 Notion 回写 {len(pushed)} 个项目组的字段")
 
-    c1, u1, rel, a1 = sync_groups(notion, dbs[GROUPS_DB_TITLE], groups, args.dry_run)
-    c2, u2 = sync_tasks(notion, dbs[TASKS_DB_TITLE], groups, rel, args.dry_run)
-    print(f"✅ 项目组：新建 {c1} ｜ 更新 {u1}" + (f" ｜ 归档 {a1}" if a1 else ""))
-    print(f"✅ 任务：新建 {c2} ｜ 更新 {u2}")
+    # ── 四层：分类 → 项目 → 仓库 → issue ──────────────────
+    # 台账（repo-ledger.json）就是仓库层的数据源
+    ledger = json.loads(LEDGER_FILE.read_text(encoding="utf-8")) if LEDGER_FILE.is_file() else {"repos": []}
+    repos = ledger.get("repos", [])
+
+    # 仓 → 项目 的对应（一个仓属于哪个项目组）
+    repo_to_group = {}
+    for g in groups:
+        for rname in (g.get("repos") or []):
+            repo_to_group.setdefault(rname, g["key"])
+    # 每个仓有几个 issue
+    task_count = {}
+    for g in groups:
+        for t in g["tasks"]:
+            task_count[t["repo"]] = task_count.get(t["repo"], 0) + 1
+    for r in repos:
+        r["tasks"] = task_count.get(r["name"], 0)
+
+    cc, cu, cat_ids = sync_categories(notion, dbs[CATEGORY_DB_TITLE], groups, repos, args.dry_run)
+    print(f"✅ 分类：新建 {cc} ｜ 更新 {cu}")
+
+    c1, u1, rel, a1 = sync_groups(notion, dbs[GROUPS_DB_TITLE], groups, cat_ids, args.dry_run)
+    print(f"✅ 项目：新建 {c1} ｜ 更新 {u1}" + (f" ｜ 归档 {a1}" if a1 else ""))
+
+    # 仓 → 项目：GitHub Key（group:<key>）→ 项目页 id
+    group_ids = {}
+    for g in groups:
+        gid = rel.get(g["key"])
+        if gid:
+            group_ids[g["key"]] = gid
+    repo_group = {name: group_ids.get(key) for name, key in repo_to_group.items()}
+    repo_group = {k: v for k, v in repo_group.items() if v}
+
+    rc, ru, repo_ids, ra = sync_repos(notion, dbs[REPOS_DB_TITLE], repos, cat_ids, repo_group, args.dry_run)
+    print(f"✅ 仓库：新建 {rc} ｜ 更新 {ru}" + (f" ｜ 归档 {ra}" if ra else ""))
+
+    c2, u2 = sync_tasks(notion, dbs[TASKS_DB_TITLE], groups, rel, repo_ids, args.dry_run)
+    print(f"✅ issue：新建 {c2} ｜ 更新 {u2}")
 
     print(f"   （Notion API 调用 {notion.calls} 次）")
     return 0
