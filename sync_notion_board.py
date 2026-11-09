@@ -132,6 +132,17 @@ GROUP_PROPS = {
     "上次同步": {"date": {}},
 }
 
+# Notion 一条关系属性最多存 25 个（超了静默截断，不报错 —— 踩过）
+RELATION_LIMIT = 25
+# 项目库的「仓库」关系要拆成几条（每条 25 个）
+REPO_RELATION_NAMES = ["仓库", "仓库 2", "仓库 3", "仓库 4"]
+
+
+def chunks(items, size):
+    """按 size 切块"""
+    return [items[i:i + size] for i in range(0, len(items), size)] or [[]]
+
+
 # 「域」的取值：为谁做的。三个，跟看板的分类字段一致。
 DOMAIN_OPTIONS = [
     {"name": "客户交付", "color": "orange"},
@@ -507,6 +518,9 @@ def virtual_groups(repos, groups, tags_by_repo=None):
 
     GitHub 不允许在**归档仓**或**关闭了 Issues 的仓**里开 issue，
     所以这两类仓建不了组条目 —— 它们的「项目」只存在于 Notion。
+
+    但只有「关了 Issues」那批需要：它们是**活的**仓、有工作在进行。
+    归档的仓就让它落在「no 项目」里 —— 给封存的东西造个项目是假分组。
     """
     covered = set()
     for g in groups:
@@ -519,8 +533,6 @@ def virtual_groups(repos, groups, tags_by_repo=None):
 
     out = []
     for key, title, desc, match in (
-        ("archived", "📦 已归档", "归档仓：GitHub 不允许在归档仓开 issue，所以它们没有组条目，只在这里有归属",
-         lambda r: r.get("isArchived")),
         ("no-issues", "🔒 关闭 Issues", "这些仓把 Issues 关了，GitHub 上建不了组条目，只在这里有归属",
          lambda r: not r.get("isArchived") and r.get("hasIssuesEnabled") is False),
     ):
@@ -809,7 +821,10 @@ def _apply_relations(notion, dbs):
 
     # 项目库：「仓库」关系 —— 少了这条，项目页上就是空的分组
     # （Notion API 的关系是两条独立属性，不会互填，两边都得有）
-    ensure_relation(notion, grp, "仓库", rep)
+    # 而且**一条关系最多存 25 个**（超了静默截断，不报错），
+    # 所以大项目要拆成 仓库 / 仓库 2 / 仓库 3 … 好几条。
+    for name in REPO_RELATION_NAMES:
+        ensure_relation(notion, grp, name, rep)
     _patch_props(notion, rep, {"分类": {"multi_select": {"options": [{"name": n} for n in TAG_TO_CATEGORY]}}})
 
     # issue 库：「所属仓库」+「所属项目」
@@ -971,12 +986,14 @@ def sync_reverse(notion, dbs, groups, repos, group_ids, repo_ids, issue_ids, dry
         ids = repo_ids_by_project.get(g["key"], [])
         if not gid or dry_run:
             continue
-        if len(ids) > 100:
+        if len(ids) > RELATION_LIMIT * len(REPO_RELATION_NAMES):
             over.append((f"项目「{g['title']}」的仓库", len(ids)))
             continue
-        notion.patch(f"/pages/{gid}", {"properties": {
-            "仓库": {"relation": [{"id": i} for i in ids]},
-        }})
+        # 一条关系最多 25 个 → 分批写进 仓库 / 仓库 2 / 仓库 3 …
+        props = {}
+        for idx, chunk in enumerate(chunks(ids, RELATION_LIMIT)):
+            props[REPO_RELATION_NAMES[idx]] = {"relation": [{"id": i} for i in chunk]}
+        notion.patch(f"/pages/{gid}", {"properties": props})
 
     # 项目.任务
     for g in groups:
