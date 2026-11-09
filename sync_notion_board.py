@@ -29,6 +29,7 @@
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -952,6 +953,9 @@ def sync_tasks(notion, db_id, groups, relation_targets, repo_ids, dry_run=False)
 #   Notion 的 last_edited_time > 上次同步 → 你动过 → 写回 GitHub
 #   否则 → 你没动 → 以 GitHub 为准，覆盖 Notion
 WRITE_BACK_FIELDS = ("进度", "推进状态", "负责人", "DDL")
+# 进展记录（项目的 rich_text）→ GitHub 上的一条评论。
+# 末尾带 dsh-progress 标记，DSH 插件那边读得回来，id 也能对上。
+PROGRESS_MARK = "<!-- dsh-progress:{id} kind={kind} -->"
 
 PROGRESS_MARK = "<!-- dsh-progress:"
 
@@ -976,7 +980,113 @@ def latest_progress(repo, number):
     return ""
 
 
-def write_back(notion, db_ids, dry_run=False):
+def set_issue_state(repo, number, closed):
+    """把 GitHub issue 关掉或重新打开。归档仓只读，跳过。"""
+    if repo not in writable_repos():
+        return {"skipped": "archived"}
+    url = f"https://api.github.com/repos/{OWNER}/{repo}/issues/{number}"
+    return gh_rest("PATCH", url, {"state": "closed" if closed else "open"})
+
+
+def write_back_issue_state(notion, db_id, dry_run=False):
+    """Notion 上把 issue 的状态改成「完成」→ GitHub 上关掉它；改回「开放」→ 重新打开。"""
+    pages = {key_of(p): p for p in notion.query_db(db_id)}
+    touched = []
+    for key, page in pages.items():
+        synced_at = prop_date(page, "上次同步")
+        edited_at = page.get("last_edited_time")
+        edited_dt, synced_dt = as_dt(edited_at), as_dt(synced_at)
+        if not edited_dt or not synced_dt or edited_dt <= synced_dt:
+            continue
+        touched.append((key, page))
+    changed = []
+    for key, page in touched:
+        state = prop_select(page, "状态")
+        if state not in ("开放", "完成"):
+            continue
+        m = re.match(r"task:(.+)#(\d+)$", key)
+        if not m:
+            continue
+        repo, number = m.group(1), int(m.group(2))
+        if dry_run:
+            changed.append((key, state))
+            continue
+        try:
+            result = set_issue_state(repo, number, state == "完成")
+        except RuntimeError as e:
+            print(f"   ⚠️ issue 状态写回失败 {key}: {str(e)[:120]}")
+            continue
+        if result.get("skipped"):
+            print(f"   ⚠️ {key} 所在仓已归档，改不了状态（只读）")
+            continue
+        changed.append((key, state))
+        # 状态处理完了，把标记时间推进，免得下次又当成新改动
+        notion.patch(f"/pages/{page['id']}", {"properties": {"上次同步": stamp(now_iso())}})
+    return changed
+
+
+_WRITABLE = None
+
+
+def writable_repos():
+    """还能改的仓（归档仓是只读的：issue 状态改不了、评论也加不了）。
+
+    一次 gh 调用拿到全部仓的归档状态，缓存给本次运行用。
+    """
+    global _WRITABLE
+    if _WRITABLE is None:
+        try:
+            import setup_project_issues as s
+            _WRITABLE = {r["name"] for r in s.fetch_repos() if not r.get("isArchived")}
+        except Exception:
+            _WRITABLE = set()
+    return _WRITABLE
+
+
+def gh_rest(method, url, payload=None):
+    """GitHub REST 调用。出错时把响应体带出来 —— 光看 403 猜不出是哪回事。"""
+    req = urllib.request.Request(url, data=json.dumps(payload).encode() if payload is not None else None,
+        method=method, headers={
+            "Authorization": f"Bearer {os.environ.get('GH_TOKEN', '')}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+        })
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            return json.loads(resp.read().decode() or "{}")
+    except urllib.error.HTTPError as e:
+        raise RuntimeError(f"GitHub {method} {url} → HTTP {e.code}: {e.read().decode()[:200]}")
+
+
+def post_progress_comment(repo, number, text, kind="progress"):
+    """把 Notion 上写的进展记录发成 GitHub issue 的一条评论。
+
+    末尾带 dsh-progress 标记 —— 插件那边读评论时按标记还原 id 与 kind，
+    标记本身从正文剥掉，所以界面上看到的就是你写的那句话。
+    """
+    import hashlib
+    marker_id = "notion-" + hashlib.sha1(f"{repo}#{number}:{text}".encode()).hexdigest()[:12]
+    if repo not in writable_repos():
+        return {"skipped": "archived"}
+    body = f"{text}\n\n{PROGRESS_MARK.format(id=marker_id, kind=kind)}"
+    url = f"https://api.github.com/repos/{OWNER}/{repo}/issues/{number}/comments"
+    return gh_rest("POST", url, {"body": body})
+
+
+def latest_progress_comment(repo, number):
+    """GitHub 上这个组条目下最新的进展记录（进展存成评论）。"""
+    url = f"https://api.github.com/repos/{OWNER}/{repo}/issues/{number}/comments?per_page=100"
+    comments = gh_rest("GET", url)
+    if not isinstance(comments, list):
+        return ""
+    for c in reversed(comments):
+        body = c.get("body") or ""
+        if "<!-- dsh-progress:" in body:
+            return body.split("<!-- dsh-progress:")[0].strip()
+    return ""
+
+
+def write_back(notion, db_ids, groups=None, dry_run=False):
     """把 Notion 上被改过的字段写回 GitHub。
 
     db_ids 是**所有**组库（主库 + 分类视图库）——
@@ -1046,6 +1156,13 @@ def write_back(notion, db_ids, dry_run=False):
                 continue
             if str(current.get(fname) or "") != str(want):
                 changes[fname] = want
+        # 进展记录：写一条评论（不是字段）
+        note = prop_text(page, "进展记录").strip()
+        if note:
+            # 只对**被改过**的行去查 GitHub 上的最新评论 —— 一次调用，
+            # 这样 --check 不用拉全量 GitHub（那要两分半）
+            if note != latest_progress_comment(repo, number):
+                changes["进展记录"] = note
         if not changes:
             continue
         title = title_of(page) or key
@@ -1053,6 +1170,12 @@ def write_back(notion, db_ids, dry_run=False):
             pushed.append((title, changes))
             continue
         for fname, want in changes.items():
+            if fname == "进展记录":
+                try:
+                    post_progress_comment(repo, number, want)
+                except RuntimeError as e:
+                    print(f"   ⚠️ 进展记录写回失败 {repo}#{number}: {str(e)[:120]}")
+                continue
             spec = fields.get(fname)
             if not spec:
                 continue
@@ -1103,10 +1226,15 @@ def main():
         # 只回写：读 Notion（几个查询）→ 比对「上次同步」→ 有改动就写回 GitHub。
         # 不拉 GitHub 全量，也不刷新 Notion —— 所以很便宜，可以每 15 分钟跑一次。
         group_db_ids = [dbs[GROUPS_DB_TITLE]]
-        pushed = write_back(notion, group_db_ids, args.dry_run)
+        pushed = write_back(notion, group_db_ids, None, args.dry_run)
         for title, changes in pushed:
             print(f"   ↩ 回写 {title}: {json.dumps(changes, ensure_ascii=False)}")
-        print(f"✅ 检查完成：{len(pushed)} 处改动已写回 GitHub（Notion API {notion.calls} 次）")
+        # issue 的完成状态 → 关掉 / 打开 GitHub issue
+        state_changes = write_back_issue_state(notion, dbs[TASKS_DB_TITLE], args.dry_run)
+        for key, state in state_changes:
+            print(f"   ↩ issue {key} → {state}")
+        print(f"✅ 检查完成：{len(pushed)} 处字段 + {len(state_changes)} 处状态已写回 GitHub"
+              f"（Notion API {notion.calls} 次）")
         return 0
 
     groups = collect_groups()
@@ -1115,7 +1243,7 @@ def main():
 
     # 先回写：你在 Notion 里的改动要趁 GitHub 的值覆盖 Notion 之前写回去
     group_db_ids = [dbs[GROUPS_DB_TITLE]]
-    pushed = write_back(notion, group_db_ids, args.dry_run)
+    pushed = write_back(notion, group_db_ids, None, args.dry_run)
     for title, changes in pushed:
         print(f"   ↩ 回写 {title}: {json.dumps(changes, ensure_ascii=False)}")
     if pushed:
@@ -1165,6 +1293,11 @@ def main():
 
     c2, u2, issue_ids = sync_tasks(notion, dbs[TASKS_DB_TITLE], groups, rel, repo_ids, args.dry_run)
     print(f"✅ issue：新建 {c2} ｜ 更新 {u2}")
+
+    # issue 的完成状态 → 关掉 GitHub issue
+    state_changes = write_back_issue_state(notion, dbs[TASKS_DB_TITLE], args.dry_run)
+    for key, state in state_changes:
+        print(f"   ↩ issue {key} → {state}")
 
     # 反向关系（Notion API 建的关系不会自动互填，rollup 靠它们）
     sync_reverse(notion, dbs, groups, repos, group_ids, repo_ids, issue_ids, args.dry_run)
