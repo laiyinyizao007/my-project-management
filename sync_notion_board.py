@@ -361,20 +361,21 @@ def collect_groups():
 
 # ── Notion 结构搭建 ────────────────────────────────────────────
 def ensure_parent(notion):
+    """找父页面。
+
+    注意：不能用 API 在 workspace 底下建页面 —— 那样页面归集成所有，
+    只出现在集成的私有页里，你的侧边栏根本看不到。
+    所以父页面必须由**你在自己的 Notion 里建**，再把集成加为共享成员。
+    """
     for page in notion.search(PARENT_TITLE):
         if page.get("object") == "page" and title_of(page) == PARENT_TITLE:
             return page["id"]
-    parent = {"type": "page_id", "page_id": None}
-    # 顶层父页面：需要一个能被集成访问的页面。优先找「我的项目」工作区的页面。
-    created = notion.post("/pages", {
-        "parent": {"type": "workspace", "workspace": True},
-        "properties": {"title": title_prop(PARENT_TITLE)},
-        "children": [{
-            "object": "block", "type": "heading_1",
-            "heading_1": {"rich_text": [{"type": "text", "text": {"content": PARENT_TITLE}}]}},
-        ],
-    })
-    return created["id"]
+    raise RuntimeError(
+        f"没找到名为「{PARENT_TITLE}」的页面。\n"
+        f"  1. 在 Notion 里新建一个空页面，标题就叫「{PARENT_TITLE}」\n"
+        f"  2. 页面右上角 ··· → 连接（Connections）→ 选择你刚建的集成 → 确认\n"
+        f"  3. 再跑一次本脚本"
+    )
 
 
 def find_database(notion, title):
