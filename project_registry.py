@@ -61,11 +61,39 @@ GROUPS = [
      "primary": "arksusdemo", "repos": ["arksusdemo", "arksusdemo1", "arksusdemo2", "arksusdemo3"],
      "desc": "AI 职业健康管理 SaaS（GBZ 188-2025 合规）", "tags": ["TypeScript", "AI", "Health"]},
     {"key": "atomic-craft-ui", "title": "🎨 Atomic Craft UI", "category": CATEGORY_WORK,
-     "primary": "atomic-craft-ui-5bcebc69", "repos": ["atomic-craft-ui-5bcebc69"],
+     "primary": "atomic-craft-ui-5bcebc69",
+     "repos": ["atomic-craft-ui-5bcebc69", "atomic-craft-ui"],
      "desc": "Atomic UI 组件库 / 前端原子设计系统", "tags": ["TypeScript", "React", "Design System"]},
     {"key": "arksu-platform", "title": "🚀 Arksu", "category": CATEGORY_WORK,
      "primary": "arksus-yunzeanquan", "repos": ["arksus-yunzeanquan"],
      "desc": "ArkSUS 智能安全管理平台（1000+ 功能需求文档库）", "tags": ["TypeScript", "Safety"]},
+
+    # ── 客户交付：工作侧交付集合 ──────────────────────────
+    # 这几个仓在 GitHub 上大多是 0 个 issue，但它们是真实在做的客户项目，
+    # 之后会在仓里提 issue。所以先立项（组），任务随 issue 出现自然长出来。
+    # 同源的仓并进同一个组，不重复立项。
+    {"key": "approval-ment", "title": "✅ 审批管理系统", "category": CATEGORY_WORK,
+     "primary": "20260405approval-ment-main",
+     "repos": ["20260405approval-ment-main", "approval-ment"],
+     "desc": "Vue3+TS monorepo 审批管理系统（pnpm workspaces + Turbo）", "tags": ["Vue", "TypeScript", "pnpm"]},
+    {"key": "carbon-compass", "title": "🌍 Carbon Compass", "category": CATEGORY_WORK,
+     "primary": "carbon-compass", "repos": ["carbon-compass", "remix-of-carbon-compass"],
+     "desc": "能碳平台（Lovable + Cloudflare + Radix）", "tags": ["TypeScript", "React", "Cloudflare"]},
+    {"key": "employee-assessment", "title": "📊 员工考核表", "category": CATEGORY_WORK,
+     "primary": "employee-assessment-table", "repos": ["employee-assessment-table"],
+     "desc": "员工考核表生成工具（Python + Markdown/Word）", "tags": ["Python", "文档"]},
+    {"key": "prismtek-atomic-ui", "title": "🔷 PRISM OS", "category": CATEGORY_WORK,
+     "primary": "prismtek-atomic-ui", "repos": ["prismtek-atomic-ui"],
+     "desc": "PRISM OS 设计系统与业务前端（医疗器械销售场景）", "tags": ["TypeScript", "React", "Design System"]},
+    {"key": "stagegate-flow", "title": "🚧 工程监理阶段关卡", "category": CATEGORY_WORK,
+     "primary": "stagegate-flow-45", "repos": ["stagegate-flow-45"],
+     "desc": "M1-M7 阶段关卡审查 SaaS", "tags": ["TypeScript", "React", "Drizzle"]},
+    {"key": "system-blueprint", "title": "🗺️ 系统蓝图工作台", "category": CATEGORY_WORK,
+     "primary": "system-blueprint-studio", "repos": ["system-blueprint-studio"],
+     "desc": "架构设计可视化与文档化工作台", "tags": ["TypeScript", "React", "文档"]},
+    {"key": "delivery-collection", "title": "🧰 工作侧交付集合", "category": CATEGORY_WORK,
+     "primary": "averivendell-projects", "repos": ["averivendell-projects"],
+     "desc": "n8n 连接器 + Telegram 机器人 + MCP 研究的交付集合", "tags": ["JavaScript", "n8n", "MCP"]},
 
     # ── 个人产品 ──
     {"key": "lifeos", "title": "🧠 LifeOS", "category": CATEGORY_PERSONAL,
@@ -111,6 +139,95 @@ SERIES_TO_GROUP = {
 # 仓库已被删除、且没有替代的精选项目
 DEAD_SERIES = {"pact-nexus-light"}
 
+# ── 归属规则（机器判定）──────────────────────────────────────
+# 一个仓归到哪个「分类」，按这张表从上往下匹配，第一个命中的标签生效。
+# 这是**猜**的结果：工作区索引里的人工判断（projects-index-seed.json）优先，
+# 人工改过的标签会先命中这里更靠前的规则。
+#
+# 想改归属，改这张表 + 重跑同步即可，不用动代码。
+TAG_CATEGORY_RULES = [
+    (("client-work",), CATEGORY_WORK),
+    (("family:life-system",), CATEGORY_PERSONAL),
+    (("knowledge-base",), CATEGORY_PERSONAL),
+    (("game",), CATEGORY_PERSONAL),
+    (("hardware-iot",), CATEGORY_PERSONAL),
+    (("personal-admin",), CATEGORY_TOOL),
+    (("family:self-tools",), CATEGORY_TOOL),
+    (("dataset",), CATEGORY_PERSONAL),
+    # 其余技术仓归到「效率工具」。把标签逐个列出来，是为了让归属依据能写出
+    # 具体名字（看板上能看出是哪个标签判的），而不是笼统一句「默认」。
+    (("ai-agent", "automation", "tooling", "web-app", "infra-devops", "agent-config",
+      "messaging-bot", "data-pipeline", "media-content", "security", "crypto-vpn",
+      "learning-reference"), CATEGORY_TOOL),
+]
+# 一条标签都没命中时的兜底分类
+DEFAULT_CATEGORY = CATEGORY_TOOL
+# 兜底归类且没有任何标签依据 → 标「待归类」，等人工确认
+NEEDS_REVIEW = "待归类"
+
+# GitHub 上存在、但没克隆到工作区的仓：工作区索引里没有它们，
+# 标签得在这里手写一份，不然归属只能靠「默认」猜。
+EXTRA_TAGS = {
+    "aws-skills": ["tooling", "learning-reference"],
+    "bailian-speech-demo-local": ["tooling"],
+    "bisheng": ["tooling", "learning-reference"],
+    "claude": ["tooling", "agent-config"],
+    "claude-epub-skill": ["tooling"],
+    "dotfiles-private": ["agent-config", "family:self-tools"],
+    "fork-pywxdump": ["tooling"],
+    "linear-cli-skill": ["tooling", "family:self-tools"],
+    "n8n-workflows": ["automation", "family:self-tools"],
+    "test-api": ["tooling"],
+}
+
+# 工作区索引（127 个项目的全量台账）：归属判定的标签来源
+WORKSPACE_INDEX = Path(__file__).resolve().parent.parent / "projects-index.json"
+# 仓库内标签快照（CI 上没有工作区索引，靠它判定归属）
+REPO_TAGS_SNAPSHOT = Path(__file__).resolve().parent / "repo-tags.json"
+
+
+def categorize(tags):
+    """给一个仓判分类。返回 (分类, 依据)。
+
+    依据会写进组条目的正文，这样看板上一眼能看出这个归属是怎么来的。
+    """
+    tags = set(tags or ())
+    for rule_tags, category in TAG_CATEGORY_RULES:
+        for t in rule_tags:
+            if t in tags:
+                return category, t
+    if not tags:
+        return DEFAULT_CATEGORY, NEEDS_REVIEW
+    return DEFAULT_CATEGORY, "默认（无专用标签）"
+
+
+def load_workspace_tags(index_path=None):
+    """读每个仓的标签。
+
+    三个来源合并成一个集合：
+      1. EXTRA_TAGS      —— 没克隆到工作区的仓，手写在注册表里
+      2. repo-tags.json  —— 仓库内快照（CI runner 上没有工作区，靠它）
+      3. 工作区索引       —— 本机最新（人工判定都在这里面）
+    """
+    import json
+    import os
+
+    out = {name: set(tags) for name, tags in EXTRA_TAGS.items()}
+    if REPO_TAGS_SNAPSHOT.is_file():
+        try:
+            snap = json.loads(REPO_TAGS_SNAPSHOT.read_text(encoding="utf-8"))
+            for name, tags in snap.items():
+                out.setdefault(name, set()).update(tags or ())
+        except (OSError, ValueError):
+            pass          # 快照坏了不该让同步挂掉 —— 下面的索引还能兜底
+    path = Path(index_path or os.environ.get("PROJECTS_INDEX") or WORKSPACE_INDEX)
+    if path.is_file():
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for key, entry in (data.get("projects") or {}).items():
+            name = (entry.get("_auto") or {}).get("path") or key.split("/")[-1]
+            out.setdefault(name, set()).update(entry.get("tags") or [])
+    return out
+
 
 def build_groups():
     """项目组列表（附上仓库元数据，repos 里的仓可能不存在则过滤掉）。"""
@@ -119,6 +236,65 @@ def build_groups():
         d = dict(g)
         d["repos"] = list(g["repos"])
         out.append(d)
+    return out
+
+
+def covered_repos(groups=None):
+    """已经被显式项目组覆盖的仓（这些仓不再自动另立一组）。"""
+    out = set()
+    for g in (groups if groups is not None else build_groups()):
+        out.update(g["repos"])
+    return out
+
+
+def build_auto_groups(repos, groups=None, tags_by_repo=None):
+    """给「还没有归属」的活跃仓各建一个单仓项目组。
+
+    repos      : [{name, isArchived, hasIssuesEnabled, description, primaryLanguage, ...}]
+    tags_by_repo: {仓名: {标签}}，来自工作区索引
+
+    两种仓不建组：
+      归档仓      —— GitHub 不允许在归档仓开 issue
+      关了 Issues —— 同上，连建 Issue 都做不到（这两类只在工作区台账里可见）
+    """
+    covered = covered_repos(groups)
+    tags_by_repo = tags_by_repo or {}
+    out = []
+    for r in repos:
+        name = r["name"]
+        if name in covered or r.get("isArchived"):
+            continue
+        if r.get("hasIssuesEnabled") is False:
+            continue          # 关了 Issue 的仓建不了组条目
+        category, basis = categorize(tags_by_repo.get(name))
+        stack = [r.get("primaryLanguage")] if r.get("primaryLanguage") else []
+        out.append({
+            "key": name,
+            "title": name,
+            "category": category,
+            "primary": name,
+            "repos": [name],
+            "desc": r.get("description") or "",
+            "tags": stack,
+            "auto": True,
+            "basis": basis,
+            "needs_review": basis == NEEDS_REVIEW,
+        })
+    return out
+
+
+def skipped_repos(repos, groups=None):
+    """建不了组的仓：归档的、关了 Issues 的。它们只在工作区台账里可见。"""
+    covered = covered_repos(groups)
+    out = []
+    for r in repos:
+        name = r["name"]
+        if name in covered:
+            continue
+        if r.get("isArchived"):
+            out.append((name, "已归档"))
+        elif r.get("hasIssuesEnabled") is False:
+            out.append((name, "Issues 已关闭"))
     return out
 
 

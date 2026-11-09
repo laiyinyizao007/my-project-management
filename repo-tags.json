@@ -1,0 +1,559 @@
+{
+  "20260131sdcard": [
+    "dataset",
+    "family:life-system",
+    "hardware-iot"
+  ],
+  "20260405approval-ment-main": [
+    "automation",
+    "client-work",
+    "web-app"
+  ],
+  "260131patent": [
+    "family:life-system",
+    "knowledge-base"
+  ],
+  "AIslave": [
+    "ai-agent",
+    "automation"
+  ],
+  "Antigravity-Manager": [
+    "ai-agent"
+  ],
+  "AutoDiary": [
+    "family:life-system",
+    "personal-admin"
+  ],
+  "AutoDiary-Autodiary": [
+    "family:life-system",
+    "hardware-iot",
+    "personal-admin"
+  ],
+  "AutoDiary-archive": [
+    "family:life-system",
+    "hardware-iot",
+    "personal-admin"
+  ],
+  "AutoDiary-main": [
+    "ai-agent",
+    "automation",
+    "family:life-system",
+    "personal-admin"
+  ],
+  "Claude-Code-Zen-mcp-Skill-Work": [
+    "ai-agent"
+  ],
+  "Hardware": [
+    "hardware-iot"
+  ],
+  "MP4resolve": [
+    "media-content",
+    "tooling"
+  ],
+  "MediaCrawler": [
+    "data-pipeline"
+  ],
+  "ObsidianPortobello": [
+    "family:life-system",
+    "knowledge-base",
+    "personal-admin"
+  ],
+  "SolidGPT": [
+    "tooling"
+  ],
+  "_archive/2026-11-02/PersonalDigitalTwinPortfolio": [
+    "web-app"
+  ],
+  "_archive/2026-11-06/green-compass-net": [
+    "web-app"
+  ],
+  "_archive/2026-11-08/aws-skills": [
+    "learning-reference"
+  ],
+  "_archive/2026-11-08/claude-epub-skill": [
+    "learning-reference"
+  ],
+  "_archive/2026-11-08/linear-cli-skill": [
+    "learning-reference"
+  ],
+  "_archive/2026-11-08/rivenDell-Memory": [
+    "agent-config",
+    "family:self-tools"
+  ],
+  "_archive/2026-11-08/sleepless-agent": [
+    "ai-agent"
+  ],
+  "ai-workspace": [
+    "agent-config",
+    "automation"
+  ],
+  "ailma-project": [
+    "ai-agent",
+    "family:life-system",
+    "personal-admin"
+  ],
+  "api-tester": [
+    "automation",
+    "family:self-tools",
+    "tooling"
+  ],
+  "arksus-yunzeanquan": [
+    "client-work",
+    "knowledge-base"
+  ],
+  "atomic-craft-ui": [
+    "client-work",
+    "web-app"
+  ],
+  "atomic-craft-ui-5bcebc69": [
+    "web-app"
+  ],
+  "averivendell-backup-manager": [
+    "automation",
+    "tooling"
+  ],
+  "averivendell-others": [
+    "agent-config",
+    "tooling"
+  ],
+  "averivendell-projects": [
+    "automation",
+    "client-work"
+  ],
+  "averivendell-rules": [
+    "agent-config",
+    "knowledge-base"
+  ],
+  "averivendell-rules_template_project": [
+    "agent-config",
+    "knowledge-base"
+  ],
+  "averivendell-telegram-botManagement": [
+    "automation",
+    "messaging-bot"
+  ],
+  "averivendell-vibe-coding": [
+    "automation",
+    "tooling"
+  ],
+  "avery-pixel-cv": [
+    "personal-admin",
+    "web-app"
+  ],
+  "averypi-obsidian": [
+    "family:life-system",
+    "knowledge-base",
+    "personal-admin"
+  ],
+  "averypiopenclaw": [
+    "ai-agent",
+    "automation"
+  ],
+  "awesome-claude-code": [
+    "learning-reference"
+  ],
+  "awesome-claude-code-subagents": [
+    "learning-reference"
+  ],
+  "aws-skills": [
+    "learning-reference",
+    "tooling"
+  ],
+  "bailian-speech-demo-local": [
+    "tooling"
+  ],
+  "bisheng": [
+    "learning-reference",
+    "tooling"
+  ],
+  "blank-canvas-local": [
+    "web-app"
+  ],
+  "carbon-compass": [
+    "client-work",
+    "web-app"
+  ],
+  "cc-on-lifeos": [
+    "automation",
+    "infra-devops"
+  ],
+  "civic-mind2": [
+    "ai-agent",
+    "web-app"
+  ],
+  "clarity-briefing-hub": [
+    "web-app"
+  ],
+  "claude": [
+    "agent-config",
+    "tooling"
+  ],
+  "claude-code-skills": [
+    "learning-reference"
+  ],
+  "claude-config": [
+    "agent-config",
+    "family:self-tools",
+    "knowledge-base"
+  ],
+  "claude-config-sync": [
+    "automation",
+    "family:self-tools",
+    "infra-devops"
+  ],
+  "claude-epub-skill": [
+    "tooling"
+  ],
+  "codex-cc-arksus": [
+    "agent-config",
+    "automation"
+  ],
+  "darwin-agent": [
+    "automation",
+    "family:self-tools",
+    "infra-devops"
+  ],
+  "darwinRules": [
+    "agent-config",
+    "knowledge-base"
+  ],
+  "dell-control": [
+    "family:self-tools",
+    "infra-devops",
+    "tooling"
+  ],
+  "diary1.0": [
+    "family:life-system",
+    "knowledge-base",
+    "personal-admin"
+  ],
+  "dotfiles-private": [
+    "agent-config",
+    "family:self-tools"
+  ],
+  "dsh-desktop": [
+    "ai-agent",
+    "web-app"
+  ],
+  "dsh-desktop-responsive": [
+    "web-app"
+  ],
+  "dsh-messenger-gateway": [
+    "ai-agent",
+    "automation",
+    "messaging-bot"
+  ],
+  "dsh-mobile": [
+    "knowledge-base",
+    "web-app"
+  ],
+  "duplicati-range": [
+    "automation",
+    "family:self-tools",
+    "infra-devops"
+  ],
+  "employee-assessment-table": [
+    "client-work",
+    "tooling"
+  ],
+  "esp32-s3-sense-homeassistant-autodiary": [
+    "automation",
+    "family:life-system",
+    "hardware-iot",
+    "personal-admin"
+  ],
+  "feishu-sync": [
+    "automation",
+    "data-pipeline",
+    "family:self-tools"
+  ],
+  "ffuf_claude_skill": [
+    "security",
+    "tooling"
+  ],
+  "fork-pywxdump": [
+    "tooling"
+  ],
+  "game-tank-local": [
+    "ai-agent",
+    "game"
+  ],
+  "github-explorer": [
+    "automation",
+    "family:self-tools",
+    "tooling"
+  ],
+  "github-profile-manager": [
+    "automation",
+    "personal-admin"
+  ],
+  "github-weekly-progress": [
+    "automation",
+    "family:self-tools",
+    "personal-admin"
+  ],
+  "green-compass-net": [
+    "client-work",
+    "web-app"
+  ],
+  "homeassistant-manager": [
+    "family:self-tools",
+    "infra-devops",
+    "tooling"
+  ],
+  "issuefighter": [
+    "ai-agent",
+    "automation",
+    "family:self-tools"
+  ],
+  "jiangnan-chem-design": [
+    "knowledge-base"
+  ],
+  "jobsearch": [
+    "automation",
+    "personal-admin"
+  ],
+  "klugai-codex-proxy": [
+    "automation",
+    "infra-devops"
+  ],
+  "laiyinyizao007": [
+    "knowledge-base",
+    "personal-admin"
+  ],
+  "lifeOS": [
+    "ai-agent",
+    "automation",
+    "personal-admin"
+  ],
+  "light-ai": [
+    "ai-agent",
+    "automation",
+    "family:life-system",
+    "personal-admin"
+  ],
+  "linear-cli-skill": [
+    "family:self-tools",
+    "tooling"
+  ],
+  "lisahost": [
+    "automation",
+    "family:self-tools",
+    "infra-devops"
+  ],
+  "lovable-life-hub": [
+    "ai-agent",
+    "family:life-system",
+    "personal-admin",
+    "web-app"
+  ],
+  "mcp-integration-hub": [
+    "automation",
+    "tooling"
+  ],
+  "memory-tests": [
+    "agent-config",
+    "automation",
+    "family:self-tools"
+  ],
+  "merge-workspace": [
+    "agent-config",
+    "automation"
+  ],
+  "migration-scripts": [
+    "automation",
+    "family:self-tools",
+    "tooling"
+  ],
+  "mimo2codex-local": [
+    "agent-config",
+    "automation"
+  ],
+  "minesweeper-multiplayer": [
+    "game"
+  ],
+  "minutes-local": [
+    "ai-agent",
+    "media-content"
+  ],
+  "mnemon-memory": [
+    "agent-config",
+    "automation",
+    "family:self-tools"
+  ],
+  "my-digital-twin-8cc5688b": [
+    "web-app"
+  ],
+  "my-project-management": [
+    "automation",
+    "family:self-tools",
+    "personal-admin"
+  ],
+  "mygithubprojectagent": [
+    "ai-agent",
+    "automation"
+  ],
+  "n8n-workflows": [
+    "automation",
+    "family:self-tools"
+  ],
+  "n8n-workflows-backup": [
+    "automation"
+  ],
+  "notion-analysis": [
+    "ai-agent",
+    "automation",
+    "family:life-system",
+    "personal-admin"
+  ],
+  "notion-integration": [
+    "automation",
+    "family:life-system"
+  ],
+  "obs-averivendell": [
+    "knowledge-base"
+  ],
+  "obsidian-mcp-docker": [
+    "automation",
+    "infra-devops"
+  ],
+  "openclaw-backup-20260414": [
+    "tooling"
+  ],
+  "openclaw-custom-api": [
+    "ai-agent",
+    "infra-devops"
+  ],
+  "openclawinlifeos": [
+    "infra-devops",
+    "personal-admin"
+  ],
+  "pi-monitor": [
+    "family:self-tools",
+    "hardware-iot",
+    "tooling"
+  ],
+  "pixelclaw": [
+    "automation"
+  ],
+  "pixelclaw-pilot": [
+    "ai-agent",
+    "automation"
+  ],
+  "portfolio": [
+    "knowledge-base",
+    "personal-admin"
+  ],
+  "prismtek-atomic-ui": [
+    "client-work",
+    "web-app"
+  ],
+  "projectHub": [
+    "automation",
+    "tooling",
+    "web-app"
+  ],
+  "racknerdVPN": [
+    "crypto-vpn",
+    "family:self-tools",
+    "infra-devops"
+  ],
+  "redroid-agent": [
+    "ai-agent",
+    "infra-devops"
+  ],
+  "redroid-manager": [
+    "automation",
+    "infra-devops"
+  ],
+  "reference/n8n-workflows": [
+    "automation",
+    "data-pipeline"
+  ],
+  "remix-of-carbon-compass": [
+    "web-app"
+  ],
+  "research-archives": [
+    "automation",
+    "family:self-tools",
+    "infra-devops"
+  ],
+  "resume-renew": [
+    "personal-admin"
+  ],
+  "rules-revolution": [
+    "agent-config",
+    "knowledge-base"
+  ],
+  "rules_template": [
+    "knowledge-base",
+    "learning-reference"
+  ],
+  "sleepless-agent-local": [
+    "ai-agent",
+    "automation"
+  ],
+  "stagegate-flow-45": [
+    "client-work",
+    "web-app"
+  ],
+  "system-blueprint-studio": [
+    "client-work",
+    "knowledge-base",
+    "web-app"
+  ],
+  "telegram": [
+    "automation",
+    "messaging-bot"
+  ],
+  "telegram-group-manager": [
+    "automation",
+    "messaging-bot"
+  ],
+  "test-api": [
+    "tooling"
+  ],
+  "test-codex": [
+    "tooling"
+  ],
+  "tools": [
+    "automation",
+    "family:self-tools",
+    "tooling"
+  ],
+  "video-remix": [
+    "ai-agent",
+    "media-content"
+  ],
+  "vpn-device-manager": [
+    "crypto-vpn",
+    "web-app"
+  ],
+  "wechat-bot": [
+    "automation",
+    "messaging-bot"
+  ],
+  "wechat-ingest": [
+    "automation",
+    "data-pipeline"
+  ],
+  "wewe-rss-data": [
+    "automation",
+    "dataset"
+  ],
+  "wsl-env": [
+    "infra-devops",
+    "tooling"
+  ],
+  "xiao-esp32s3-sense": [
+    "hardware-iot"
+  ],
+  "xiao-speech2chatgpt-local": [
+    "ai-agent",
+    "hardware-iot"
+  ],
+  "xiaohongshu-mcp": [
+    "automation",
+    "messaging-bot"
+  ]
+}

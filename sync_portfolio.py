@@ -34,7 +34,11 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
-from project_registry import build_groups  # noqa: E402
+from project_registry import (  # noqa: E402
+    build_auto_groups,
+    build_groups,
+    load_workspace_tags,
+)
 
 TRACKED_CONFIG = BASE_DIR / "tracked_config.json"
 DEFAULT_OWNER = "laiyinyizao007"
@@ -111,26 +115,50 @@ fragment proj on ProjectV2 {
       ... on ProjectV2IterationField { id name }
     }
   }
-  items(first: 100) {
-    nodes {
-      id
-      content {
-        __typename
-        ... on Issue { id title number }
-        ... on DraftIssue { id title }
-      }
-      fieldValues(first: 20) {
-        nodes {
-          ... on ProjectV2ItemFieldSingleSelectValue {
-            name
-            field { ... on ProjectV2FieldCommon { name } }
+}
+"""
+
+# 看板条目单独分页拉：组 + 任务加起来会超过 100 个，
+# 单次 items(first:100) 会把后面的整批漏掉（分组字段就写不上了）。
+BOARD_ITEMS_QUERY = """
+query($pid: ID!, $after: String) {
+  projectV2(id: $pid) {
+    items(first: 100, after: $after) {
+      nodes {
+        id
+        content {
+          __typename
+          ... on Issue { id title number }
+          ... on DraftIssue { id title }
+        }
+        fieldValues(first: 20) {
+          nodes {
+            ... on ProjectV2ItemFieldSingleSelectValue {
+              name
+              field { ... on ProjectV2FieldCommon { name } }
+            }
           }
         }
       }
+      pageInfo { hasNextPage endCursor }
     }
   }
 }
 """
+
+
+def fetch_all_items(pid):
+    """看板全部条目（分页拉全）"""
+    nodes = []
+    after = None
+    while True:
+        data = gql(BOARD_ITEMS_QUERY, {"pid": pid, "after": after})
+        items = data["projectV2"]["items"]
+        nodes.extend(items["nodes"])
+        if not items["pageInfo"]["hasNextPage"]:
+            break
+        after = items["pageInfo"]["endCursor"]
+    return nodes
 
 REPO_ISSUES_QUERY = """
 query($owner: String!, $repo: String!) {
@@ -228,10 +256,14 @@ def field_value(kind, value):
     return {"text": str(value)}
 
 
-def sync(project_number, owner, dry_run=False):
+def sync(project_number, owner, dry_run=False, auto=False, index=None):
     repos = fetch_repos()
     meta = {r["name"]: r for r in repos}
     groups = build_groups()
+    if auto:
+        # 自动立项的单仓组也要同步机器字段：分类 / 评分 / 最近推送 / 仓库 / 栈
+        tags_by_repo = load_workspace_tags(index)
+        groups = groups + build_auto_groups(repos, groups=build_groups(), tags_by_repo=tags_by_repo)
     scores = load_scores()
 
     print(f"📦 项目组 {len(groups)} 个 · Project #{project_number}")
@@ -266,7 +298,7 @@ def sync(project_number, owner, dry_run=False):
 
     item_of_issue = {}
     item_values = {}
-    for node in project["items"]["nodes"]:
+    for node in fetch_all_items(pid):
         content = node.get("content") or {}
         if content.get("__typename") == "Issue" and content.get("id"):
             item_of_issue[content["id"]] = node["id"]
@@ -359,8 +391,11 @@ def main():
     ap.add_argument("--project-number", type=int, default=1)
     ap.add_argument("--owner", default=os.environ.get("PORTFOLIO_OWNER", DEFAULT_OWNER))
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--auto", action="store_true",
+                    help="把自动立项的单仓组也一起同步机器字段")
+    ap.add_argument("--index", help="工作区索引路径")
     args = ap.parse_args()
-    return sync(args.project_number, args.owner, args.dry_run)
+    return sync(args.project_number, args.owner, args.dry_run, auto=args.auto, index=args.index)
 
 
 if __name__ == "__main__":
