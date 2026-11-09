@@ -23,6 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from project_registry import (  # noqa: E402
     CATEGORY_TOOL,
     DEFAULT_CATEGORY,
+    build_auto_groups,
+    build_groups,
     categorize,
     covered_repos,
     load_workspace_tags,
@@ -74,7 +76,7 @@ def main():
     args = ap.parse_args()
 
     tags_by_repo = load_workspace_tags()
-    groups = covered_repos()
+    explicit = build_groups()
 
     # 本地索引：给每个仓补上人工判定（origin/notes/最后提交）
     index_path = Path(__file__).resolve().parent.parent / "projects-index.json"
@@ -107,6 +109,10 @@ def main():
                           "url": f"https://github.com/laiyinyizao007/{name}"})
     else:
         repos = gh_repos()
+
+    # 看板里有哪些仓 = 显式组 + 自动立项的单仓组
+    auto = build_auto_groups(repos, groups=explicit, tags_by_repo=tags_by_repo)
+    groups = covered_repos(explicit + auto)
 
     rows = []
     for r in repos:

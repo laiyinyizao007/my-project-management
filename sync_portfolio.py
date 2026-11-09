@@ -122,25 +122,27 @@ fragment proj on ProjectV2 {
 # 单次 items(first:100) 会把后面的整批漏掉（分组字段就写不上了）。
 BOARD_ITEMS_QUERY = """
 query($pid: ID!, $after: String) {
-  projectV2(id: $pid) {
-    items(first: 100, after: $after) {
-      nodes {
-        id
-        content {
-          __typename
-          ... on Issue { id title number }
-          ... on DraftIssue { id title }
-        }
-        fieldValues(first: 20) {
-          nodes {
-            ... on ProjectV2ItemFieldSingleSelectValue {
-              name
-              field { ... on ProjectV2FieldCommon { name } }
+  node(id: $pid) {
+    ... on ProjectV2 {
+      items(first: 100, after: $after) {
+        nodes {
+          id
+          content {
+            __typename
+            ... on Issue { id title number }
+            ... on DraftIssue { id title }
+          }
+          fieldValues(first: 20) {
+            nodes {
+              ... on ProjectV2ItemFieldSingleSelectValue {
+                name
+                field { ... on ProjectV2FieldCommon { name } }
+              }
             }
           }
         }
+        pageInfo { hasNextPage endCursor }
       }
-      pageInfo { hasNextPage endCursor }
     }
   }
 }
@@ -153,7 +155,7 @@ def fetch_all_items(pid):
     after = None
     while True:
         data = gql(BOARD_ITEMS_QUERY, {"pid": pid, "after": after})
-        items = data["projectV2"]["items"]
+        items = data["node"]["items"]
         nodes.extend(items["nodes"])
         if not items["pageInfo"]["hasNextPage"]:
             break

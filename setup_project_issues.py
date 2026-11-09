@@ -229,17 +229,19 @@ def board_item(pid, issue_id):
 
 BOARD_ITEMS_QUERY = """
 query($pid:ID!,$after:String){
-  projectV2(id:$pid){
-    items(first:100, after:$after){
-      nodes{
-        id
-        content{... on Issue{id}}
-        fieldValues(first:20){nodes{
-          ... on ProjectV2ItemFieldSingleSelectValue{name field{... on ProjectV2FieldCommon{name}}}
-          ... on ProjectV2ItemFieldTextValue{text field{... on ProjectV2FieldCommon{name}}}
-        }}
+  node(id:$pid){
+    ... on ProjectV2 {
+      items(first:100, after:$after){
+        nodes{
+          id
+          content{... on Issue{id}}
+          fieldValues(first:20){nodes{
+            ... on ProjectV2ItemFieldSingleSelectValue{name field{... on ProjectV2FieldCommon{name}}}
+            ... on ProjectV2ItemFieldTextValue{text field{... on ProjectV2FieldCommon{name}}}
+          }}
+        }
+        pageInfo{hasNextPage endCursor}
       }
-      pageInfo{hasNextPage endCursor}
     }
   }
 }
@@ -247,11 +249,13 @@ query($pid:ID!,$after:String){
 
 PROJECT_FIELDS_QUERY = """
 query($pid:ID!){
-  projectV2(id:$pid){
-    fields(first:50){nodes{
-      ... on ProjectV2Field{id name}
-      ... on ProjectV2SingleSelectField{id name options{id name}}
-    }}
+  node(id:$pid){
+    ... on ProjectV2 {
+      fields(first:50){nodes{
+        ... on ProjectV2Field{id name}
+        ... on ProjectV2SingleSelectField{id name options{id name}}
+      }}
+    }
   }
 }
 """
@@ -263,7 +267,7 @@ def fetch_board_items(pid):
     after = None
     while True:
         data = gql(BOARD_ITEMS_QUERY, {"pid": pid, "after": after})
-        items = data["projectV2"]["items"]
+        items = data["node"]["items"]
         for node in items["nodes"]:
             content = node.get("content") or {}
             if not content.get("id"):
@@ -284,7 +288,7 @@ def fetch_fields(pid):
     """看板字段：{字段名: {id, options}}"""
     data = gql(PROJECT_FIELDS_QUERY, {"pid": pid})
     fmap = {}
-    for f in data["projectV2"]["fields"]["nodes"]:
+    for f in data["node"]["fields"]["nodes"]:
         if f.get("name"):
             fmap[f["name"]] = {"id": f["id"], "options": {o["name"]: o["id"] for o in (f.get("options") or [])}}
     return fmap
