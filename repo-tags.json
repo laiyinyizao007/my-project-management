@@ -58,6 +58,9 @@
     "knowledge-base",
     "personal-admin"
   ],
+  "RSS2CUBOX": [
+    "automation"
+  ],
   "SolidGPT": [
     "tooling"
   ],
@@ -83,6 +86,10 @@
   "_archive/2026-11-08/sleepless-agent": [
     "ai-agent"
   ],
+  "academic-coursework-archive": [
+    "knowledge-base",
+    "learning-reference"
+  ],
   "ai-workspace": [
     "agent-config",
     "automation"
@@ -97,9 +104,30 @@
     "family:self-tools",
     "tooling"
   ],
+  "approval-ment": [
+    "client-work",
+    "web-app"
+  ],
   "arksus-yunzeanquan": [
     "client-work",
     "knowledge-base"
+  ],
+  "arksusdemo": [
+    "ai-agent",
+    "client-work",
+    "web-app"
+  ],
+  "arksusdemo1": [
+    "client-work",
+    "web-app"
+  ],
+  "arksusdemo2": [
+    "automation",
+    "tooling"
+  ],
+  "arksusdemo3": [
+    "automation",
+    "tooling"
   ],
   "atomic-craft-ui": [
     "client-work",
@@ -108,9 +136,24 @@
   "atomic-craft-ui-5bcebc69": [
     "web-app"
   ],
+  "averivendell-api-connection-tester": [
+    "tooling"
+  ],
   "averivendell-backup-manager": [
     "automation",
+    "infra-devops",
     "tooling"
+  ],
+  "averivendell-cline-context-optimizer": [
+    "agent-config",
+    "tooling"
+  ],
+  "averivendell-github-mcp-research": [
+    "ai-agent",
+    "tooling"
+  ],
+  "averivendell-linux-learning-project": [
+    "learning-reference"
   ],
   "averivendell-others": [
     "agent-config",
@@ -128,12 +171,28 @@
     "agent-config",
     "knowledge-base"
   ],
+  "averivendell-telegram-AIworkHorse": [
+    "agent-config",
+    "messaging-bot"
+  ],
+  "averivendell-telegram-AnotherAvery_bot": [
+    "automation",
+    "messaging-bot"
+  ],
   "averivendell-telegram-botManagement": [
+    "automation",
+    "messaging-bot"
+  ],
+  "averivendell-telegram-groupChat": [
     "automation",
     "messaging-bot"
   ],
   "averivendell-vibe-coding": [
     "automation",
+    "tooling"
+  ],
+  "averivendell-wsl-vscode-diagnostics": [
+    "infra-devops",
     "tooling"
   ],
   "avery-pixel-cv": [
@@ -169,6 +228,9 @@
   "blank-canvas-local": [
     "web-app"
   ],
+  "blueprint-zen-87-989e7a28": [
+    "web-app"
+  ],
   "carbon-compass": [
     "client-work",
     "web-app"
@@ -176,6 +238,13 @@
   "cc-on-lifeos": [
     "automation",
     "infra-devops"
+  ],
+  "chrono-wear-ai-publish": [
+    "ai-agent",
+    "web-app"
+  ],
+  "cityvibe-audio-guide": [
+    "web-app"
   ],
   "civic-mind2": [
     "ai-agent",
@@ -187,6 +256,10 @@
   "claude": [
     "agent-config",
     "tooling"
+  ],
+  "claude-code-best-practices": [
+    "agent-config",
+    "learning-reference"
   ],
   "claude-code-skills": [
     "learning-reference"
@@ -204,9 +277,15 @@
   "claude-epub-skill": [
     "tooling"
   ],
+  "cline-global-rules": [
+    "agent-config"
+  ],
   "codex-cc-arksus": [
     "agent-config",
     "automation"
+  ],
+  "config-test": [
+    "agent-config"
   ],
   "darwin-agent": [
     "automation",
@@ -222,6 +301,13 @@
     "infra-devops",
     "tooling"
   ],
+  "deployment-buddy": [
+    "web-app"
+  ],
+  "development-tools-collection": [
+    "family:self-tools",
+    "tooling"
+  ],
   "diary1.0": [
     "family:life-system",
     "knowledge-base",
@@ -230,6 +316,15 @@
   "dotfiles-private": [
     "agent-config",
     "family:self-tools"
+  ],
+  "dream-pixel-aligner-6ccf6b2e": [
+    "ai-agent",
+    "client-work",
+    "web-app"
+  ],
+  "dsh-audio-keepalive": [
+    "infra-devops",
+    "tooling"
   ],
   "dsh-desktop": [
     "ai-agent",
@@ -271,8 +366,15 @@
     "security",
     "tooling"
   ],
+  "figma-tools-collection": [
+    "tooling",
+    "web-app"
+  ],
   "fork-pywxdump": [
     "tooling"
+  ],
+  "freshdesk-play-8ab3bf0f": [
+    "web-app"
   ],
   "game-tank-local": [
     "ai-agent",
@@ -281,6 +383,10 @@
   "github-explorer": [
     "automation",
     "family:self-tools",
+    "tooling"
+  ],
+  "github-mcp-server": [
+    "ai-agent",
     "tooling"
   ],
   "github-profile-manager": [
@@ -296,9 +402,17 @@
     "client-work",
     "web-app"
   ],
+  "green-compass-net-f3505092": [
+    "client-work",
+    "web-app"
+  ],
   "homeassistant-manager": [
     "family:self-tools",
     "infra-devops",
+    "tooling"
+  ],
+  "integrations": [
+    "automation",
     "tooling"
   ],
   "issuefighter": [
@@ -320,6 +434,13 @@
   "laiyinyizao007": [
     "knowledge-base",
     "personal-admin"
+  ],
+  "laiyinyizao007.github.io": [
+    "web-app"
+  ],
+  "learning-development-workspace": [
+    "knowledge-base",
+    "learning-reference"
   ],
   "lifeOS": [
     "ai-agent",
@@ -381,6 +502,12 @@
     "automation",
     "family:self-tools"
   ],
+  "my-claude-code-setup": [
+    "agent-config"
+  ],
+  "my-digital-twin": [
+    "web-app"
+  ],
   "my-digital-twin-8cc5688b": [
     "web-app"
   ],
@@ -400,11 +527,18 @@
   "n8n-workflows-backup": [
     "automation"
   ],
+  "neng-tan-guidebook": [
+    "knowledge-base"
+  ],
   "notion-analysis": [
     "ai-agent",
     "automation",
     "family:life-system",
     "personal-admin"
+  ],
+  "notion-api-research": [
+    "knowledge-base",
+    "learning-reference"
   ],
   "notion-integration": [
     "automation",
@@ -432,6 +566,12 @@
     "family:self-tools",
     "hardware-iot",
     "tooling"
+  ],
+  "pixel-fortune-hub": [
+    "web-app"
+  ],
+  "pixel-perfect-replica": [
+    "web-app"
   ],
   "pixelclaw": [
     "automation"
@@ -473,6 +613,14 @@
   "remix-of-carbon-compass": [
     "web-app"
   ],
+  "remix-of-remix-of-pixel-perfect-ui-81": [
+    "ai-agent",
+    "client-work",
+    "web-app"
+  ],
+  "remix-of-safeguard-core": [
+    "web-app"
+  ],
   "research-archives": [
     "automation",
     "family:self-tools",
@@ -480,6 +628,21 @@
   ],
   "resume-renew": [
     "personal-admin"
+  ],
+  "rhinotools": [
+    "tooling"
+  ],
+  "rivenDell-DarwinAgent": [
+    "ai-agent",
+    "family:self-tools"
+  ],
+  "rivenDell-Memory": [
+    "ai-agent",
+    "family:self-tools"
+  ],
+  "rivenDell-Notion": [
+    "agent-config",
+    "family:self-tools"
   ],
   "rules-revolution": [
     "agent-config",
@@ -489,9 +652,19 @@
     "knowledge-base",
     "learning-reference"
   ],
+  "safeworkpermitPRD": [
+    "knowledge-base"
+  ],
+  "sleepless-agent": [
+    "ai-agent"
+  ],
   "sleepless-agent-local": [
     "ai-agent",
     "automation"
+  ],
+  "smart-wardrobe-ai-system": [
+    "ai-agent",
+    "web-app"
   ],
   "stagegate-flow-45": [
     "client-work",
@@ -521,6 +694,10 @@
     "family:self-tools",
     "tooling"
   ],
+  "unlocking-the-power-of-llms": [
+    "knowledge-base",
+    "learning-reference"
+  ],
   "video-remix": [
     "ai-agent",
     "media-content"
@@ -529,11 +706,18 @@
     "crypto-vpn",
     "web-app"
   ],
+  "wander-tale-guide": [
+    "web-app"
+  ],
   "wechat-bot": [
     "automation",
     "messaging-bot"
   ],
   "wechat-ingest": [
+    "automation",
+    "data-pipeline"
+  ],
+  "wewe-rss": [
     "automation",
     "data-pipeline"
   ],
