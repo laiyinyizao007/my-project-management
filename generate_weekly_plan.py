@@ -1020,13 +1020,44 @@ def _dedup_ordered(seq):
     return [x for x in seq if not (x in seen or seen.add(x))]
 
 
-def generate_daily_ai_review(today_commits_by_repo, total_tracked_count=None):
+def _plain_daily_summary(today_commits_by_repo, total_tracked_count=None):
+    """不调模型的当日摘要：按仓库铺开今天的提交。
+
+    给 agent 会话当素材用 —— 解读由 agent 写，避免同一份回顾走两次 LLM。
+    """
+    if not today_commits_by_repo:
+        line = "- （今日无 commit 活动）"
+        if total_tracked_count:
+            line += f"\n- 今日活跃 0 / {total_tracked_count} 个仓库"
+        return line
+    lines = []
+    for repo in sorted(today_commits_by_repo):
+        data = today_commits_by_repo[repo]
+        commits = _dedup_ordered(data["commits"])[:8]
+        subjects = [c.get("subject", "").strip() for c in commits if c.get("subject")]
+        if not subjects:
+            continue
+        lines.append(f"- **{repo}**（{len(data['commits'])} 次提交）")
+        for subject in subjects:
+            lines.append(f"  - {subject}")
+    if total_tracked_count:
+        lines.append(f"- 今日活跃 {len(today_commits_by_repo)} / {total_tracked_count} 个仓库")
+    return "\n".join(lines)
+
+
+def generate_daily_ai_review(today_commits_by_repo, total_tracked_count=None, use_llm=True):
     """用 Claude 生成当日各仓库完成摘要和阻塞
+
+    use_llm=False 时不调模型，只把提交数据铺开 —— 解读交给 agent 会话来写，
+    这样同一天的回顾只走一次 LLM（脚本取数 → agent 解读）。
 
     Args:
         today_commits_by_repo: 今日活跃仓库的 {repo: {info, commits, files}} 映射
         total_tracked_count: 追踪+今日发现的仓库总数（用于A4 在摘要中展示分母）
     """
+    if not use_llm:
+        return _plain_daily_summary(today_commits_by_repo, total_tracked_count), "无（待 agent 补充）"
+
     client = _make_client()
     if not client:
         return None, None
@@ -1491,6 +1522,7 @@ def backfill_missing_issues(today_commits):
 
 def main():
     fill_ai = "--fill-ai" in sys.argv
+    no_ai = "--no-ai" in sys.argv
     daily_review = "--daily-review" in sys.argv
     weekly_review = "--weekly-review" in sys.argv
     auto_close = "--auto-close" in sys.argv
@@ -1557,7 +1589,8 @@ def main():
         today_commits, total_tracked = get_today_commits_by_repo(target_bn=bn, until_iso=_until_iso)
         total_commits = sum(len(d["commits"]) for d in today_commits.values())
         print(f"   今日 commits：{total_commits} 条（{len(today_commits)} / {total_tracked} 个仓库有活动）")
-        completed, blocked = generate_daily_ai_review(today_commits, total_tracked_count=total_tracked)
+        completed, blocked = generate_daily_ai_review(today_commits, total_tracked_count=total_tracked,
+                                                     use_llm=not no_ai)
         if completed is None:
             completed = "- （无 AI 摘要）"
             blocked = "无"
@@ -1575,7 +1608,7 @@ def main():
         if not issue_number:
             print("⚠️  本周计划 Issue 不存在，跳过", file=sys.stderr)
             return
-        review_text = generate_weekly_ai_review(week_info)
+        review_text = generate_weekly_ai_review(week_info) if not no_ai else None
         if review_text is None:
             review_text = "（无 AI 摘要）"
         print(f"   周回顾内容：{review_text[:80]}...")
