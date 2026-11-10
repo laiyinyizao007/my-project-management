@@ -1,3 +1,8 @@
+# ⚠️ 已停用 —— 自动建组改在本机跑（dsh-groups-setup.timer，每周日 23:00）。
+#
+# 本机那个跑的是同一套脚本：setup_project_issues.py --auto → sync_portfolio.py --auto
+# → export_repo_ledger.py。定时触发不可靠 + 依赖不全，所以搬回本机。
+#
 name: Sync GitHub Groups
 
 # 把「所有 GitHub 仓」自动同步成看板上的项目组：

@@ -1,3 +1,9 @@
+# ⚠️ 已停用 —— Notion 看板同步改在本机跑（dsh-notion-sync.timer，每 15 分钟）。
+#
+# 原因：GitHub Actions 的定时触发不可靠（cron 写 */15，实际只触发过 2 次），
+# 而且这里的依赖不全（注册表拖来 dotenv，workflow 没装 → 每次都秒挂）。
+# 本机对应物：dsh-notion-sync.timer
+#
 name: Sync Notion Board
 
 # Notion 当工作台，GitHub 当账本 —— 两边自动联动。
