@@ -5,6 +5,16 @@
 # fallback 的端点跟 SDK 格式对不上），而 DSH 本机跑的 LLM 一直是好的。
 set -u
 cd /home/averypi/Projects/my-project-management
+# ── 单实例租约（抄 CapGen 的做法：文件系统租约保证一个 profile 只有一个调度者）
+# 没有它，两个 DSH 进程共用一个 profile 时会重复跑（回顾会重复建 issue）。
+LOCK_DIR="$HOME/.dsh/project-console/locks"
+mkdir -p "$LOCK_DIR"
+LOCK_FILE="$LOCK_DIR/review.lock"
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  echo "⏭️  已有同一任务在跑（租约被占），跳过"
+  exit 0
+fi
 
 eval "$(python3 - <<'PYEOF'
 import yaml, io
