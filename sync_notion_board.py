@@ -1489,6 +1489,13 @@ def main():
     ap.add_argument("--dry-run", action="store_true", help="只看要做什么，不写 Notion")
     ap.add_argument("--check", action="store_true",
                     help="只查 Notion 有没有改动（有就回写 GitHub），不做全量刷新 —— 便宜，可以跑得勤")
+    ap.add_argument("--auto-mode", action="store_true",
+                    help="按上次全量刷新的时间决定这一轮做什么（查改动 / 全量刷新）")
+    ap.add_argument("--full-every-minutes", type=int, default=120,
+                    help="auto-mode 下，全量刷新的间隔（分钟）")
+    ap.add_argument("--state-file",
+                    default=str(Path.home() / ".dsh/project-console/sync-state.json"),
+                    help="auto-mode 下记录上次全量刷新时间的地方")
     args = ap.parse_args()
 
     token = read_token()
@@ -1506,6 +1513,25 @@ def main():
     if args.setup:
         print("✅ Notion 结构已就绪（分类 → 项目 → 仓库 → issue 四个库）")
         return 0
+
+    if args.auto_mode:
+        # 本机定时器用这个：距上次全量刷新够久就全量，否则只查改动。
+        state_file = Path(args.state_file)
+        last_full = 0.0
+        if state_file.is_file():
+            try:
+                last_full = float(json.loads(state_file.read_text(encoding="utf-8")).get("lastFull", 0))
+            except (OSError, ValueError, TypeError):
+                last_full = 0.0
+        age = (time.time() - last_full) / 60
+        args.check = age < args.full_every_minutes
+        if not args.check:
+            try:
+                state_file.parent.mkdir(parents=True, exist_ok=True)
+                state_file.write_text(json.dumps({"lastFull": time.time()}), encoding="utf-8")
+            except OSError:
+                pass
+        print(f"⏱ 距上次全量刷新 {age:.0f} 分钟 → 这一轮做{'查改动回写' if args.check else '全量刷新'}")
 
     if args.check:
         # 只回写：读 Notion（几个查询）→ 比对「上次同步」→ 有改动就写回 GitHub。

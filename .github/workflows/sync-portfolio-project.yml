@@ -47,6 +47,7 @@ jobs:
           python3 sync_portfolio.py \
             --project-number "$PROJECT_NUMBER" \
             --owner "$PORTFOLIO_OWNER" \
+            --auto \
             ${{ inputs.dry_run && '--dry-run' || '' }}
 
       - name: 同步摘要

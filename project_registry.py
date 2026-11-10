@@ -34,11 +34,16 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
-from update_profile import (  # noqa: E402
-    PERSONAL_SERIES_KEYS,
-    PROJECT_SERIES,
-    WORK_SERIES_KEYS,
-)
+# update_profile 只在下面打印精选项目时用得上，但它会拖来 dotenv / anthropic
+# 这些依赖 —— 同步脚本不需要它们，CI 上也没装。
+# 所以改成**惰性导入**：真正要用时再 import，import 本模块时什么都不依赖。
+def _series():
+    from update_profile import (  # noqa: E402
+        PERSONAL_SERIES_KEYS,
+        PROJECT_SERIES,
+        WORK_SERIES_KEYS,
+    )
+    return PERSONAL_SERIES_KEYS, PROJECT_SERIES, WORK_SERIES_KEYS
 
 # ── 分类（= 看板里的「分类」字段取值）──────────────────────────────
 CATEGORY_WORK = "客户交付"
@@ -402,6 +407,7 @@ def repo_meta(repos, name):
 
 if __name__ == "__main__":
     import json
+    _personal, _project, _work = _series()
     print(json.dumps(build_groups(), ensure_ascii=False, indent=2))
-    print(f"\n精选项目 {len(WORK_SERIES_KEYS) + len(PERSONAL_SERIES_KEYS)} 个 → "
+    print(f"\n精选项目 {len(_work) + len(_personal)} 个 → "
           f"项目组 {len(GROUPS)} 个；已删除仓库的精选项目: {sorted(DEAD_SERIES)}")

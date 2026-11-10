@@ -413,6 +413,25 @@ def _claude_call(client, *, max_wait_seconds=300, **kwargs):
     raise RuntimeError("Claude API 限额，重试次数耗尽，workflow 应失败")
 
 
+def _extract_text(resp, kind):
+    """从 LLM 响应里取文本。
+
+    端点返回的结构不一定是 SDK 预期的那个（填错 base_url、或中转服务自己改了格式），
+    这时候宁可把原样返回的字符串当答案，也别让整轮回顾直接崩掉。
+    """
+    try:
+        if kind == "openai":
+            return resp.choices[0].message.content.strip()
+        return resp.content[0].text.strip()
+    except (AttributeError, IndexError, KeyError, TypeError):
+        if isinstance(resp, str):
+            return resp.strip()
+        text = getattr(resp, "text", None)
+        if isinstance(text, str):
+            return text.strip()
+        raise
+
+
 def _make_client_with_env(api_key, base_url):
     """从给定 (api_key, base_url) 构造客户端。
     MiniMax/OpenAI 兼容端点用 openai SDK，其他用 anthropic SDK。
@@ -517,14 +536,14 @@ def _call_with_fallback(*, messages, max_tokens, system=None):
         fallback_kwargs = {"model": fallback_model, "max_tokens": max_tokens, "messages": openai_messages}
         print(f"🔄 切换到 fallback LLM（model={fallback_model}, openai）", file=sys.stderr)
         resp = _openai_call(fallback[1], **fallback_kwargs)
-        return resp.choices[0].message.content.strip()
+        return _extract_text(resp, "openai")
     else:
         fallback_kwargs = {"model": fallback_model, "max_tokens": max_tokens, "messages": messages}
         if system is not None:
             fallback_kwargs["system"] = system
         print(f"🔄 切换到 fallback LLM（model={fallback_model}）", file=sys.stderr)
         resp = _claude_call(fallback[1], **fallback_kwargs)
-        return resp.content[0].text.strip()
+        return _extract_text(resp, "anthropic")
 
 
 # ── 6. Claude Haiku 生成计划 ───────────────────────────────────────────────
