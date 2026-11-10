@@ -1,3 +1,13 @@
+# ⚠️ 这个 workflow 已停用 —— 回顾改在本机跑（systemd 定时器）。
+#
+# 原因：CI 里那两个 LLM key 都不好用（主 key 403 无权限，
+# fallback 的端点跟 SDK 格式对不上），而本机跑的 LLM 一直是好的。
+# 本机对应物：
+#   dsh-review-daily.timer     每天 21:30  每日回顾
+#   dsh-review-weekly.timer    每周一 09:00 周回顾
+#   dsh-review-autoclose.timer 每天 22:00  自动关闭已完成 Issue
+# 跑的是同一个 generate_weekly_plan.py，凭据取自 ~/.dsh/.credentials.yaml。
+#
 name: 每日回顾 & 周回顾自动更新
 # v1.17+：通过 LLM_FALLBACK_* 环境变量启用 Claude API 主备 fallback
 # 主 key 限流 / 失败时自动切换到备用 LLM；未设时行为等价于现状

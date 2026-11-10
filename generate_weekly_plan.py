@@ -432,14 +432,38 @@ def _extract_text(resp, kind):
         raise
 
 
-def _make_client_with_env(api_key, base_url):
+def _sanitize_no_proxy():
+    """把 NO_PROXY 里的方括号 IPv6 去掉。
+
+    httpx（anthropic / openai SDK 底下）会把 NO_PROXY 的每一项当 URL pattern 解析，
+    "[::1]" 这种写法让它把 ":1]" 当成端口 → InvalidURL: Invalid port。
+    本机的 NO_PROXY 正好带方括号 IPv6（见 dsh-web.service 的环境），
+    所以在本地跑 LLM 调用会直接炸 —— 去掉方括号就行。
+    """
+    for key in ("NO_PROXY", "no_proxy"):
+        value = os.environ.get(key)
+        if not value:
+            continue
+        parts = []
+        for item in value.split(","):
+            item = item.strip()
+            if item.startswith("[") and item.endswith("]"):
+                item = item[1:-1]
+            if item:
+                parts.append(item)
+        os.environ[key] = ",".join(parts)
+
+
+def _make_client_with_env(api_key, base_url, explicit_format=None):
     """从给定 (api_key, base_url) 构造客户端。
     MiniMax/OpenAI 兼容端点用 openai SDK，其他用 anthropic SDK。
     返回 (client_type, client) 元组，client_type 为 "openai" 或 "anthropic"。
     """
     if not api_key:
         return None
-    if base_url and ("minimax" in base_url.lower() or "openai" in base_url.lower()):
+    _sanitize_no_proxy()
+    kind = _client_kind(base_url, explicit_format)
+    if kind == "openai":
         from openai import OpenAI
         kwargs = {"api_key": api_key}
         if base_url:
@@ -451,6 +475,29 @@ def _make_client_with_env(api_key, base_url):
         if base_url:
             kwargs["base_url"] = base_url
         return ("anthropic", anthropic.Anthropic(**kwargs))
+
+
+def _client_kind(base_url, explicit=None):
+    """判断端点该用哪个 SDK。
+
+    **不能按域名里有没有 "minimax" 来判断** —— MiniMax 国内站的地址是
+    https://api.minimaxi.com/anthropic，它是 **Anthropic 兼容**的；
+    按名字猜成 openai 就会用错 SDK，响应结构对不上，整轮直接崩。
+
+    判据：
+      1. 显式指定（LLM_PRIMARY_FORMAT / LLM_FALLBACK_FORMAT）最优先
+      2. 路径里有 /anthropic → anthropic
+      3. 其余（/v1 之类）→ openai
+    """
+    fmt = (explicit or os.environ.get("LLM_FORMAT") or "").strip().lower()
+    if fmt in ("openai", "anthropic"):
+        return fmt
+    url = (base_url or "").lower()
+    if "/anthropic" in url:
+        return "anthropic"
+    if url:
+        return "openai"
+    return "anthropic"
 
 
 def _make_client():
@@ -504,10 +551,10 @@ def _call_with_fallback(*, messages, max_tokens, system=None):
     try:
         if primary[0] == "openai":
             resp = _openai_call(primary[1], **primary_kwargs)
-            return resp.choices[0].message.content.strip()
+            return _extract_text(resp, "openai")
         else:
             resp = _claude_call(primary[1], **primary_kwargs)
-            return resp.content[0].text.strip()
+            return _extract_text(resp, "anthropic")
     except Exception as e:
         primary_exc = e
         print(f"⚠️  主 LLM 失败：{type(e).__name__}: {e}", file=sys.stderr)
@@ -522,6 +569,7 @@ def _call_with_fallback(*, messages, max_tokens, system=None):
     fallback = _make_client_with_env(
         fallback_key,
         os.environ.get("LLM_FALLBACK_BASE_URL"),
+        os.environ.get("LLM_FALLBACK_FORMAT"),
     )
     if not fallback:
         raise RuntimeError("LLM_FALLBACK_API_KEY 已设但 client 创建失败") from primary_exc
@@ -1096,7 +1144,7 @@ def generate_daily_ai_review(today_commits_by_repo, total_tracked_count=None):
     print(f"[INFO] LLM 输入：{n} 个仓库（shared={len(shared)}, mixed={len(mixed)}, unique_only={len(unique_only)}, batch_only={len(batch_only)}），sections {len(sections)} 字符")
 
     resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=1500)
-    text = resp.content[0].text.strip()
+    text = _extract_text(resp, "anthropic")
     bullet_lines = [ln for ln in text.splitlines() if ln.strip().startswith("-")]
     print(f"[INFO] LLM 响应：{len(text)} 字符，提取到 {len(bullet_lines)} 条摘要行")
     completed = "\n".join(bullet_lines) if bullet_lines else "- （详见 commits）"
@@ -1131,7 +1179,7 @@ def generate_weekly_ai_review(week_info):
     resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=150)
     if resp is None:
         return None
-    return resp.content[0].text.strip()
+    return _extract_text(resp, "anthropic")
 
 
 def _patch_issue_body(issue_number, new_body):
@@ -1259,7 +1307,7 @@ Open issues（type: task）：
 不相关的不要返回。只返回 JSON，不要其他文字。"""
     try:
         resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=300)
-        text = resp.content[0].text.strip()
+        text = _extract_text(resp, "anthropic")
         # 提取 JSON 部分
         m = re.search(r'\[.*\]', text, re.DOTALL)
         if not m:
@@ -1404,7 +1452,7 @@ def backfill_missing_issues(today_commits):
 
         try:
             resp = _call_with_fallback(messages=[{"role": "user", "content": prompt}], max_tokens=600)
-            text = resp.content[0].text.strip()
+            text = _extract_text(resp, "anthropic")
             m = re.search(r'\[.*\]', text, re.DOTALL)
             if not m:
                 print(f"   ℹ️  {repo}：AI 返回无需补建")
