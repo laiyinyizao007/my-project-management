@@ -1514,6 +1514,7 @@ def main():
         print("✅ Notion 结构已就绪（分类 → 项目 → 仓库 → issue 四个库）")
         return 0
 
+    _pending_full_state = None
     if args.auto_mode:
         # 本机定时器用这个：距上次全量刷新够久就全量，否则只查改动。
         state_file = Path(args.state_file)
@@ -1526,11 +1527,11 @@ def main():
         age = (time.time() - last_full) / 60
         args.check = age < args.full_every_minutes
         if not args.check:
-            try:
-                state_file.parent.mkdir(parents=True, exist_ok=True)
-                state_file.write_text(json.dumps({"lastFull": time.time()}), encoding="utf-8")
-            except OSError:
-                pass
+            # 标记必须等这轮全量刷新**真的成功**后再写。
+            # 之前在开头就写，失败也写上了 → 一次失败就把「最近全量刷新」推到那一刻，
+            # 接下来两小时都不再全量刷新，Notion 镜像悄悄陈旧好几个小时。
+            # （是被 CapGen fork 里那个「同步巡检」agent 任务抓出来的。）
+            _pending_full_state = state_file
         print(f"⏱ 距上次全量刷新 {age:.0f} 分钟 → 这一轮做{'查改动回写' if args.check else '全量刷新'}")
 
     if args.check:
