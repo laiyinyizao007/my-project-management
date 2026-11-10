@@ -1614,6 +1614,14 @@ def main():
     for key, state in state_changes:
         print(f"   ↩ issue {key} → {state}")
 
+    if _pending_full_state is not None:
+        try:
+            _pending_full_state.parent.mkdir(parents=True, exist_ok=True)
+            _pending_full_state.write_text(json.dumps({"lastFull": time.time()}), encoding="utf-8")
+            print(f"✅ 已记录全量刷新时间 → {_pending_full_state}")
+        except OSError:
+            pass
+
     # 反向关系（Notion API 建的关系不会自动互填，rollup 靠它们）
     sync_reverse(notion, dbs, groups, repos, group_ids, repo_ids, issue_ids, args.dry_run)
     print("✅ 反向关系已填（域→项目/仓库、项目→任务、仓库→issue）")
